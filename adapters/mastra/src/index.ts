@@ -1,0 +1,2 @@
+// Mastra shield adapter.
+export {};

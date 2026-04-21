@@ -1,0 +1,14 @@
+{
+  "name": "@foxbook/adapter-dns",
+  "version": "0.0.0",
+  "private": true,
+  "description": "DNS TXT challenge Tier-2 adapter.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'no tests yet' && exit 0",
+    "lint": "biome lint ."
+  }
+}

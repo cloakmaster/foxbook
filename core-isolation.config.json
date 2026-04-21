@@ -1,0 +1,47 @@
+{
+  "$schema-note": "No JSON Schema; this file is read by scripts/check-core-isolation.mjs. Additions allowed. Removals require an ADR and Benjamin sign-off (see docs/decisions/0001-service-agnostic-core.md).",
+  "serviceAgnosticZones": ["core/**", "packages/**"],
+  "adapterZone": "adapters/*",
+  "bannedImports": [
+    "x402",
+    "ap2",
+    "coinbase",
+    "@coinbase/*",
+    "anthropic",
+    "@anthropic-ai/*",
+    "openai",
+    "langchain",
+    "@langchain/*",
+    "crewai",
+    "langgraph",
+    "@langgraph/*",
+    "mastra",
+    "@mastra/*",
+    "@octokit/*",
+    "github",
+    "@actions/github",
+    "resend",
+    "sigstore",
+    "@sigstore/*",
+    "stripe",
+    "@stripe/*"
+  ],
+  "bannedCapabilityLiterals": [
+    "translation",
+    "summarization",
+    "transcription",
+    "embedding",
+    "classification",
+    "ocr",
+    "speech-to-text",
+    "text-to-speech"
+  ],
+  "allowedFromServiceAgnostic": ["packages/*", "@foxbook/packages/*"],
+  "forbiddenFromServiceAgnostic": ["adapters/*", "@foxbook/adapters/*", "@foxbook/adapter-*"],
+  "notes": [
+    "serviceAgnosticZones = zones that must stay free of service-specific code. Both core/ and packages/ are covered — packages/ is core-adjacent shared infrastructure (db schema, types, shield middleware core) and must not reach for rails/frameworks directly either.",
+    "adapterZone = the only place where service-specific imports (x402, langchain, etc.) are legal. Each adapters/<name>/ CAN and SHOULD import <name>.",
+    "bannedCapabilityLiterals: string literals that encode a specific capability domain. Core must not know about 'translation' as a concept — that belongs to adapters/scouts.",
+    "To add a new adapter: create adapters/<name>/, add <name> to adapter-imports allowlist if needed, no core changes required."
+  ]
+}
