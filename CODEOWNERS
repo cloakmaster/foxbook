@@ -1,0 +1,16 @@
+# Benjamin owns rule-enforcement files. Do not weaken these silently.
+# Changes here require explicit review, ideally with an ADR.
+# See docs/decisions/0001-service-agnostic-core.md.
+
+/core/                                @cloakmaster
+/schemas/                             @cloakmaster
+/adapters/                            @cloakmaster
+/.github/workflows/                   @cloakmaster
+/scripts/check-core-isolation.mjs     @cloakmaster
+/scripts/check-no-deskduck.mjs        @cloakmaster
+/scripts/check-generated.mjs          @cloakmaster
+/scripts/generate-types.mjs           @cloakmaster
+/core-isolation.config.json           @cloakmaster
+/docs/foundation/                     @cloakmaster
+/docs/decisions/                      @cloakmaster
+/CODEOWNERS                           @cloakmaster
