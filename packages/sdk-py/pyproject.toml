@@ -3,7 +3,11 @@ name = "foxbook-sdk"
 version = "0.0.0"
 description = "Foxbook Python SDK — discover, hire, report helpers for agents."
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+  "cryptography>=45",
+  "python-ulid>=3",
+  "typing-extensions>=4.12",
+]
 
 [build-system]
 requires = ["hatchling"]
