@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://foxbook.ai/schemas/envelope/v1.json",
+  "title": "Foxbook Firehose Envelope (v1)",
+  "description": "Canonical envelope for every hire-and-report event published to foxbook.ai/live. DRAFT — content freezes day 7–9 per PROJECT-PLAN.md. See foxbook-foundation.md §8.1.1 for the authoritative shape. Additive changes only within v1.x; breaking changes require envelope_version bump and ≥90-day deprecation (LOCKED.md).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "envelope_version",
+    "event_id",
+    "event_type",
+    "reported_at",
+    "published_at",
+    "hirer",
+    "hiree",
+    "task",
+    "payment",
+    "transparency_log_entry",
+    "signatures"
+  ],
+  "properties": {
+    "envelope_version": {
+      "type": "string",
+      "const": "1.0-draft",
+      "description": "Draft marker. Flips to \"1.0\" at freeze time (day 7–9)."
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^fbx_[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "ULID-based event identifier prefixed fbx_."
+    },
+    "event_type": {
+      "type": "string",
+      "enum": ["hire.settled", "hire.failed", "delegation.announced"]
+    },
+    "reported_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the agents finished settling, ISO-8601."
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When Foxbook fanned the event to the firehose. published_at - reported_at feeds the p95 staleness SLO."
+    },
+    "hirer": { "$ref": "#/$defs/agentRef" },
+    "hiree": { "$ref": "#/$defs/agentRef" },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability", "outcome"],
+      "properties": {
+        "capability": {
+          "type": "string",
+          "description": "Capability slug (e.g. json-repair, transcription). Canonical list lives in schemas/capabilities.v1.json."
+        },
+        "summary": { "type": "string", "maxLength": 240 },
+        "latency_ms": { "type": "integer", "minimum": 0 },
+        "outcome": { "type": "string", "enum": ["success", "partial", "failure"] }
+      }
+    },
+    "rating": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stars": { "type": "number", "minimum": 0, "maximum": 5 },
+        "rater_class": { "type": "string", "enum": ["external", "self", "audit"] }
+      }
+    },
+    "payment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rail", "amount", "currency"],
+      "properties": {
+        "rail": { "type": "string", "enum": ["x402", "ap2", "mpp"] },
+        "amount": {
+          "type": "string",
+          "description": "Decimal string to avoid float precision issues."
+        },
+        "currency": { "type": "string" },
+        "chain": { "type": "string" },
+        "tx_hash": { "type": "string" },
+        "receipt_url": { "type": "string", "format": "uri" }
+      }
+    },
+    "delegation_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "parent_event_id": { "type": ["string", "null"] },
+        "declared_sub_agent_deps": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "transparency_log_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["log_id", "leaf_index", "leaf_hash"],
+      "properties": {
+        "log_id": { "type": "string" },
+        "leaf_index": { "type": "integer", "minimum": 0 },
+        "leaf_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      }
+    },
+    "signatures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hirer_sig", "foxbook_sig"],
+      "properties": {
+        "hirer_sig": { "type": "string", "description": "JWS signature from hirer." },
+        "hiree_sig": {
+          "type": "string",
+          "description": "JWS signature from hiree (optional for failed hires)."
+        },
+        "foxbook_sig": { "type": "string", "description": "JWS counter-signature from Foxbook." }
+      }
+    }
+  },
+  "$defs": {
+    "agentRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["did", "url", "verification_tier", "version_hash"],
+      "properties": {
+        "did": { "type": "string", "pattern": "^did:foxbook:[0-9A-HJKMNP-TV-Z]{26}$" },
+        "url": { "type": "string", "format": "uri-reference" },
+        "verification_tier": { "type": "integer", "minimum": 0, "maximum": 4 },
+        "version_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      }
+    }
+  }
+}
