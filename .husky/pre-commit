@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+# Pre-commit enforcement. If any step fails, commit aborts.
+# See docs/decisions/0001-service-agnostic-core.md for the why.
+
+set -e
+
+echo "→ biome format/lint"
+pnpm biome check --write --no-errors-on-unmatched
+
+echo "→ typecheck"
+pnpm typecheck
+
+echo "→ core-isolation"
+pnpm check:core-isolation
+
+echo "→ no-deskduck"
+pnpm check:no-deskduck
+
+echo "→ generated-types drift"
+pnpm check:generated
+
+echo "✓ all pre-commit checks passed"

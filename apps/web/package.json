@@ -1,0 +1,14 @@
+{
+  "name": "@foxbook/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Next.js App Router — landing + profiles + discover UI.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'no tests yet' && exit 0",
+    "lint": "biome lint ."
+  }
+}

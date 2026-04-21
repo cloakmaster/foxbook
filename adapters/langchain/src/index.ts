@@ -1,0 +1,2 @@
+// LangChain shield adapter.
+export {};

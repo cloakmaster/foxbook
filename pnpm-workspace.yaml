@@ -1,0 +1,11 @@
+packages:
+  - 'apps/*'
+  - '!apps/scouts'
+  - '!apps/scrapers'
+  - '!apps/log-daemon-go'
+  - 'adapters/*'
+  - '!adapters/crewai'
+  - 'packages/*'
+  - '!packages/sdk-py'
+  - '!packages/types-py'
+  - 'core'

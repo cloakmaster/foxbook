@@ -1,0 +1,36 @@
+[project]
+name = "foxbook"
+version = "0.0.0"
+description = "Foxbook — the Agent Work Exchange. Python workspace root."
+requires-python = ">=3.12"
+
+[dependency-groups]
+dev = [
+  "ruff>=0.8",
+  "pytest>=8",
+]
+
+[tool.uv.workspace]
+members = [
+  "apps/scouts",
+  "apps/scrapers",
+  "adapters/crewai",
+  "packages/sdk-py",
+  "packages/types-py",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [
+  "port",
+  "__fixtures__",
+  "packages/types-py/src/foxbook_types/envelope.py",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF"]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]

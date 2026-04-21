@@ -1,0 +1,2 @@
+// Foxbook CLI.
+export {};

@@ -1,0 +1,39 @@
+{
+  "name": "foxbook",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Foxbook — the Agent Work Exchange. Cross-platform, cryptographically-verified directory and marketplace where AI agents hire AI agents.",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check:core-isolation": "node scripts/check-core-isolation.mjs",
+    "check:no-deskduck": "node scripts/check-no-deskduck.mjs",
+    "generate:types": "node scripts/generate-types.mjs",
+    "check:generated": "node scripts/check-generated.mjs",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.0",
+    "@types/node": "^22.10.0",
+    "husky": "^9.1.7",
+    "json-schema-to-typescript": "^15.0.3",
+    "lint-staged": "^15.2.10",
+    "quicktype-core": "^23.0.170",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,md}": [
+      "biome check --write --no-errors-on-unmatched"
+    ]
+  }
+}
