@@ -26,6 +26,7 @@ extend-exclude = [
   "port",
   "__fixtures__",
   "packages/types-py/src/foxbook_types/envelope.py",
+  "packages/types-py/src/foxbook_types/discover_response.py",
 ]
 
 [tool.ruff.lint]

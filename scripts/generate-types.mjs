@@ -3,7 +3,9 @@
 // Regenerates TS and Python types from schemas/*.
 // Outputs:
 //   packages/types-ts/src/envelope.ts
+//   packages/types-ts/src/discover-response.ts
 //   packages/types-py/src/foxbook_types/envelope.py
+//   packages/types-py/src/foxbook_types/discover_response.py
 //
 // CI + pre-commit run `check-generated.mjs` which invokes this then diffs.
 
@@ -23,37 +25,48 @@ const schemas = [
     pyOut: "packages/types-py/src/foxbook_types/envelope.py",
     topLevelName: "Envelope",
   },
+  {
+    id: "discover-response",
+    schemaPath: "schemas/discover-response.v1.json",
+    tsOut: "packages/types-ts/src/discover-response.ts",
+    pyOut: "packages/types-py/src/foxbook_types/discover_response.py",
+    topLevelName: "DiscoverResponse",
+  },
 ];
 
-const GENERATED_HEADER_TS = [
-  "// AUTO-GENERATED — do not hand-edit.",
-  "// Source: schemas/envelope/v1.json",
-  "// Regenerate via `pnpm generate:types`.",
-  "",
-].join("\n");
+function headerTs(schemaPath) {
+  return [
+    "// AUTO-GENERATED — do not hand-edit.",
+    `// Source: ${schemaPath}`,
+    "// Regenerate via `pnpm generate:types`.",
+    "",
+  ].join("\n");
+}
 
-const GENERATED_HEADER_PY = [
-  "# AUTO-GENERATED — do not hand-edit.",
-  "# Source: schemas/envelope/v1.json",
-  "# Regenerate via `pnpm generate:types`.",
-  "",
-].join("\n");
+function headerPy(schemaPath) {
+  return [
+    "# AUTO-GENERATED — do not hand-edit.",
+    `# Source: ${schemaPath}`,
+    "# Regenerate via `pnpm generate:types`.",
+    "",
+  ].join("\n");
+}
 
 function ensureDir(p) {
   mkdirSync(dirname(p), { recursive: true });
 }
 
-async function generateTs(schemaAbs, outAbs) {
+async function generateTs(schemaAbs, outAbs, schemaPath) {
   const compiled = await compileFromFile(schemaAbs, {
     bannerComment: "",
     additionalProperties: false,
     style: { singleQuote: false, printWidth: 100 },
   });
   ensureDir(outAbs);
-  writeFileSync(outAbs, GENERATED_HEADER_TS + compiled);
+  writeFileSync(outAbs, headerTs(schemaPath) + compiled);
 }
 
-async function generatePython(schemaAbs, outAbs, topLevelName) {
+async function generatePython(schemaAbs, outAbs, topLevelName, schemaPath) {
   const schemaInput = new JSONSchemaInput(new FetchingJSONSchemaStore());
   await schemaInput.addSource({
     name: topLevelName,
@@ -69,7 +82,7 @@ async function generatePython(schemaAbs, outAbs, topLevelName) {
   });
 
   ensureDir(outAbs);
-  writeFileSync(outAbs, GENERATED_HEADER_PY + result.lines.join("\n") + "\n");
+  writeFileSync(outAbs, headerPy(schemaPath) + result.lines.join("\n") + "\n");
 }
 
 async function main() {
@@ -78,8 +91,8 @@ async function main() {
     const tsAbs = join(REPO_ROOT, s.tsOut);
     const pyAbs = join(REPO_ROOT, s.pyOut);
 
-    await generateTs(schemaAbs, tsAbs);
-    await generatePython(schemaAbs, pyAbs, s.topLevelName);
+    await generateTs(schemaAbs, tsAbs, s.schemaPath);
+    await generatePython(schemaAbs, pyAbs, s.topLevelName, s.schemaPath);
     console.log(`✓ generated types from ${s.schemaPath}`);
     console.log(`    → ${s.tsOut}`);
     console.log(`    → ${s.pyOut}`);

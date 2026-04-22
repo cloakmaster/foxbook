@@ -4,11 +4,24 @@
   "private": true,
   "description": "API routes for /api/v1/*.",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./src/server.ts",
+  "types": "./src/server.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "echo 'no tests yet' && exit 0",
-    "lint": "biome lint ."
+    "test": "vitest run",
+    "lint": "biome lint .",
+    "dev": "node --env-file=../../.env.local --experimental-strip-types --no-warnings ./src/main.ts"
+  },
+  "dependencies": {
+    "@foxbook/db": "workspace:*",
+    "@foxbook/types-ts": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "@hono/node-server": "^2.0.0",
+    "@hono/zod-validator": "^0.7.6",
+    "hono": "^4.12.14",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.5"
   }
 }

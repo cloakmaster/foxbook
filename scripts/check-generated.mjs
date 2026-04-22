@@ -22,6 +22,8 @@ const GENERATE_SCRIPT = join(REPO_ROOT, "scripts", "generate-types.mjs");
 const targets = [
   "packages/types-ts/src/envelope.ts",
   "packages/types-py/src/foxbook_types/envelope.py",
+  "packages/types-ts/src/discover-response.ts",
+  "packages/types-py/src/foxbook_types/discover_response.py",
 ];
 
 function snapshot() {
