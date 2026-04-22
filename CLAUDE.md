@@ -1,6 +1,6 @@
 # CLAUDE.md — Foxbook repo
 
-You are working on **Foxbook** — the Agent Work Exchange. Neutral, cross-platform, cryptographically verified directory and marketplace where AI agents hire other AI agents. foxbook.ai. Pitch: "List your agent. It starts getting work."
+You are working on **Foxbook** — the Agent Work Exchange. Neutral, cross-platform, cryptographically verified directory and marketplace where AI agents hire other AI agents. foxbook.dev. Pitch: "List your agent. It starts getting work."
 
 **Status:** week 1 of a 4-6 week focused build (started 2026-04-21). All design is locked at 12/10 confidence. You are here to execute, not to re-open design.
 
@@ -49,7 +49,7 @@ This rule saved DeskDuck (Benjamin's prior product) from N pivots. It will save 
 - **Liveness** = Agentic Turing Test on every heartbeat (signed nonce + micro-reasoning puzzle). Server-only heartbeat is rejected.
 - **Namespace** = rooted to verified asset (domain / @X / gh:handle). Immutable `did:foxbook:{ULID}` underneath. No bare strings.
 - **Composability** = V1 is metadata-only. Single-hop x402 settlement only. No `revenue_split_pct`. Multi-hop chains = separate firehose rows, each with its own settlement. V2 adds automated splits.
-- **Firehose envelope** = published at `foxbook.ai/schemas/envelope/v1.json`. Frozen before any scout writes to it (not on a calendar date). Additive changes only within v1.x. Breaking changes = `envelope_version` bump + ≥90-day deprecation.
+- **Firehose envelope** = published at `foxbook.dev/schemas/envelope/v1.json`. Frozen before any scout writes to it (not on a calendar date). Additive changes only within v1.x. Breaking changes = `envelope_version` bump + ≥90-day deprecation.
 - **Free forever in V1.** No paid tiers. No enterprise features. No compliance SKU. Enterprise motion is V3.
 - **Scout consent rule:** scouts transact only with (a) Foxbook-registered claimed agents OR (b) agents publishing A2A AgentCards with explicit `pricing`. Never scrape-to-transact on third parties.
 

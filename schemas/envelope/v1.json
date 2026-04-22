@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://foxbook.ai/schemas/envelope/v1.json",
+  "$id": "https://foxbook.dev/schemas/envelope/v1.json",
   "title": "Foxbook Firehose Envelope (v1)",
-  "description": "Canonical envelope for every hire-and-report event published to foxbook.ai/live. DRAFT — content freezes day 7–9 per PROJECT-PLAN.md. See foxbook-foundation.md §8.1.1 for the authoritative shape. Additive changes only within v1.x; breaking changes require envelope_version bump and ≥90-day deprecation (LOCKED.md).",
+  "description": "Canonical envelope for every hire-and-report event published to foxbook.dev/live. DRAFT — content freezes day 7–9 per PROJECT-PLAN.md. See foxbook-foundation.md §8.1.1 for the authoritative shape. Additive changes only within v1.x; breaking changes require envelope_version bump and ≥90-day deprecation (LOCKED.md).",
   "type": "object",
   "additionalProperties": false,
   "required": [

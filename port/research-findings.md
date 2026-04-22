@@ -237,7 +237,7 @@ All three strategic modifications below are accepted. Everything not listed here
 
 ### Mod 1 — Manifest format
 
-- **Old:** Foxbook-native JSON at `/foxbook.ai/{owner}/{agent}/manifest.json` + `.well-known/agent.json`.
+- **Old:** Foxbook-native JSON at `/foxbook.dev/{owner}/{agent}/manifest.json` + `.well-known/agent.json`.
 - **New:** A2A AgentCard superset at `/.well-known/agent-card.json` (A2A standard path). Foxbook-specific fields under `x-foxbook` namespace. Foxbook's profile page renders both the A2A-standard fields and the x-foxbook extensions.
 - **Foxbook-specific fields (under `x-foxbook`):**
   - `verification_tier` (0–5)
@@ -274,8 +274,8 @@ All three strategic modifications below are accepted. Everything not listed here
 
 ## 7. Unchanged from prior design (for clarity)
 
-- URL format: `foxbook.ai/{verified_asset}/{agent}` (domain / `@handle` / `gh:handle`). Underneath, every agent has `did:foxbook:...` UUID.
-- Class vs Instance: `foxbook.ai/owner/agent` (class) vs `foxbook.ai/owner/agent/i/{uuid}` (instance).
+- URL format: `foxbook.dev/{verified_asset}/{agent}` (domain / `@handle` / `gh:handle`). Underneath, every agent has `did:foxbook:...` UUID.
+- Class vs Instance: `foxbook.dev/owner/agent` (class) vs `foxbook.dev/owner/agent/i/{uuid}` (instance).
 - Six verification tiers, GitHub Gist primary for Tier 1 (tweet + email secondary).
 - Cryptographic stack: per-agent Ed25519 keypair, JWS for manifests and challenges, own Merkle transparency log, W3C DID wrapper. **Sigstore is optional Tier 4 cryptographic-signed badge** for CI-pipeline devs, not the spine.
 - Agentic Turing Test heartbeat: signed nonce + randomized reasoning puzzle. Yellow badge on brain-swap.
