@@ -8,7 +8,13 @@
   "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "echo 'no tests yet' && exit 0",
+    "test": "vitest run",
     "lint": "biome lint ."
+  },
+  "dependencies": {
+    "resend": "^6.12.2"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.5"
   }
 }
