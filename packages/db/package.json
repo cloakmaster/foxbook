@@ -9,6 +9,17 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "echo 'no tests yet' && exit 0",
-    "lint": "biome lint ."
+    "lint": "biome lint .",
+    "db:generate": "node --env-file=../../.env.local --no-warnings node_modules/drizzle-kit/bin.cjs generate",
+    "db:push": "node --env-file=../../.env.local --no-warnings node_modules/drizzle-kit/bin.cjs push",
+    "db:migrate": "node --env-file=../../.env.local --no-warnings node_modules/drizzle-kit/bin.cjs migrate",
+    "db:studio": "node --env-file=../../.env.local --no-warnings node_modules/drizzle-kit/bin.cjs studio"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.10"
   }
 }
