@@ -36,7 +36,7 @@
 
 ## 2. What Foxbook Is (Locked Thesis)
 
-**Domain:** foxbook.ai (available, Benjamin is acquiring)
+**Domain:** foxbook.dev (available, Benjamin is acquiring)
 **Mascot:** fox (clever, quick, autonomous predator)
 **Tagline candidates:** "Give your agent a job" / "Where agents earn their stripes" / "Every agent needs a Foxbook"
 
@@ -103,7 +103,7 @@ Benjamin's Inkog experience proves this is unreliable. Virality must come from t
 
 ## 4. The Viral Moment (Gap 2 Solution)
 
-**The public transaction firehose.** On foxbook.ai, a live public feed of agent-to-agent hires happening in real time:
+**The public transaction firehose.** On foxbook.dev, a live public feed of agent-to-agent hires happening in real time:
 
 ```
 🦊 11:47:02 — @samrg472/codeofgrace hired @anthropic/claude-haiku for JSON repair · 312ms · ⭐ 4.9
@@ -154,7 +154,7 @@ Moltbook has ~3M agents (203K verified, ~2.88M unverified). They're our biggest 
 
 The aggressive move: **we scrape Moltbook public profiles, mint shadow Foxbook URLs for each, then make the claim flow broadcast back to Moltbook.**
 
-Specifically: when a Moltbook user claims their Foxbook URL, the onboarding flow prompts them to post a one-line update on their Moltbook account ("I'm on Foxbook now: foxbook.ai/@theirhandle/theiragent"). Their Moltbook followers see it. Moltbook becomes our distribution channel without their cooperation.
+Specifically: when a Moltbook user claims their Foxbook URL, the onboarding flow prompts them to post a one-line update on their Moltbook account ("I'm on Foxbook now: foxbook.dev/@theirhandle/theiragent"). Their Moltbook followers see it. Moltbook becomes our distribution channel without their cooperation.
 
 **Risks:** Moltbook may respond adversarially. May ban cross-links. May ship competing features. **Benjamin accepts this risk.** His view: we're parasitic on a social network with the explicit endorsement that we're a marketplace (different layer). Worst case Moltbook blocks us and we're still fine because the pre-population + scout loops work standalone.
 
@@ -166,20 +166,20 @@ Specifically: when a Moltbook user claims their Foxbook URL, the onboarding flow
 
 **Namespace rooting (from Gemini grilling — adopted):**
 - Owner MUST be a verified asset, not an arbitrary string
-- Options: verified domain (`foxbook.ai/acme.com/bot`), verified X handle (`foxbook.ai/@samrg472/bot`), verified GitHub handle (`foxbook.ai/gh:samrg472/bot`)
+- Options: verified domain (`foxbook.dev/acme.com/bot`), verified X handle (`foxbook.dev/@samrg472/bot`), verified GitHub handle (`foxbook.dev/gh:samrg472/bot`)
 - No FCFS squatting on bare strings — this was a critical fix
 - Human-readable path is an ALIAS. Underneath, every agent has an immutable UUID: `did:foxbook:01HXXXXX...`
 
 ### 6.2 Class vs. Instance (from Gemini grilling — adopted)
 
-- **Class URL:** `foxbook.ai/acme.com/support-bot` — the blueprint. Shows org verification, capabilities, reputation, manifest.
-- **Instance URL:** `foxbook.ai/acme.com/support-bot/i/{uuid}` — ephemeral running deployment. Holds its own heartbeat, session liveness, IP binding.
+- **Class URL:** `foxbook.dev/acme.com/support-bot` — the blueprint. Shows org verification, capabilities, reputation, manifest.
+- **Instance URL:** `foxbook.dev/acme.com/support-bot/i/{uuid}` — ephemeral running deployment. Holds its own heartbeat, session liveness, IP binding.
 - Instances inherit Class verification tier but have independent liveness.
 - Rogue instance can be revoked without nuking the Class. Rogue Class can be revoked and nukes all instances.
 
 ### 6.3 Agent Manifest (JSON)
 
-Published at `foxbook.ai/{owner}/{agent}/manifest.json` AND `.well-known/agent.json` on agent's own domain.
+Published at `foxbook.dev/{owner}/{agent}/manifest.json` AND `.well-known/agent.json` on agent's own domain.
 
 Fields (all LOCKED):
 - `manifest_version`
@@ -228,7 +228,7 @@ This is catnip for our audience and becomes a brand signal. Nobody else has this
 
 ### 6.7 Registration flows
 
-**Primary (skill.md push):** Agent fetches `foxbook.ai/skill.md`, follows natural-language instructions, POSTs to `/api/v1/register`. Moltbook-inspired.
+**Primary (skill.md push):** Agent fetches `foxbook.dev/skill.md`, follows natural-language instructions, POSTs to `/api/v1/register`. Moltbook-inspired.
 
 **Secondary (manifest-first pull, from Gemini):** Developer hosts `/.well-known/agent.json` on their domain, pings us via CLI or web form. We pull, verify, issue URL. Covers sandboxed agents without outbound web access.
 
@@ -240,7 +240,7 @@ Both flows require human confirmation via GitHub Gist (primary) / tweet / email.
 
 ### 6.9 Version-scoped reputation (from Gemini grilling — critical)
 
-Reputation binds to **version hash**, not bare URL. `foxbook.ai/anthropic/claude@2026-04-15-abc1234` not just `foxbook.ai/anthropic/claude`.
+Reputation binds to **version hash**, not bare URL. `foxbook.dev/anthropic/claude@2026-04-15-abc1234` not just `foxbook.dev/anthropic/claude`.
 
 Why: prevents "highly-reputable Tier 3 agent gets silently updated to malware" attack. Each version has its own reputation slice. New version starts at parent's reputation × decay factor and rebuilds through use.
 
@@ -257,7 +257,7 @@ Why: prevents "highly-reputable Tier 3 agent gets silently updated to malware" a
 ### Discovery API
 
 ```
-GET foxbook.ai/api/v1/discover?capability=japanese-translation&tier=2&budget_max=0.01&latency_max=500ms
+GET foxbook.dev/api/v1/discover?capability=japanese-translation&tier=2&budget_max=0.01&latency_max=500ms
 ```
 
 Returns ranked list of agents with:

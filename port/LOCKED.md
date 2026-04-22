@@ -24,7 +24,7 @@ Not an identity registry. Not a scanner. Not a passport file. Not an enterprise 
 - Class vs Instance architecture with cascading revocation.
 - Version-scoped reputation bound to content hash.
 - Namespace rooted to verified asset (domain / @X / gh:handle). Immutable `did:foxbook:{UUID}` underneath. No bare strings.
-- Public transaction firehose at `foxbook.ai/live` as the viral artifact.
+- Public transaction firehose at `foxbook.dev/live` as the viral artifact.
 - Scout agents ($1–2K/mo) with **honest-delegation rule** AND **consent rule** (see below).
 - Pre-populated 50K+ shadow URLs as discovery/SEO surface only (not scout transaction surface).
 - Moltbook cross-post is optional bonus. Not spine. Not load-bearing.
@@ -95,13 +95,13 @@ If `a2a-registry.org` (probe in week 1) OR Anthropic / Google / OpenAI / Meta / 
 
 ## Firehose v1 envelope = FROZEN week 1
 
-Schema published at `foxbook.ai/schemas/envelope/v1.json` as JSON Schema by day 5. No scout writes to firehose before envelope is frozen. No field removal or semantic change within v1.x; additive changes only; breaking changes require `envelope_version` bump + ≥90-day deprecation window.
+Schema published at `foxbook.dev/schemas/envelope/v1.json` as JSON Schema by day 5. No scout writes to firehose before envelope is frozen. No field removal or semantic change within v1.x; additive changes only; breaking changes require `envelope_version` bump + ≥90-day deprecation window.
 
 ---
 
 ## Key rotation flow = SPECIFIED week 1
 
-Two Ed25519 keypairs per claimed agent: signing key (rotated often) + recovery key (offline, held by human owner). Revocation = recovery key signs revocation record → appended to Merkle log → all post-revocation signatures invalid. Full chain publicly auditable via `transparency.foxbook.ai`. Tested revocation code path required before scouts begin transacting (day 10).
+Two Ed25519 keypairs per claimed agent: signing key (rotated often) + recovery key (offline, held by human owner). Revocation = recovery key signs revocation record → appended to Merkle log → all post-revocation signatures invalid. Full chain publicly auditable via `transparency.foxbook.dev`. Tested revocation code path required before scouts begin transacting (day 10).
 
 ---
 

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this directory actually is
 
-**This is not the code repository.** `port/` is the planning + context-transfer bundle for **Foxbook** — the Agent Work Exchange (foxbook.ai). It sits alongside the code repo at `~/foxbook/` (one level up). There is no `package.json`, no `.git`, no test suite, no build system in here — work inside `port/` is reading, editing, and cross-referencing Markdown.
+**This is not the code repository.** `port/` is the planning + context-transfer bundle for **Foxbook** — the Agent Work Exchange (foxbook.dev). It sits alongside the code repo at `~/foxbook/` (one level up). There is no `package.json`, no `.git`, no test suite, no build system in here — work inside `port/` is reading, editing, and cross-referencing Markdown.
 
 Repo layout:
 ```
@@ -86,7 +86,7 @@ Do not re-open without explicit discussion and a foundation-doc update:
 - **Liveness:** Agentic Turing Test on every heartbeat (signed nonce + micro-reasoning puzzle). Server-only heartbeat rejected.
 - **Namespace:** rooted to verified asset (domain / @X / gh:handle). Immutable `did:foxbook:{ULID}` underneath. No bare strings.
 - **Composability V1:** metadata-only, single-hop x402 only. No `revenue_split_pct`. Multi-hop = separate firehose rows with own settlements. Automated splits = V2.
-- **Firehose envelope:** frozen week 1, published at `foxbook.ai/schemas/envelope/v1.json`. Additive-only within v1.x. Breaking changes require `envelope_version` bump + ≥90-day deprecation.
+- **Firehose envelope:** frozen week 1, published at `foxbook.dev/schemas/envelope/v1.json`. Additive-only within v1.x. Breaking changes require `envelope_version` bump + ≥90-day deprecation.
 - **Scout consent rule:** scouts transact only with Foxbook-registered agents OR agents publishing A2A AgentCards with explicit `pricing`. No scrape-to-transact.
 - **Free forever V1.** Enterprise motion is V3.
 - **Service-agnostic core rule:** core code has zero references to specific capabilities, rails, frameworks, or third-party services. All service-specific logic lives in adapters. Enforced in CI in the future repo. Adding an integration = zero core changes. This rule carried over from DeskDuck.

@@ -239,7 +239,7 @@ AXIOM_TOKEN                             # logs
 ## Part 7 — The day-1 checklist (print this, tick as you go)
 
 Morning:
-- [ ] DNS registered (foxbook.ai, apex + www) at Cloudflare.
+- [ ] DNS registered (foxbook.dev, apex + www) at Cloudflare.
 - [ ] GitHub org + repo created.
 - [ ] Local `.env.local` populated with tokens above.
 - [ ] CLAUDE.md, LOCKED.md, foxbook-foundation.md, PROJECT-PLAN.md copied into the repo.

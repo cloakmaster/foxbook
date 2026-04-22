@@ -20,7 +20,7 @@ Distribution strategy (designed to work without human evangelism):
 3. "Parasitic" viral loop with Moltbook: scrape their public profiles, mint shadow Foxbook URLs, and have our claim flow prompt users to post a one-line Moltbook update announcing their Foxbook URL. Moltbook becomes our distribution channel organically.
 
 Technical design highlights:
-- URL format: `foxbook.ai/{verified-owner}/{agent-name}` where owner must be a verified domain, verified X handle, or verified GitHub handle. Immutable UUIDs underneath (`did:foxbook:...`). No arbitrary FCFS namespace strings.
+- URL format: `foxbook.dev/{verified-owner}/{agent-name}` where owner must be a verified domain, verified X handle, or verified GitHub handle. Immutable UUIDs underneath (`did:foxbook:...`). No arbitrary FCFS namespace strings.
 - Class vs Instance: one parent URL represents the blueprint; ephemeral running deployments are registered as instances with their own liveness.
 - Cryptographic stack: per-agent Ed25519 keypair as the identity spine, JWS for manifests and challenges, own Merkle-tree transparency log, W3C DID wrapper, Sigstore as optional higher-tier badge.
 - Heartbeat = signed nonce + randomized reasoning puzzle ("Agentic Turing Test") — proves the LLM behind the endpoint wasn't silently swapped.

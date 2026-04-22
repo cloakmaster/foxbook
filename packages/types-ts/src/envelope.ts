@@ -2,7 +2,7 @@
 // Source: schemas/envelope/v1.json
 // Regenerate via `pnpm generate:types`.
 /**
- * Canonical envelope for every hire-and-report event published to foxbook.ai/live. DRAFT — content freezes day 7–9 per PROJECT-PLAN.md. See foxbook-foundation.md §8.1.1 for the authoritative shape. Additive changes only within v1.x; breaking changes require envelope_version bump and ≥90-day deprecation (LOCKED.md).
+ * Canonical envelope for every hire-and-report event published to foxbook.dev/live. DRAFT — content freezes day 7–9 per PROJECT-PLAN.md. See foxbook-foundation.md §8.1.1 for the authoritative shape. Additive changes only within v1.x; breaking changes require envelope_version bump and ≥90-day deprecation (LOCKED.md).
  */
 export interface FoxbookFirehoseEnvelopeV1 {
   /**

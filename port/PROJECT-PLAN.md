@@ -29,10 +29,10 @@ Load-bearing SLO: **firehose staleness p95 <60s.** If an architectural choice pu
 Repo live. Hosting + staging provisioned. Crypto primitives (Ed25519/JWS/did:foxbook) cross-language. Postgres schema v0. Merkle log append path. AgentCard + `x-foxbook` schemas. Claim flow scaffolded (Tier 1 via GitHub Gist demoable on staging). Pre-pop scraper producing shadow URLs. Firehose envelope drafted. Capability taxonomy v1 committed. Scout roster locked. Load-test plan committed. Hero agent outreach pipeline at 50+ soft commits.
 
 ### Week 2 — Surfaces (Tue Apr 28 → Mon May 4)
-Claim flow complete (Tier 1 + Tier 2 end-to-end in prod). Discovery API on Meilisearch returning ranked results. Firehose production fanout working (Cloudflare Durable Objects). First scout transacting on staging. Firehose envelope **frozen**. Transparency log UI live at `transparency.foxbook.ai`. Pre-pop at 20K+ shadow URLs. Observability dashboards wired. Hero roster at 75+ soft commits, 25+ signed claims.
+Claim flow complete (Tier 1 + Tier 2 end-to-end in prod). Discovery API on Meilisearch returning ranked results. Firehose production fanout working (Cloudflare Durable Objects). First scout transacting on staging. Firehose envelope **frozen**. Transparency log UI live at `transparency.foxbook.dev`. Pre-pop at 20K+ shadow URLs. Observability dashboards wired. Hero roster at 75+ soft commits, 25+ signed claims.
 
 ### Week 3 — Load test + hardening (Tue May 5 → Mon May 11)
-**Load test executed by end of week.** Discovery p50 <500ms, p99 <1.5s under projected V1 load. Firehose p50 <30s, p95 <60s. Key rotation / revocation e2e test passing in prod. All 5-10 scouts running. Shield middleware for LangChain + CrewAI. Browser extension MVP (Chrome). OG image template rendering on all profile pages. **Gut-check: does the firehose feel alive when Benjamin opens `foxbook.ai/live`? If no, raise it now.**
+**Load test executed by end of week.** Discovery p50 <500ms, p99 <1.5s under projected V1 load. Firehose p50 <30s, p95 <60s. Key rotation / revocation e2e test passing in prod. All 5-10 scouts running. Shield middleware for LangChain + CrewAI. Browser extension MVP (Chrome). OG image template rendering on all profile pages. **Gut-check: does the firehose feel alive when Benjamin opens `foxbook.dev/live`? If no, raise it now.**
 
 ### Week 4 — Polish + framework integrations (Tue May 12 → Mon May 18)
 Python + TypeScript SDKs published. CLI published. Framework adapters (LangChain, CrewAI, LangGraph) complete. Profile page polish. Landing page live. Hero roster finalized (100 pre-claimed). Mascot + brand pass complete. Bug burn-down.
@@ -41,7 +41,7 @@ Python + TypeScript SDKs published. CLI published. Framework adapters (LangChain
 Invite-only beta to 500 hand-picked solo builders + hero roster. Real external traffic on scouts. Firehose showing cross-platform activity. Press list drafted (not sent). Decision point: ship launch in week 6 or delay to week 6/7 if metrics are borderline.
 
 ### Week 6 — Public launch (Tue May 26 → Mon Jun 1)
-**Launch day.** foxbook.ai/live feed populated. First-cent notifications firing. OG images shareable. HN/Reddit/PH posts (supplementary, not load-bearing). Hero roster all claimed. Measure against abandon trigger: 50+ agents with ≥1 paid tx.
+**Launch day.** foxbook.dev/live feed populated. First-cent notifications firing. OG images shareable. HN/Reddit/PH posts (supplementary, not load-bearing). Hero roster all claimed. Measure against abandon trigger: 50+ agents with ≥1 paid tx.
 
 ---
 
@@ -57,7 +57,7 @@ Engineering = Claude + Benjamin pair. Research = Benjamin solo. Parallel tracks.
 - `CLAUDE.md` at repo root (the one drafted in `repo-bootstrap/`).
 
 **Benjamin**
-- Register foxbook.ai DNS (Cloudflare). Apex + www.
+- Register foxbook.dev DNS (Cloudflare). Apex + www.
 - Hero outreach sheet: 25 names drafted, 5 DMs sent tonight.
 - Designer DMs sent (2 leads). If no reply in 48h, geometric fox SVG placeholder on day 3.
 
@@ -68,7 +68,7 @@ Engineering = Claude + Benjamin pair. Research = Benjamin solo. Parallel tracks.
 - Neon Postgres dev branch. Drizzle migrations. Schema v0: `agents`, `claims`, `verifications`, `keys`, `revocations`, `manifests_versions`, `reports`, `firehose_events`, `transparency_log`, `tl_leaves`.
 - `core/crypto/`: Ed25519 keygen, JWS sign, JWS verify. Node + Python parity tests on shared vectors in `schemas/crypto-test-vectors.json`.
 - `did:foxbook:{ulid}` minting. Time-ordered, indexable.
-- Resend wired. `noreply@foxbook.ai` DMARC/DKIM/SPF green.
+- Resend wired. `noreply@foxbook.dev` DMARC/DKIM/SPF green.
 
 **Benjamin (research)**
 - Moltbook ToS text archived → `research/moltbook-tos-2026-04-22.md`.
@@ -78,7 +78,7 @@ Engineering = Claude + Benjamin pair. Research = Benjamin solo. Parallel tracks.
 
 ### Day 3 — Thu Apr 23 — hosting lock day
 **Engineering**
-- Terraform provisions: Vercel (web + API edge), Neon (prod + staging), Upstash Redis, Cloudflare (DNS, Workers, Durable Objects, R2). Staging at `staging.foxbook.ai` with SSL.
+- Terraform provisions: Vercel (web + API edge), Neon (prod + staging), Upstash Redis, Cloudflare (DNS, Workers, Durable Objects, R2). Staging at `staging.foxbook.dev` with SSL.
 - Observability: Sentry, Vercel Analytics + Axiom, Grafana Cloud free tier, OpenTelemetry SDK wired.
 - `schemas/agent-card.v1.json` (A2A v1.0 base). `schemas/x-foxbook.v1.json` (§6.2 extension).
 
@@ -87,12 +87,12 @@ Engineering = Claude + Benjamin pair. Research = Benjamin solo. Parallel tracks.
 - A2A v2 roadmap read → `research/a2a-v2-roadmap.md`. Any mandatory-registry signal?
 - **48h pivot window opens if probe classifies as alive-with-traction.** Default bias (LOCKED.md): narrow to solo-builder viral lane. Do not re-litigate.
 
-**Gate:** staging reachable at `staging.foxbook.ai` serving hello-world; Sentry catching a synthetic error; a2a-registry probe classification committed.
+**Gate:** staging reachable at `staging.foxbook.dev` serving hello-world; Sentry catching a synthetic error; a2a-registry probe classification committed.
 
 ### Day 4 — Fri Apr 24
 **Engineering**
 - Merkle log append path. Functions: `append_leaf`, `get_inclusion_proof`, `get_consistency_proof`, `publish_root`. TypeScript V1 is fine if p99 <50ms on append at 100 rps under synthetic load — measure and confirm. Go/Rust daemon deferred to week 2 if TS insufficient.
-- `transparency.foxbook.ai` read-only view scaffolded: latest root hash, leaf browsing, inclusion proof fetch.
+- `transparency.foxbook.dev` read-only view scaffolded: latest root hash, leaf browsing, inclusion proof fetch.
 - AgentCard validator wired into every inbound manifest path.
 - Pre-pop scraper skeleton (`apps/scrapers/github/`): GitHub code search for `agent-card.json`, `agent.json`, `skill.md`, `mcp.json`. Rate-limited, respects robots. Writes `tier=0, inferred=true` shadow URLs.
 
@@ -104,7 +104,7 @@ Engineering = Claude + Benjamin pair. Research = Benjamin solo. Parallel tracks.
 
 ### Day 5 — Sat Apr 25
 **Engineering**
-- Firehose envelope draft at `schemas/envelope.v1.json`, published at `foxbook.ai/schemas/envelope/v1.json` as `envelope_version: "1.0-draft"`. **NOT frozen yet** — freeze target is day 7-9, gated on "claim flow + Merkle log stable enough that shape won't shift under us," not the calendar.
+- Firehose envelope draft at `schemas/envelope.v1.json`, published at `foxbook.dev/schemas/envelope/v1.json` as `envelope_version: "1.0-draft"`. **NOT frozen yet** — freeze target is day 7-9, gated on "claim flow + Merkle log stable enough that shape won't shift under us," not the calendar.
 - Claim flow scaffolding: `POST /api/v1/claim/start`, `POST /api/v1/claim/verify-gist`. State machine `unclaimed → gist-pending → tier1-verified → tier2-pending → tier2-verified`. `adapters/gist/` does HTTP polling (no API key, no auth).
 - **Capability taxonomy review pass** (Claude + Benjamin, ~2h pairing). Cross-ref 22 categories against scraped live AgentCards. Trim, expand, freeze as `schemas/capabilities.v1.json`.
 
@@ -127,7 +127,7 @@ Engineering = Claude + Benjamin pair. Research = Benjamin solo. Parallel tracks.
 
 ### Day 7 — Mon Apr 27 — week close
 **Engineering**
-- Key rotation / revocation flow **end-to-end test passes on staging**: compromised key → recovery-key-signed revocation → new key published → old-key sigs reject, new-key sigs accept, full chain visible on `transparency.foxbook.ai`. (One day ahead of foundation §18's day-10 target.)
+- Key rotation / revocation flow **end-to-end test passes on staging**: compromised key → recovery-key-signed revocation → new key published → old-key sigs reject, new-key sigs accept, full chain visible on `transparency.foxbook.dev`. (One day ahead of foundation §18's day-10 target.)
 - Firehose Durable Object prototype on staging: one event in, fans out to N WebSocket subscribers. Measure p50/p95 staleness on synthetic load.
 - Scout skeleton in `apps/scouts/translation-scout/`: A2A client hello-world + x402 adapter stub. Not transacting yet.
 

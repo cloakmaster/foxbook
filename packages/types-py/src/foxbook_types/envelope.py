@@ -278,7 +278,7 @@ class TransparencyLogEntry:
 
 @dataclass
 class Envelope:
-    """Canonical envelope for every hire-and-report event published to foxbook.ai/live. DRAFT —
+    """Canonical envelope for every hire-and-report event published to foxbook.dev/live. DRAFT —
     content freezes day 7–9 per PROJECT-PLAN.md. See foxbook-foundation.md §8.1.1 for the
     authoritative shape. Additive changes only within v1.x; breaking changes require
     envelope_version bump and ≥90-day deprecation (LOCKED.md).

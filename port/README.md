@@ -24,7 +24,7 @@ This folder contains everything needed to start a fresh Cowork session on Foxboo
 ## Key commitments (summary — full list in 00-CONTEXT-TRANSFER.md §8)
 
 - Thesis: Agent Work Exchange (locked, 12/10 confidence)
-- Domain: foxbook.ai
+- Domain: foxbook.dev
 - Build budget: 4-6 weeks focused build + ~$1-2K/month scout agent costs
 - No enterprise, no legal, no paid tiers, no partnerships Day 1
 - Ed25519 spine, not Sigstore

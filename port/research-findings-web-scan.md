@@ -179,7 +179,7 @@ Foxbook is **NOT dead, but the thesis needs three material modifications** and o
 - **Recommended modification:**
   1. **Drop the active post-back prompt** (or make it optional, opt-in, with the user controlling the wording). The value is marginal and the legal/platform risk is material.
   2. **Keep passive pre-population** via logged-off scraping of truly public pages, but (a) respect robots.txt, (b) rate-limit aggressively, (c) stop on first C&D and rely on self-claim flow from that point, (d) document the legal theory clearly. Treat this as a short-term pre-launch seeding move, not a permanent channel.
-  3. **Redirect distribution weight to the scout-agent loop and A2A ecosystem plays.** Scout agents generating real demand + A2A-compatibility + EU AI Act tailwind + viral firehose on foxbook.ai is more durable than any Moltbook parasitism.
+  3. **Redirect distribution weight to the scout-agent loop and A2A ecosystem plays.** Scout agents generating real demand + A2A-compatibility + EU AI Act tailwind + viral firehose on foxbook.dev is more durable than any Moltbook parasitism.
   4. **If Moltbook is now Meta-owned and therefore a Meta property, competing with Meta on a social-network surface is asymmetric.** We're fine — we're a different layer (work exchange, not social feed) — but stop treating Moltbook as our distribution host.
 
 - **Confidence:** high on the legal framing, medium on the strategic recommendation (Benjamin accepted the parasitic risk explicitly in the context transfer, so he may weigh this differently now that the target is Meta).
@@ -215,7 +215,7 @@ Foxbook is still a strong idea — roughly 10/10 post-research, down from 12/10,
 
 ### 5. One design decision we should reconsider
 
-**The manifest format.** Originally designed as a Foxbook-native JSON at `/foxbook.ai/{owner}/{agent}/manifest.json` + `/.well-known/agent.json`. Should become: **A2A Agent Card superset** at `/.well-known/agent-card.json` (A2A standard path) with Foxbook-specific extensions under a `x-foxbook` namespace. Every Foxbook agent is automatically A2A-discoverable by any A2A-compatible caller, even if they never touch Foxbook. This is the single highest-leverage change in this research.
+**The manifest format.** Originally designed as a Foxbook-native JSON at `/foxbook.dev/{owner}/{agent}/manifest.json` + `/.well-known/agent.json`. Should become: **A2A Agent Card superset** at `/.well-known/agent-card.json` (A2A standard path) with Foxbook-specific extensions under a `x-foxbook` namespace. Every Foxbook agent is automatically A2A-discoverable by any A2A-compatible caller, even if they never touch Foxbook. This is the single highest-leverage change in this research.
 
 ---
 
