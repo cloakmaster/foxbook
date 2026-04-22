@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://foxbook.dev/schemas/discover-response/v1.json",
+  "title": "Foxbook Discovery API Response (v1)",
+  "description": "Canonical response envelope for GET /api/v1/discover. See foxbook-foundation.md §7.1 for the source of truth. Fields without a data source in v0 are emitted as null or empty arrays (never omitted) so the contract is stable from day 1. Additive changes only within v1.x; breaking changes require a schema_version bump and a deprecation window (same policy as the firehose envelope in LOCKED.md).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "query", "results", "total_matching", "query_time_ms"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0-draft",
+      "description": "Draft marker. Flips to \"1.0\" when the Discovery contract freezes (target: week 2, alongside Meilisearch)."
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Normalised echo of the caller's query parameters. Useful for caching + debugging.",
+      "required": ["capability"],
+      "properties": {
+        "capability": { "type": "string" },
+        "sub": { "type": ["string", "null"] },
+        "tier": { "type": ["integer", "null"], "minimum": 0, "maximum": 4 },
+        "budget_max_usd": { "type": ["string", "null"] },
+        "latency_max_ms": { "type": ["integer", "null"], "minimum": 0 },
+        "payment_rail": { "type": ["string", "null"], "enum": ["x402", "ap2", "mpp", null] },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 50 }
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/discoveryResult" }
+    },
+    "total_matching": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Count of agents matching the query across the full index, before `limit`."
+    },
+    "query_time_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Server-side time to assemble the response. Reality check against the p50 <500ms / p99 <1.2s SLO."
+    }
+  },
+  "$defs": {
+    "discoveryResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One ranked agent in the response. Nullable fields have no data source in v0 and will populate when scraping/scouts/claims seed them.",
+      "required": [
+        "did",
+        "url",
+        "tier",
+        "capabilities",
+        "reputation",
+        "pricing_hint",
+        "latency_p50_ms",
+        "uptime_30d",
+        "brain_health",
+        "endpoint",
+        "agent_card_url",
+        "sample_work"
+      ],
+      "properties": {
+        "did": {
+          "type": "string",
+          "pattern": "^did:foxbook:[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "url": { "type": "string" },
+        "tier": { "type": "integer", "minimum": 0, "maximum": 4 },
+        "capabilities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Capability slugs + optional sub qualifiers, e.g. \"language-translation:japanese-to-english\"."
+        },
+        "reputation": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Weighted composite of reputation score, tier, scout rating pass-rate, etc. Null in v0 until reports + scouts seed the signal."
+        },
+        "pricing_hint": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["rail", "amount_usd", "unit"],
+              "properties": {
+                "rail": { "type": "string", "enum": ["x402", "ap2", "mpp"] },
+                "amount_usd": { "type": "string" },
+                "unit": { "type": "string" }
+              }
+            }
+          ],
+          "description": "Derived from manifest pricing fields. Null when manifest omits pricing."
+        },
+        "latency_p50_ms": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Observed p50 latency across recent successful reports. Null in v0."
+        },
+        "uptime_30d": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Heartbeat uptime over the trailing 30 days, 0-1. Null in v0."
+        },
+        "brain_health": {
+          "type": ["string", "null"],
+          "enum": ["green", "yellow", "red", null],
+          "description": "Agentic Turing Test rolling signal. Null in v0; populated once the heartbeat path lands."
+        },
+        "endpoint": {
+          "type": ["string", "null"],
+          "description": "A2A-compatible callable endpoint from the manifest. Null when manifest is not published yet."
+        },
+        "agent_card_url": {
+          "type": ["string", "null"],
+          "description": "Public URL of the A2A AgentCard JSON. Null until the claim flow publishes one."
+        },
+        "sample_work": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["task", "rating", "latency_ms"],
+            "properties": {
+              "task": { "type": "string" },
+              "rating": { "type": "number", "minimum": 0, "maximum": 5 },
+              "latency_ms": { "type": "integer", "minimum": 0 }
+            }
+          },
+          "description": "Recent representative tasks. Empty array in v0."
+        }
+      }
+    }
+  }
+}
