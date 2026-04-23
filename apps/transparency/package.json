@@ -2,13 +2,24 @@
   "name": "@foxbook/transparency",
   "version": "0.0.0",
   "private": true,
-  "description": "Read-only Merkle log browser.",
+  "description": "transparency.foxbook.dev — Cloudflare Worker serving the Merkle transparency log read surface. Read-only; never writes, never appends.",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./src/main.ts",
+  "types": "./src/main.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "echo 'no tests yet' && exit 0",
-    "lint": "biome lint ."
+    "test": "vitest run",
+    "lint": "biome lint .",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@foxbook/db": "workspace:*",
+    "hono": "^4.12.14"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "vitest": "^4.1.5",
+    "wrangler": "^3.95.0"
   }
 }

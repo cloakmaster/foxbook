@@ -123,8 +123,15 @@ export type MerkleRepositoryOptions = {
    * management is NOT a Merkle-log concern and is intentionally kept
    * out of packages/db. See foundation §6.4 / §6.6 for where these
    * keys come from in the claim flow.
+   *
+   * Optional so read-only consumers (the transparency.foxbook.dev
+   * Cloudflare Worker) can instantiate the repository without holding
+   * a signing key. `append` throws at runtime if called without one —
+   * no silent zero-byte signing. The read methods
+   * (getRoot / getLeaf / getInclusionProof / getConsistencyProof)
+   * never touch the signing key.
    */
-  signingKey: Uint8Array;
+  signingKey?: Uint8Array;
 };
 
 export type MerkleRepository = {
@@ -144,6 +151,12 @@ export function createMerkleRepository(
   const logId = opts.logId ?? DEFAULT_LOG_ID;
 
   async function append(leafData: unknown): Promise<MerkleAppendResult> {
+    if (!opts.signingKey) {
+      throw new Error(
+        "MerkleRepository.append requires an Ed25519 signingKey in opts. Read-only consumers (the transparency Worker) must not call append.",
+      );
+    }
+    const signingKey = opts.signingKey;
     return await db.transaction(async (tx) => {
       // Per-log_id advisory lock: cheap, released atomically on COMMIT.
       // hashtext() maps the log_id string to a stable 32-bit int so
@@ -183,7 +196,7 @@ export function createMerkleRepository(
 
       const publishedAt = new Date();
       const sthJws = signTreeHead(
-        opts.signingKey,
+        signingKey,
         logId,
         nextState.leafCount,
         rootAfter,
