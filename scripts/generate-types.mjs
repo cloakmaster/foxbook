@@ -131,7 +131,7 @@ async function generatePython(schemaAbs, outAbs, topLevelName, schemaPath) {
   });
 
   ensureDir(outAbs);
-  writeFileSync(outAbs, headerPy(schemaPath) + result.lines.join("\n") + "\n");
+  writeFileSync(outAbs, `${headerPy(schemaPath) + result.lines.join("\n")}\n`);
 }
 
 async function main() {

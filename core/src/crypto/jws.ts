@@ -5,7 +5,13 @@
 //   2. Day-2 scope is primitives — a 40-line compact-JWS encoder is
 //      easier to audit than a cross-language jose/python-jose parity matrix.
 // When richer JWT semantics (aud/iss/exp/nbf) land, we'll revisit.
+//
+// Day-4 extraction: header/payload canonicalisation moved to
+// ./canonical.ts so the Merkle STH signer reuses the exact same rule
+// rather than re-implementing `JSON.stringify`. Cross-language parity
+// (TS ↔ Python) is asserted by schemas/crypto-test-vectors.json.
 
+import { canonicalJsonBytes } from "./canonical.js";
 import { sign as edSign, verify as edVerify } from "./ed25519.js";
 
 const textEncoder = new TextEncoder();
@@ -39,8 +45,8 @@ export function jwsSign(
   if (protectedHeader.alg !== "EdDSA") {
     throw new Error(`jwsSign only supports alg="EdDSA", got ${String(protectedHeader.alg)}`);
   }
-  const headerB64 = base64url(textEncoder.encode(JSON.stringify(protectedHeader)));
-  const payloadB64 = base64url(textEncoder.encode(JSON.stringify(payload)));
+  const headerB64 = base64url(canonicalJsonBytes(protectedHeader));
+  const payloadB64 = base64url(canonicalJsonBytes(payload));
   const signingInput = `${headerB64}.${payloadB64}`;
   const sig = edSign(textEncoder.encode(signingInput), privateKey);
   return `${signingInput}.${base64url(sig)}`;

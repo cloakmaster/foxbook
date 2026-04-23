@@ -124,6 +124,6 @@ describe("discover handler — result projection", () => {
       manifestUrl: null,
     };
     const res = await discover(minimalQuery, fakeRepo([row]));
-    expect(res.results[0]!.pricing_hint).toBeNull();
+    expect(res.results[0]?.pricing_hint).toBeNull();
   });
 });

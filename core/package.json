@@ -9,7 +9,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "biome lint ."
+    "lint": "biome lint .",
+    "capture:merkle-vectors": "node scripts/capture-merkle-vectors.mjs",
+    "bench:merkle-append": "node scripts/bench-merkle-append.mjs"
   },
   "dependencies": {
     "@noble/ed25519": "^3.1.0",

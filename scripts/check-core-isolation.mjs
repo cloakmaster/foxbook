@@ -65,8 +65,8 @@ function matchesBanned(imp, bannedList) {
   for (const pattern of bannedList) {
     if (pattern.endsWith("/*")) {
       const prefix = pattern.slice(0, -2);
-      if (imp === prefix || imp.startsWith(prefix + "/")) return pattern;
-    } else if (imp === pattern || imp.startsWith(pattern + "/")) {
+      if (imp === prefix || imp.startsWith(`${prefix}/`)) return pattern;
+    } else if (imp === pattern || imp.startsWith(`${pattern}/`)) {
       return pattern;
     }
   }
@@ -139,7 +139,7 @@ function scanFile(abs, virtualPath) {
 function inZone(relPath, zoneGlob) {
   // zoneGlob is "core/**" or "packages/**" or "adapters/*"
   const prefix = zoneGlob.replace(/\*+$/, "").replace(/\/$/, "");
-  return relPath === prefix || relPath.startsWith(prefix + "/");
+  return relPath === prefix || relPath.startsWith(`${prefix}/`);
 }
 
 function runMainScan() {

@@ -17,6 +17,8 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PublicKey,
 )
 
+from .canonical import canonical_json_bytes
+
 
 @dataclass(frozen=True)
 class Ed25519Keypair:
@@ -79,17 +81,6 @@ def _b64url_decode(s: str) -> bytes:
     return base64.urlsafe_b64decode(s + pad)
 
 
-def _canonical_json(obj: Any) -> bytes:
-    """JSON encoding matched to core/src/crypto/jws.ts.
-
-    TS uses `JSON.stringify(obj)` with default behaviour: no spaces, keys in
-    insertion order, UTF-8 output. Python's `json.dumps(obj, separators=(",", ":"))`
-    with `sort_keys=False` produces the same byte stream for the same Python dict
-    whose insertion order matches the TS object literal.
-    """
-    return json.dumps(obj, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
-
-
 def jws_sign(
     protected_header: dict[str, Any],
     payload: dict[str, Any],
@@ -98,8 +89,8 @@ def jws_sign(
     """Compact-JWS sign with EdDSA/Ed25519. Produces `header.payload.signature`."""
     if protected_header.get("alg") != "EdDSA":
         raise ValueError(f'jws_sign only supports alg="EdDSA", got {protected_header.get("alg")}')
-    header_b64 = _b64url(_canonical_json(protected_header))
-    payload_b64 = _b64url(_canonical_json(payload))
+    header_b64 = _b64url(canonical_json_bytes(protected_header))
+    payload_b64 = _b64url(canonical_json_bytes(payload))
     signing_input = f"{header_b64}.{payload_b64}".encode()
     sig = sign(signing_input, private_key)
     return f"{header_b64}.{payload_b64}.{_b64url(sig)}"
