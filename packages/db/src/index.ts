@@ -1,4 +1,11 @@
-export { createDbClient, type DbClient } from "./client.js";
+export {
+  createDbClient,
+  createEdgeClient,
+  createNodeClient,
+  type DbClient,
+  type EdgeDbClient,
+  type NodeDbClient,
+} from "./client.js";
 export {
   createMerkleRepository,
   type MerkleAppendResult,
