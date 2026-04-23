@@ -20,7 +20,7 @@
     "generate:types": "node scripts/generate-types.mjs",
     "check:generated": "node scripts/check-generated.mjs",
     "capture:merkle-vectors": "pnpm --filter @foxbook/core capture:merkle-vectors",
-    "smoke:tier1": "node scripts/smoke-test-tier1.mjs",
+    "smoke:tier1": "pnpm --filter @foxbook/api smoke:tier1 --",
     "prepare": "husky"
   },
   "devDependencies": {

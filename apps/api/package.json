@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "biome lint .",
-    "dev": "node --env-file=../../.env.local --experimental-strip-types --no-warnings ./src/main.ts"
+    "dev": "node --env-file=../../.env.local --experimental-strip-types --no-warnings ./src/main.ts",
+    "smoke:tier1": "node --env-file=../../.env.local --experimental-strip-types --no-warnings ./scripts/smoke-test-tier1.ts"
   },
   "dependencies": {
     "@foxbook/adapter-gist": "workspace:*",
