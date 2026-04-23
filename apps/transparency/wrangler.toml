@@ -1,0 +1,22 @@
+# Cloudflare Worker config for transparency.foxbook.dev.
+#
+# Deploy: `pnpm --filter @foxbook/transparency deploy` — requires
+# CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN in env.
+#
+# DATABASE_URL is set as a secret via:
+#   cd apps/transparency && wrangler secret put DATABASE_URL
+#
+# Not committed here, not fetched from .env.local at deploy time; the
+# Worker runtime reads it from env.DATABASE_URL in the fetch handler.
+
+name = "foxbook-transparency"
+main = "src/main.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Uncomment once DNS + zone binding are live. Until then, `wrangler
+# deploy` will land on a workers.dev preview URL — useful for smoke
+# testing but NOT production.
+# routes = [
+#   { pattern = "transparency.foxbook.dev/*", zone_name = "foxbook.dev" }
+# ]
