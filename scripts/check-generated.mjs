@@ -24,6 +24,10 @@ const targets = [
   "packages/types-py/src/foxbook_types/envelope.py",
   "packages/types-ts/src/discover-response.ts",
   "packages/types-py/src/foxbook_types/discover_response.py",
+  "packages/types-ts/src/x-foxbook.ts",
+  "packages/types-py/src/foxbook_types/x_foxbook.py",
+  "packages/types-ts/src/agent-card.ts",
+  "packages/types-py/src/foxbook_types/agent_card.py",
 ];
 
 function snapshot() {

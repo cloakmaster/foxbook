@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://foxbook.dev/schemas/x-foxbook/v1.json",
+  "title": "Foxbook AgentCard extension (x-foxbook, v1)",
+  "description": "Foxbook-specific AgentCard extension fields, placed under the `x-foxbook` namespace inside an A2A AgentCard. Authoritative shape in docs/foundation/foxbook-foundation.md §6.2. Shared primitives (did, ed25519PublicKey, recoveryKeyFingerprint) are exposed via $defs so other schemas ($ref-in) don't duplicate their types.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "did",
+    "foxbook_url",
+    "verification_tier",
+    "class_or_instance",
+    "version_hash",
+    "signatures",
+    "updated_at"
+  ],
+  "properties": {
+    "did": { "$ref": "#/$defs/did" },
+    "foxbook_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Canonical profile URL under foxbook.dev."
+    },
+    "verification_tier": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4,
+      "description": "Tier 0–4 per foundation §6.5. Tier 5 (human-reviewed) is V3-only, not valid in V1."
+    },
+    "verified_asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "value", "verified_at", "method"],
+      "properties": {
+        "type": { "type": "string", "enum": ["domain", "x_handle", "github_handle"] },
+        "value": { "type": "string", "minLength": 1 },
+        "verified_at": { "type": "string", "format": "date-time" },
+        "method": {
+          "type": "string",
+          "enum": ["dns_txt_plus_endpoint_challenge", "github_gist", "tweet", "email", "github_org"]
+        }
+      }
+    },
+    "human_owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "display_name": { "type": "string" },
+        "handle": { "type": "string" },
+        "verification_method": {
+          "type": "string",
+          "enum": ["github_gist", "tweet", "email"]
+        },
+        "verified_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "class_or_instance": { "type": "string", "enum": ["class", "instance"] },
+    "instance_uuid": { "type": ["string", "null"] },
+    "version_hash": { "$ref": "#/$defs/sha256Hash" },
+    "agentic_turing_test": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "challenge_endpoint": { "type": "string", "format": "uri" },
+        "last_passed_at": { "type": "string", "format": "date-time" },
+        "brain_health": { "type": "string", "enum": ["green", "yellow", "red", "unknown"] }
+      }
+    },
+    "liveness": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "last_heartbeat": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["live", "stale", "offline", "revoked"] },
+        "uptime_30d": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "payment_rails": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type"],
+        "properties": {
+          "type": { "type": "string", "enum": ["x402", "ap2", "stripe_mpp"] },
+          "facilitator": { "type": "string" },
+          "asset": { "type": "string" },
+          "pricing_hint": { "type": "string" },
+          "mandates_supported": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["intent", "cart"] }
+          },
+          "session_supported": { "type": "boolean" }
+        }
+      }
+    },
+    "pricing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Explicit pricing signal. Presence of this object (together with a payment_rails entry) satisfies the scout-consent rule for unregistered third-party A2A cards (LOCKED.md).",
+      "properties": {
+        "amount": { "type": "string", "description": "Decimal string, no float precision loss." },
+        "currency": { "type": "string" },
+        "unit": { "type": "string", "description": "e.g. per_1k_tokens, per_request, per_minute." }
+      }
+    },
+    "sub_agent_dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url"],
+        "properties": {
+          "url": { "type": "string" },
+          "invoked_when": { "type": "string" }
+        }
+      }
+    },
+    "reputation": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Denormalised reputation snapshot; rendered on profile pages. Computed server-side so the shape is flexible across versions — additional fields allowed within this sub-object only."
+    },
+    "scout_rating": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "last_tested_at": { "type": "string", "format": "date-time" },
+        "test_suite_version": { "type": "string" },
+        "pass_rate": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "data_handling": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pii_processing": { "type": "string", "enum": ["none", "transient", "stored"] },
+        "log_retention": { "type": "string" },
+        "jurisdiction": { "type": "string" }
+      }
+    },
+    "signatures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ed25519_public_key_hex", "jws_signature"],
+      "properties": {
+        "ed25519_public_key_hex": { "$ref": "#/$defs/ed25519PublicKeyHex" },
+        "recovery_key_fingerprint": { "$ref": "#/$defs/recoveryKeyFingerprint" },
+        "jws_signature": { "type": "string", "minLength": 1 },
+        "transparency_log_entry": { "type": "string", "format": "uri" }
+      }
+    },
+    "attestations": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "endorsements": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "sigstore_attestation": { "type": ["object", "null"] },
+    "revoked": { "type": "boolean" },
+    "revoked_reason": { "type": ["string", "null"] },
+    "updated_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "did": {
+      "type": "string",
+      "pattern": "^did:foxbook:[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "did:foxbook:{ULID} — uppercase Crockford base32, 26 chars. Matches core/src/did.ts regex."
+    },
+    "ed25519PublicKeyHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "32-byte Ed25519 public key, hex-encoded, lowercase. Matches RFC 8032 raw form."
+    },
+    "sha256Hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "`sha256:` prefix + 64 lowercase hex chars. Content-hash pinning for version-scoped reputation (§6.7)."
+    },
+    "recoveryKeyFingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "SHA-256 fingerprint of the recovery-key public bytes. Recovery key itself is never on-chain; only the fingerprint binds the agent to its recovery authority (§6.6)."
+    }
+  }
+}
