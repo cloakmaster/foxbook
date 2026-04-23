@@ -112,10 +112,8 @@ Revocation is **one transaction against one connection**:
 ```
 BEGIN
   SELECT pg_advisory_xact_lock(hashtext('foxbook-v1'))
-  -- append revocation leaf via merkle-repository (same lock, savepoint
-  -- or tx-aware variant — the repository's append must accept an
-  -- existing tx context, OR the claim-flow revoke handler opens its
-  -- own tx and threads the savepoint through)
+  -- append revocation leaf via merkle-repository (tx-context variant;
+  -- see "Implementation" paragraph below)
   INSERT INTO tl_leaves (...)
   INSERT INTO transparency_log (...)
   DELETE FROM claims WHERE id = :claim_id
@@ -123,6 +121,19 @@ COMMIT  -- advisory lock released atomically with all three writes
 ```
 
 If this sequence is split into two transactions (leaf-append first, row-delete second), a crash between them leaves the log saying "revoked" while the claims row still declares the asset active — the read path returns "tier1-verified" for an actually-revoked key. That is a silent-failure window; the atomic bounded one-transaction form eliminates it by construction, exactly like the Day-4 two-insert atomicity pin on regular appends.
+
+**Implementation — tx-context variant, not savepoint threading.** `merkle-repository.append` grows an additive optional `opts?: { tx?: Transaction }` parameter. When absent, current behavior preserved: the repository opens its own transaction, acquires the advisory lock, commits. When present, the repository uses the caller's `tx` — does NOT open a sub-transaction, does NOT assume it owns the commit boundary. The revoke handler becomes:
+
+```ts
+await db.transaction(async (tx) => {
+  await merkle.append(revocationLeaf, { tx });
+  await tx.delete(claims).where(eq(claims.id, claimId));
+});
+```
+
+One transaction, one connection, `merkle.append` participates as a call inside it. Savepoint threading (caller opens sub-transaction explicitly, repository knows it's nested) is rejected because it inverts the responsibility: the nested-tx case is harder to reason about under partial failure, and `merkle-repository` should not know or care whether it's being called inside a caller's transaction. Passing the `tx` handle in is the minimal, explicit surface.
+
+This refactor is fully additive — Day-5's call sites (`apps/api/src/claim/handlers.ts:claimVerifyGist` + future `/api/v1/*` callers) keep their current `await merkle.append(payload)` form and continue to see the "repository-owns-the-tx" behavior. Only the revocation handler (Day-6) passes the `tx` option.
 
 **Cascade policy on FKs touching `claims.id`** (keys + verifications tables if / when they gain a claim_id foreign key): **`ON DELETE SET NULL`**, not `ON DELETE CASCADE`. The Merkle leaf already holds the historical `(did, ed25519_public_key_hex, recovery_key_fingerprint, published_at)` binding — so a key row that loses its `claim_id` FK doesn't lose its audit trail; the leaf is the audit. `CASCADE` is simpler, but it deletes key rows that other read paths (e.g. "show me every key this did has ever used, active or not") might want to surface. Write the policy into Migration 0003 explicitly; do NOT let Drizzle's default decide.
 
