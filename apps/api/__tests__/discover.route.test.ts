@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ClaimDeps } from "../src/claim/handlers.js";
 import type { DiscoveryRepository } from "../src/discover/types.js";
 import { createApp } from "../src/server.js";
 
@@ -10,8 +11,25 @@ function emptyRepo(): DiscoveryRepository {
   };
 }
 
+function stubClaimDeps(): ClaimDeps {
+  return {
+    claimRepo: {
+      insertClaim: async () => ({ ok: true, id: "stub" }),
+      findById: async () => null,
+      markTier1Verified: async () => {},
+      insertSigningKey: async () => {},
+    },
+    gist: { verifyGistContainsCode: async () => ({ status: "error" }) },
+    merkle: {
+      append: async () => {
+        throw new Error("discover tests never call merkle.append");
+      },
+    },
+  };
+}
+
 function makeApp(repo: DiscoveryRepository = emptyRepo()) {
-  return createApp({ discoveryRepo: repo });
+  return createApp({ discoveryRepo: repo, claim: stubClaimDeps() });
 }
 
 describe("GET /api/v1/discover — route", () => {

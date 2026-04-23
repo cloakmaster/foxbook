@@ -15,6 +15,13 @@
       "when": 1776930320921,
       "tag": "0001_merkle_right_edge",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776933958396,
+      "tag": "0002_claims_asset_cols",
+      "breakpoints": true
     }
   ]
 }

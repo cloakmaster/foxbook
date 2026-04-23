@@ -2,13 +2,16 @@
   "name": "@foxbook/adapter-gist",
   "version": "0.0.0",
   "private": true,
-  "description": "GitHub Gist Tier-1 verification adapter.",
+  "description": "GitHub Gist Tier-1 verification adapter. HTTP polling only (no @octokit, no API key).",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "echo 'no tests yet' && exit 0",
+    "test": "vitest run",
     "lint": "biome lint ."
+  },
+  "devDependencies": {
+    "vitest": "^4.1.5"
   }
 }
