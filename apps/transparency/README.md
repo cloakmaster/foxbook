@@ -15,18 +15,27 @@ Read-only. Never writes. Never appends. The Worker instantiates `createMerkleRep
 
 ## Deploy
 
-**From `apps/transparency/`** (so `wrangler` picks up `wrangler.toml`):
+`wrangler` is workspace-local (not on global PATH). Use the `pnpm` script shortcuts so `node_modules/.bin/wrangler` is resolved automatically:
 
 ```bash
 # 1. Bind wrangler to your Cloudflare account.
-wrangler login
+pnpm --filter @foxbook/transparency cf:login
 
 # 2. Put DATABASE_URL in Cloudflare's SECRET store.
 #    Paste the same Neon URL as .env.local when prompted.
-wrangler secret put DATABASE_URL
+pnpm --filter @foxbook/transparency cf:secret
 
 # 3. Ship the Worker.
 pnpm --filter @foxbook/transparency deploy
+```
+
+Equivalent non-script invocation if you prefer:
+
+```bash
+cd apps/transparency
+pnpm exec wrangler login
+pnpm exec wrangler secret put DATABASE_URL
+pnpm exec wrangler deploy
 ```
 
 Step 2 is load-bearing. Without it, `/root`, `/leaf/:index`, `/inclusion/:index`, and `/consistency` all 500 because `@neondatabase/serverless` has no connection URL at request time. The symptom is "the Worker is broken"; the actual cause is "the Worker has no DB credentials."

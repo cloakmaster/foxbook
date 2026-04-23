@@ -3,10 +3,11 @@
 # =========================================================================
 # DEPLOY SEQUENCE (from apps/transparency/):
 #
-#   1. wrangler login
+#   1. pnpm --filter @foxbook/transparency cf:login
 #        Binds the local wrangler CLI to your Cloudflare account.
+#        (Equivalent: cd apps/transparency && pnpm exec wrangler login)
 #
-#   2. wrangler secret put DATABASE_URL
+#   2. pnpm --filter @foxbook/transparency cf:secret
 #        When prompted, paste the same Neon URL as .env.local. This puts
 #        it in Cloudflare's SECRET store — encrypted, NOT visible on the
 #        dashboard, NOT included in the Worker bundle. Re-run per-
@@ -16,6 +17,11 @@
 #        Ships the Worker. First deploy lands on foxbook-transparency.
 #        workers.dev; production route below is commented out until DNS
 #        + zone binding settle.
+#
+# wrangler is workspace-local (not on global PATH). The pnpm-script
+# shortcuts above resolve node_modules/.bin/wrangler automatically; if
+# you invoke wrangler directly, use `pnpm exec wrangler ...` or
+# `./node_modules/.bin/wrangler ...` from this directory.
 #
 # DATABASE_URL MUST be a Cloudflare secret, NOT a [vars] entry.
 # If you ever add it under [vars] in this file, it gets baked into the
