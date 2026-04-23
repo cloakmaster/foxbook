@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://foxbook.dev/schemas/tl-leaf/v1.json",
+  "title": "Foxbook transparency-log leaf taxonomy (v1)",
+  "description": "The set of event shapes written to tl_leaves.leaf_data. V0 ships a single shape — `agent-key-registration` — enumerated so reviewers can see what ships today and what is explicitly deferred. Explicit deferrals (must not land silently before their target day):\n  - `claim-event` (shape TBD) → Day 5, pairs with the claim flow state machine.\n  - `key-rotation` + `revocation` → Day 6–7, pairs with the recovery-key harness per foundation §6.6.\n  - `manifest-version-diff` → week 2+, after manifests_versions has callers.\n  - Firehose `hire.settled`/`hire.failed`/`delegation.announced` events are NOT leaves — they live in firehose_events and reference leaves by inclusion proof.\nAll leaf shapes $ref shared primitives in x-foxbook.v1.json (did, ed25519PublicKeyHex, recoveryKeyFingerprint) rather than redefining them — prevents the \"two definitions of did\" drift bug.",
+  "oneOf": [{ "$ref": "#/$defs/agentKeyRegistration" }],
+  "$defs": {
+    "agentKeyRegistration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "leaf_type",
+        "did",
+        "ed25519_public_key_hex",
+        "recovery_key_fingerprint",
+        "published_at"
+      ],
+      "properties": {
+        "leaf_type": { "type": "string", "const": "agent-key-registration" },
+        "did": { "$ref": "https://foxbook.dev/schemas/x-foxbook/v1.json#/$defs/did" },
+        "ed25519_public_key_hex": {
+          "$ref": "https://foxbook.dev/schemas/x-foxbook/v1.json#/$defs/ed25519PublicKeyHex"
+        },
+        "recovery_key_fingerprint": {
+          "$ref": "https://foxbook.dev/schemas/x-foxbook/v1.json#/$defs/recoveryKeyFingerprint"
+        },
+        "published_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

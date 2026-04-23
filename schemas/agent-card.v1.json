@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://foxbook.dev/schemas/agent-card/v1.json",
+  "title": "A2A AgentCard (Foxbook-mirrored, v1)",
+  "description": "Google A2A AgentCard pinned to upstream v0.3.0 (protocolVersion == \"0.3.0\", source: github.com/a2aproject/a2a-js @ v0.3.0, validated against @a2a-js/sdk AgentCard type 2026-04-22). Foxbook mirrors the shape used in practice by the published A2A SDKs rather than attempting to replicate the full RFC; extensions land under `x-foxbook` ($ref x-foxbook.v1.json) to stay A2A-forward-compatible. NOTE: top-level `additionalProperties` is intentionally omitted (not set to true, not set to false) so unknown A2A v0.3.x optional fields (e.g. additionalInterfaces, supportsAuthenticatedExtendedCard) pass through without breaking the validator — this is the single controlled deviation from the `no additionalProperties: true on top-level` rule and is required for A2A forward-compat.",
+  "type": "object",
+  "required": [
+    "name",
+    "description",
+    "url",
+    "version",
+    "protocolVersion",
+    "capabilities",
+    "skills",
+    "defaultInputModes",
+    "defaultOutputModes"
+  ],
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "url": { "type": "string", "format": "uri" },
+    "version": { "type": "string", "minLength": 1 },
+    "protocolVersion": {
+      "type": "string",
+      "const": "0.3.0",
+      "description": "A2A spec version. We pin v0.3.0 in v1; a future v0.4.x would land behind an `agent-card.v2.json` schema file, not an in-place edit."
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "organization": { "type": "string" },
+        "url": { "type": "string", "format": "uri" }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "streaming": { "type": "boolean" },
+        "pushNotifications": { "type": "boolean" },
+        "stateTransitionHistory": { "type": "boolean" }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "description"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "authentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "defaultInputModes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "defaultOutputModes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "additionalInterfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url", "transport"],
+        "properties": {
+          "url": { "type": "string" },
+          "transport": { "type": "string", "enum": ["JSONRPC", "HTTP+JSON", "GRPC"] }
+        }
+      }
+    },
+    "x-foxbook": { "$ref": "https://foxbook.dev/schemas/x-foxbook/v1.json" }
+  }
+}
