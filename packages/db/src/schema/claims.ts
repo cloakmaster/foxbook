@@ -1,4 +1,5 @@
-import { pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 export const claimState = pgEnum("claim_state", [
   "unclaimed",
@@ -10,17 +11,42 @@ export const claimState = pgEnum("claim_state", [
 
 export const claimMethod = pgEnum("claim_method", ["gist", "tweet", "email", "dns", "endpoint"]);
 
+export const assetType = pgEnum("asset_type", ["github_handle", "x_handle", "domain"]);
+
 /**
  * Ongoing or completed claim flow per agent. The state machine is documented
- * in docs/foundation/foxbook-foundation.md; v0 captures the minimal fields
- * needed to drive Tier 1 + Tier 2 verification.
+ * in docs/foundation/foxbook-foundation.md.
+ *
+ * Day-5 additions (asset_type / asset_value / ed25519_public_key_hex /
+ * recovery_key_fingerprint / verification_code) back the Tier-1 via Gist
+ * flow. All four are nullable so the additive migration doesn't break
+ * hypothetical pre-v0 rows; the partial unique index below enforces
+ * one claim per verified asset once they're populated, preventing the
+ * "Bob claims @alice" race.
+ *
+ * V1 simplification: one claim per asset. Multiple agents under the
+ * same verified owner asset is a later-week extension (requires
+ * separating asset-verification rows from agent-registration rows).
  */
-export const claims = pgTable("claims", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  agentDid: text("agent_did").notNull(),
-  state: claimState("state").notNull().default("unclaimed"),
-  method: claimMethod("method"),
-  challengeNonce: text("challenge_nonce"),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
-  completedAt: timestamp("completed_at", { withTimezone: true }),
-});
+export const claims = pgTable(
+  "claims",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentDid: text("agent_did").notNull(),
+    state: claimState("state").notNull().default("unclaimed"),
+    method: claimMethod("method"),
+    challengeNonce: text("challenge_nonce"),
+    assetType: assetType("asset_type"),
+    assetValue: text("asset_value"),
+    ed25519PublicKeyHex: text("ed25519_public_key_hex"),
+    recoveryKeyFingerprint: text("recovery_key_fingerprint"),
+    verificationCode: text("verification_code"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("claims_asset_uniq_idx")
+      .on(t.assetType, t.assetValue)
+      .where(sql`${t.assetType} IS NOT NULL AND ${t.assetValue} IS NOT NULL`),
+  ],
+);

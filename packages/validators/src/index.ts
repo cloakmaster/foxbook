@@ -20,6 +20,7 @@ import * as ajvErrorsModule from "ajv-errors";
 import * as addFormatsModule from "ajv-formats";
 
 import agentCardSchema from "../../../schemas/agent-card.v1.json" with { type: "json" };
+import capabilitiesSchema from "../../../schemas/capabilities.v1.json" with { type: "json" };
 import tlLeafSchema from "../../../schemas/tl-leaf.v1.json" with { type: "json" };
 import xFoxbookSchema from "../../../schemas/x-foxbook.v1.json" with { type: "json" };
 
@@ -53,6 +54,7 @@ ajvErrors(ajv);
 ajv.addSchema(xFoxbookSchema, "https://foxbook.dev/schemas/x-foxbook/v1.json");
 ajv.addSchema(agentCardSchema, "https://foxbook.dev/schemas/agent-card/v1.json");
 ajv.addSchema(tlLeafSchema, "https://foxbook.dev/schemas/tl-leaf/v1.json");
+ajv.addSchema(capabilitiesSchema, "https://foxbook.dev/schemas/capabilities/v1.json");
 
 const validateAgentCardRaw = ajv.getSchema("https://foxbook.dev/schemas/agent-card/v1.json");
 const validateXFoxbookRaw = ajv.getSchema("https://foxbook.dev/schemas/x-foxbook/v1.json");
@@ -61,6 +63,17 @@ const validateTlLeafRaw = ajv.getSchema("https://foxbook.dev/schemas/tl-leaf/v1.
 if (!validateAgentCardRaw || !validateXFoxbookRaw || !validateTlLeafRaw) {
   throw new Error("Foxbook validators failed to compile at module load.");
 }
+
+// Extract the capability-id enum from schemas/capabilities.v1.json at
+// module load so `validateCapability` is a simple O(1) Set lookup,
+// NOT a full AJV compile per call. We DON'T generate a TS type for
+// capability_id (would embed enum-literal strings into
+// packages/types-ts, which is a service-agnostic zone — some IDs
+// would collide with core-isolation's banned-capability-literal
+// regex via generated output). Consumers use strings directly.
+const capabilityIds: ReadonlySet<string> = new Set(
+  (capabilitiesSchema as { $defs: { capabilityId: { enum: string[] } } }).$defs.capabilityId.enum,
+);
 
 function formatErrors(errors: ErrorObject[] | null | undefined): ValidationError[] {
   if (!errors) return [];
@@ -96,4 +109,17 @@ export function validateTlLeaf(input: unknown): ValidationResult {
  */
 export function validateManifest(input: unknown): ValidationResult {
   return validateAgentCard(input);
+}
+
+/**
+ * True iff `id` is one of the 22 frozen v1 capability IDs per
+ * schemas/capabilities.v1.json. Simple enum-membership check.
+ */
+export function validateCapability(id: unknown): boolean {
+  return typeof id === "string" && capabilityIds.has(id);
+}
+
+/** Read-only snapshot of the 22 frozen v1 capability IDs. */
+export function getCapabilityIds(): readonly string[] {
+  return [...capabilityIds];
 }
