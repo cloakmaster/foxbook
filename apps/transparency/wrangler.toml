@@ -1,22 +1,43 @@
 # Cloudflare Worker config for transparency.foxbook.dev.
 #
-# Deploy: `pnpm --filter @foxbook/transparency deploy` — requires
-# CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN in env.
+# =========================================================================
+# DEPLOY SEQUENCE (from apps/transparency/):
 #
-# DATABASE_URL is set as a secret via:
-#   cd apps/transparency && wrangler secret put DATABASE_URL
+#   1. wrangler login
+#        Binds the local wrangler CLI to your Cloudflare account.
 #
-# Not committed here, not fetched from .env.local at deploy time; the
-# Worker runtime reads it from env.DATABASE_URL in the fetch handler.
+#   2. wrangler secret put DATABASE_URL
+#        When prompted, paste the same Neon URL as .env.local. This puts
+#        it in Cloudflare's SECRET store — encrypted, NOT visible on the
+#        dashboard, NOT included in the Worker bundle. Re-run per-
+#        environment (production, staging) if you add them later.
+#
+#   3. pnpm --filter @foxbook/transparency deploy
+#        Ships the Worker. First deploy lands on foxbook-transparency.
+#        workers.dev; production route below is commented out until DNS
+#        + zone binding settle.
+#
+# DATABASE_URL MUST be a Cloudflare secret, NOT a [vars] entry.
+# If you ever add it under [vars] in this file, it gets baked into the
+# Worker bundle and appears in plaintext on the Cloudflare dashboard —
+# that's a credential leak. The Worker runtime reads env.DATABASE_URL
+# from the secret binding at request time; same variable name in code
+# either way, but the binding path is the load-bearing difference.
+# =========================================================================
 
 name = "foxbook-transparency"
 main = "src/main.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 
+# No [vars] section by design. DATABASE_URL is set via
+# `wrangler secret put DATABASE_URL` — see deploy sequence above.
+
 # Uncomment once DNS + zone binding are live. Until then, `wrangler
 # deploy` will land on a workers.dev preview URL — useful for smoke
-# testing but NOT production.
+# testing AND valid as week-1 "public transparency log exists" evidence
+# per the Day-5 completion-pass gate 4 check (curl the /inclusion/:index
+# endpoint from a fresh shell with no cookies / no auth).
 # routes = [
 #   { pattern = "transparency.foxbook.dev/*", zone_name = "foxbook.dev" }
 # ]
