@@ -19,6 +19,7 @@
     "check:no-deskduck": "node scripts/check-no-deskduck.mjs",
     "generate:types": "node scripts/generate-types.mjs",
     "check:generated": "node scripts/check-generated.mjs",
+    "capture:merkle-vectors": "pnpm --filter @foxbook/core capture:merkle-vectors",
     "prepare": "husky"
   },
   "devDependencies": {

@@ -1,0 +1,1 @@
+ALTER TABLE "transparency_log" ADD COLUMN "right_edge" jsonb;
