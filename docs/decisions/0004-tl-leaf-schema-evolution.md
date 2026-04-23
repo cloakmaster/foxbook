@@ -102,3 +102,28 @@ Only via an ADR that supersedes 0004. Concrete scenarios that would warrant a ne
 
 - `schemas/tl-leaf.v1.json` exists with `agent-key-registration` as the only v0 shape (PR #9).
 - First additive evolution (Day-6 revocation) applies this ADR. The PR body will reference it explicitly.
+
+## Addendum — Revocation atomicity (pinned ahead of Day-6 PR B)
+
+The transparency log is the canonical audit of who holds which asset; Postgres is operational state derived from it. **Delete-on-revoke is the Day-6 policy** — a revoked claim disappears from `claims`, the `claims_asset_uniq_idx` partial unique index trivially permits re-claim by the next caller, and history remains queryable via the Merkle leaf at the revocation's `leaf_index`. Two sources of truth that could drift (a revoked-but-present Postgres row + a revocation leaf) is the bug class we're structurally avoiding; a forgotten `AND state != 'revoked'` predicate on some future query cannot leak a revoked key as still-active because no row exists to leak.
+
+Revocation is **one transaction against one connection**:
+
+```
+BEGIN
+  SELECT pg_advisory_xact_lock(hashtext('foxbook-v1'))
+  -- append revocation leaf via merkle-repository (same lock, savepoint
+  -- or tx-aware variant — the repository's append must accept an
+  -- existing tx context, OR the claim-flow revoke handler opens its
+  -- own tx and threads the savepoint through)
+  INSERT INTO tl_leaves (...)
+  INSERT INTO transparency_log (...)
+  DELETE FROM claims WHERE id = :claim_id
+COMMIT  -- advisory lock released atomically with all three writes
+```
+
+If this sequence is split into two transactions (leaf-append first, row-delete second), a crash between them leaves the log saying "revoked" while the claims row still declares the asset active — the read path returns "tier1-verified" for an actually-revoked key. That is a silent-failure window; the atomic bounded one-transaction form eliminates it by construction, exactly like the Day-4 two-insert atomicity pin on regular appends.
+
+**Cascade policy on FKs touching `claims.id`** (keys + verifications tables if / when they gain a claim_id foreign key): **`ON DELETE SET NULL`**, not `ON DELETE CASCADE`. The Merkle leaf already holds the historical `(did, ed25519_public_key_hex, recovery_key_fingerprint, published_at)` binding — so a key row that loses its `claim_id` FK doesn't lose its audit trail; the leaf is the audit. `CASCADE` is simpler, but it deletes key rows that other read paths (e.g. "show me every key this did has ever used, active or not") might want to surface. Write the policy into Migration 0003 explicitly; do NOT let Drizzle's default decide.
+
+**Revocation has its own smoke test** — `pnpm smoke:revoke --claim-id <id>` (or via a `pnpm -F @foxbook/api smoke:revoke` dispatch, same pattern as `smoke:tier1`). Script contract: mint a claim → run tier1 → revoke with the recovery key → assert the revocation leaf is in the log → assert the claims row is gone → assert a re-claim by a different caller succeeds AND produces a new agent-key-registration leaf (not a duplicate of the revoked one). Those five assertions are the revocation contract; unit tests with mocked repos prove the code paths exist, the smoke test proves they carry water end-to-end against live Neon + Cloudflare.
