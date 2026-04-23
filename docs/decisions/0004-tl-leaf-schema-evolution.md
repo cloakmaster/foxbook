@@ -135,6 +135,19 @@ One transaction, one connection, `merkle.append` participates as a call inside i
 
 This refactor is fully additive — Day-5's call sites (`apps/api/src/claim/handlers.ts:claimVerifyGist` + future `/api/v1/*` callers) keep their current `await merkle.append(payload)` form and continue to see the "repository-owns-the-tx" behavior. Only the revocation handler (Day-6) passes the `tx` option.
 
+**tx-context hygiene — caller's transaction must be fast + local.** When invoking `merkle.append(payload, { tx })`, the caller's transaction body may contain ONLY fast local Postgres operations on the same connection: `tx.insert(...)`, `tx.update(...)`, `tx.delete(...)`, `tx.select(...)`. It MUST NOT contain:
+
+- Network calls (`fetch`, webhook POSTs, analytics events, Slack / Resend notifications).
+- External-adapter invocations (`@foxbook/adapter-gist`, `@foxbook/adapter-email`, Cloudflare API, GitHub API, anything outside Postgres).
+- Sleeps, `setTimeout`, polling loops, awaited promises that aren't themselves Drizzle queries against `tx`.
+- Long synchronous CPU work (large JSON parsing, crypto over megabytes of input).
+
+Why: `merkle.append` acquires `pg_advisory_xact_lock(hashtext('foxbook-v1'))` inside the caller's transaction, and advisory locks are held for the full transaction duration — until `COMMIT`, not until the `append` returns. Any slow operation anywhere in the caller's tx body extends that hold and serializes every other log-write across the whole system behind it. Today's revoke handler (three fast writes, no externals) is fine. The failure mode being pre-empted is 2–3 months from now when "add a webhook on revocation" lands inside the same transaction — suddenly every append queues behind HTTP round-trips, the Merkle-append p99 cliff-dives, and the Day-4 Go-daemon signal fires for the wrong reason.
+
+Pattern for side-effects that need to happen "at revocation": emit a `firehose_events` row inside the transaction, let the firehose fanout (Day-6 PR D) deliver webhooks / notifications / external calls asynchronously outside the tx. Postgres LISTEN/NOTIFY is the decoupling seam, not the `tx` body.
+
+Unsafe-operation lint (filed, not written today — add a custom Biome / eslint rule that flags `fetch`, `await` of non-Drizzle promises, and known adapter imports inside `db.transaction(async (tx) => ...)` scopes). Until that lint lands, review catches it.
+
 **Cascade policy on FKs touching `claims.id`** (keys + verifications tables if / when they gain a claim_id foreign key): **`ON DELETE SET NULL`**, not `ON DELETE CASCADE`. The Merkle leaf already holds the historical `(did, ed25519_public_key_hex, recovery_key_fingerprint, published_at)` binding — so a key row that loses its `claim_id` FK doesn't lose its audit trail; the leaf is the audit. `CASCADE` is simpler, but it deletes key rows that other read paths (e.g. "show me every key this did has ever used, active or not") might want to surface. Write the policy into Migration 0003 explicitly; do NOT let Drizzle's default decide.
 
 **Revocation has its own smoke test** — `pnpm smoke:revoke --claim-id <id>` (or via a `pnpm -F @foxbook/api smoke:revoke` dispatch, same pattern as `smoke:tier1`). Script contract: mint a claim → run tier1 → revoke with the recovery key → assert the revocation leaf is in the log → assert the claims row is gone → assert a re-claim by a different caller succeeds AND produces a new agent-key-registration leaf (not a duplicate of the revoked one). Those five assertions are the revocation contract; unit tests with mocked repos prove the code paths exist, the smoke test proves they carry water end-to-end against live Neon + Cloudflare.
