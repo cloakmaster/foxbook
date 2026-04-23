@@ -27,6 +27,19 @@ export const assetType = pgEnum("asset_type", ["github_handle", "x_handle", "dom
  * V1 simplification: one claim per asset. Multiple agents under the
  * same verified owner asset is a later-week extension (requires
  * separating asset-verification rows from agent-registration rows).
+ *
+ * Partial UNIQUE predicate (pinned — Day-5 completion pass):
+ * `WHERE asset_type IS NOT NULL AND asset_value IS NOT NULL`. The
+ * predicate is scoped this narrowly DELIBERATELY for v0: (a) legacy
+ * claims rows from before the Day-5 migration have nullable asset
+ * fields and must not trigger uniqueness, and (b) state-based
+ * exclusions (e.g. letting a revoked claim release its asset) are
+ * NOT encoded yet. Once revocation lands (Day 6), Migration 0003
+ * MUST either extend the predicate to `AND state != 'revoked'` OR
+ * delete-on-revoke — not BOTH. Until then, a claim in any state
+ * (gist_pending / tier1_verified / etc.) holds the asset. Future-you:
+ * do not silently change the predicate without an ADR; the
+ * uniqueness invariant changed.
  */
 export const claims = pgTable(
   "claims",
