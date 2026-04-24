@@ -5,14 +5,17 @@ import { describe, expect, it } from "vitest";
 import {
   appendLeaf,
   consistencyProof,
+  consistencyProofFromLeafHashes,
   EMPTY_TREE_ROOT,
   emptyTree,
   INTERIOR_PREFIX,
   inclusionProof,
+  inclusionProofFromLeafHashes,
   interiorHash,
   LEAF_PREFIX,
   leafHash,
   mth,
+  mthFromLeafHashes,
   verifyConsistency,
   verifyInclusion,
 } from "../src/merkle/index.js";
@@ -327,3 +330,85 @@ function fromHex(s: string): Uint8Array {
   for (let i = 0; i < out.length; i++) out[i] = Number.parseInt(s.slice(i * 2, i * 2 + 2), 16);
   return out;
 }
+
+describe("Merkle — *FromLeafHashes variants (read-path without re-hashing)", () => {
+  // These variants skip the leaf-hash step at the base case; the rest of
+  // the tree math is identical to the preimage-taking variants. Tests
+  // verify the two paths agree when fed consistent inputs.
+
+  it("mthFromLeafHashes([]) = EMPTY_TREE_ROOT", () => {
+    expect(hex(mthFromLeafHashes([]))).toBe(hex(EMPTY_TREE_ROOT));
+  });
+
+  it("mthFromLeafHashes([h]) = h (single leaf, no wrapping leafHash call)", () => {
+    const h = leafHash(bytes("only"));
+    expect(hex(mthFromLeafHashes([h]))).toBe(hex(h));
+    // mth(preimages) === mthFromLeafHashes(hashes) for the same data
+    expect(hex(mth([bytes("only")]))).toBe(hex(mthFromLeafHashes([h])));
+  });
+
+  it("mth(leaves) === mthFromLeafHashes(leaves.map(leafHash)) for N=1..16", () => {
+    for (let n = 1; n <= 16; n++) {
+      const leaves = Array.from({ length: n }, (_, i) => bytes(String(i)));
+      const hashes = leaves.map((l) => leafHash(l));
+      expect(hex(mth(leaves))).toBe(hex(mthFromLeafHashes(hashes)));
+    }
+  });
+
+  it("inclusionProofFromLeafHashes produces identical proof bytes for every index", () => {
+    for (let n = 1; n <= 8; n++) {
+      const leaves = Array.from({ length: n }, (_, i) => bytes(String(i)));
+      const hashes = leaves.map((l) => leafHash(l));
+      for (let i = 0; i < n; i++) {
+        const fromPreimages = inclusionProof(leaves, i).map(hex);
+        const fromHashes = inclusionProofFromLeafHashes(hashes, i).map(hex);
+        expect(fromHashes).toEqual(fromPreimages);
+      }
+    }
+  });
+
+  it("inclusionProofFromLeafHashes proofs still verify via verifyInclusion", () => {
+    for (let n = 1; n <= 8; n++) {
+      const leaves = Array.from({ length: n }, (_, i) => bytes(String(i)));
+      const hashes = leaves.map((l) => leafHash(l));
+      const root = mthFromLeafHashes(hashes);
+      for (let i = 0; i < n; i++) {
+        const proof = inclusionProofFromLeafHashes(hashes, i);
+        expect(verifyInclusion(proof, i, hashes[i]!, n, root)).toBe(true);
+      }
+    }
+  });
+
+  it("consistencyProofFromLeafHashes produces identical proof bytes for every (m, n)", () => {
+    for (let n = 0; n <= 8; n++) {
+      const leaves = Array.from({ length: n }, (_, i) => bytes(String(i)));
+      const hashes = leaves.map((l) => leafHash(l));
+      for (let m = 0; m <= n; m++) {
+        const fromPreimages = consistencyProof(leaves, m).map(hex);
+        const fromHashes = consistencyProofFromLeafHashes(hashes, m).map(hex);
+        expect(fromHashes).toEqual(fromPreimages);
+      }
+    }
+  });
+
+  it("consistencyProofFromLeafHashes proofs still verify via verifyConsistency", () => {
+    for (let n = 1; n <= 8; n++) {
+      const leaves = Array.from({ length: n }, (_, i) => bytes(String(i)));
+      const hashes = leaves.map((l) => leafHash(l));
+      const newRoot = mthFromLeafHashes(hashes);
+      for (let m = 0; m <= n; m++) {
+        const oldRoot = mthFromLeafHashes(hashes.slice(0, m));
+        const proof = consistencyProofFromLeafHashes(hashes, m);
+        expect(verifyConsistency(proof, m, n, oldRoot, newRoot)).toBe(true);
+      }
+    }
+  });
+
+  it("out-of-range index throws on FromLeafHashes variants", () => {
+    const hashes = [leafHash(bytes("a")), leafHash(bytes("b"))];
+    expect(() => inclusionProofFromLeafHashes(hashes, 2)).toThrow();
+    expect(() => inclusionProofFromLeafHashes(hashes, -1)).toThrow();
+    expect(() => consistencyProofFromLeafHashes(hashes, 3)).toThrow();
+    expect(() => consistencyProofFromLeafHashes(hashes, -1)).toThrow();
+  });
+});

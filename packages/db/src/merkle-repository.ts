@@ -267,13 +267,18 @@ export function createMerkleRepository(
     };
   }
 
-  async function readAllLeafPreimages(size: number): Promise<Uint8Array[]> {
-    // Proof generation is off the hot path. For v1 volumes (≤10K) this
-    // is fine; at 100K+ we'll cache the internal tree. See
-    // foundation §11.2 for the daemon path if the verify side gets
-    // hot too.
+  // Read-path uses stored tl_leaves.leaf_hash directly — never re-hashes
+  // from tl_leaves.leaf_data jsonb. Postgres jsonb reorders object keys
+  // on storage (by key length, then ASCIIbetically), so re-serializing
+  // the jsonb produces different bytes than the insert-time preimage →
+  // different hash → proofs that fail to verify against the stored
+  // root. Our own Day-4 comment on the write path warned about this;
+  // the read path previously fell into the trap anyway. Fixed by
+  // operating on already-hashed leaves via merkle.*FromLeafHashes(),
+  // which matches how the tree is actually persisted.
+  async function readAllLeafHashes(size: number): Promise<Uint8Array[]> {
     const rows = await db
-      .select({ leafIndex: schema.tlLeaves.leafIndex, leafData: schema.tlLeaves.leafData })
+      .select({ leafIndex: schema.tlLeaves.leafIndex, leafHash: schema.tlLeaves.leafHash })
       .from(schema.tlLeaves)
       .where(sql`${schema.tlLeaves.leafIndex} < ${BigInt(size)}`)
       .orderBy(sql`${schema.tlLeaves.leafIndex} ASC`);
@@ -282,7 +287,7 @@ export function createMerkleRepository(
         `expected ${size} leaves in tl_leaves but found ${rows.length} — integrity gap`,
       );
     }
-    return rows.map((r) => canonicalJsonBytes(r.leafData));
+    return rows.map((r) => fromHex(r.leafHash));
   }
 
   async function getInclusionProof(index: number): Promise<MerkleInclusionProof> {
@@ -291,16 +296,19 @@ export function createMerkleRepository(
     if (index < 0 || index >= root.leafCount) {
       throw new Error(`inclusion proof index out of range: ${index} not in [0, ${root.leafCount})`);
     }
-    const leaves = await readAllLeafPreimages(root.leafCount);
-    const proof = merkle.inclusionProof(leaves, index);
-    const lh = merkle.leafHash(leaves[index]!);
-    const computedRoot = merkle.mth(leaves);
+    const leafHashes = await readAllLeafHashes(root.leafCount);
+    const proof = merkle.inclusionProofFromLeafHashes(leafHashes, index);
+    const lh = leafHashes[index];
+    if (!lh) throw new Error(`unreachable: leaf at index ${index} missing after size check`);
     return {
       leafHash: hex(lh),
       leafIndex: index,
       treeSize: root.leafCount,
       proofHex: proof.map((p) => hex(p)),
-      rootHex: hex(computedRoot),
+      // rootHex comes from the stored STH at the sampled leafCount,
+      // not a recomputation — so the proof is verifiable against the
+      // exact root the Worker serves at /root.
+      rootHex: root.rootHash,
     };
   }
 
@@ -313,8 +321,8 @@ export function createMerkleRepository(
         `consistency proof requires 0 <= oldSize <= newSize, got ${oldSize} <= ${newSize}`,
       );
     }
-    const leaves = await readAllLeafPreimages(newSize);
-    const proof = merkle.consistencyProof(leaves, oldSize);
+    const leafHashes = await readAllLeafHashes(newSize);
+    const proof = merkle.consistencyProofFromLeafHashes(leafHashes, oldSize);
     return {
       oldSize,
       newSize,
