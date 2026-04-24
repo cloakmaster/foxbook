@@ -277,3 +277,84 @@ export function verifyConsistency(
 function isPow2(x: number): boolean {
   return x > 0 && (x & (x - 1)) === 0;
 }
+
+// ---------------------------------------------------------------------------
+// `*FromLeafHashes` variants — operate on already-hashed leaves.
+//
+// Motivation: the Merkle repository persists `tl_leaves.leaf_hash` at write
+// time (hashed over the original canonical-JSON bytes). The original bytes
+// themselves are stored in `tl_leaves.leaf_data` as jsonb, which Postgres
+// reorders internally (keys sorted by length then ASCIIbetically). A read-
+// time recompute via `canonicalJsonBytes(leaf_data_from_db)` produces
+// DIFFERENT bytes than the insert-time preimage → different hash → proofs
+// that don't verify against the stored root.
+//
+// The fix: never re-hash from jsonb on the read path. Read `leaf_hash`
+// directly, and run the tree math over already-hashed leaves. These
+// variants skip the `leafHash()` step at the 1-leaf base case; everything
+// else is identical. Caller responsibility: pass 32-byte hashes, not
+// preimages.
+//
+// The preimage-taking variants (mth / inclusionProof / consistencyProof)
+// stay unchanged — they're still the authoritative write-time entry
+// points (`merkle.appendLeaf` hashes fresh from bytes) and every existing
+// test vector continues to pass against them.
+
+/** RFC 9162 MTH computed over already-hashed leaves (32-byte each). */
+export function mthFromLeafHashes(leafHashes: Uint8Array[]): Uint8Array {
+  if (leafHashes.length === 0) return EMPTY_TREE_ROOT;
+  const first = leafHashes[0];
+  if (leafHashes.length === 1) {
+    if (!first) throw new Error("unreachable: single-leaf tree with undefined hash");
+    return first;
+  }
+  const k = largestPow2LessThan(leafHashes.length);
+  return interiorHash(
+    mthFromLeafHashes(leafHashes.slice(0, k)),
+    mthFromLeafHashes(leafHashes.slice(k)),
+  );
+}
+
+/** PATH(m, D[n]) computed over already-hashed leaves. */
+export function inclusionProofFromLeafHashes(
+  leafHashes: Uint8Array[],
+  index: number,
+): Uint8Array[] {
+  const n = leafHashes.length;
+  if (index < 0 || index >= n) {
+    throw new Error(`inclusion proof index out of range: ${index} not in [0, ${n})`);
+  }
+  return pathRecursiveFromLeafHashes(index, leafHashes);
+}
+
+function pathRecursiveFromLeafHashes(m: number, d: Uint8Array[]): Uint8Array[] {
+  const n = d.length;
+  if (n === 1) return [];
+  const k = largestPow2LessThan(n);
+  if (m < k) {
+    return [...pathRecursiveFromLeafHashes(m, d.slice(0, k)), mthFromLeafHashes(d.slice(k))];
+  }
+  return [...pathRecursiveFromLeafHashes(m - k, d.slice(k)), mthFromLeafHashes(d.slice(0, k))];
+}
+
+/** PROOF(m, D[n]) computed over already-hashed leaves. */
+export function consistencyProofFromLeafHashes(leafHashes: Uint8Array[], m: number): Uint8Array[] {
+  const n = leafHashes.length;
+  if (m < 0 || m > n) {
+    throw new Error(`consistency proof m out of range: ${m} not in [0, ${n}]`);
+  }
+  if (m === 0 || m === n) return [];
+  return subProofFromLeafHashes(m, leafHashes, true);
+}
+
+function subProofFromLeafHashes(m: number, d: Uint8Array[], b: boolean): Uint8Array[] {
+  const n = d.length;
+  if (m === n) {
+    return b ? [] : [mthFromLeafHashes(d)];
+  }
+  const k = largestPow2LessThan(n);
+  if (m <= k) {
+    return [...subProofFromLeafHashes(m, d.slice(0, k), b), mthFromLeafHashes(d.slice(k))];
+  }
+  return [...subProofFromLeafHashes(m - k, d.slice(k), false), mthFromLeafHashes(d.slice(0, k))];
+}
