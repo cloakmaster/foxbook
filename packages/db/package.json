@@ -12,7 +12,8 @@
     "lint": "biome lint .",
     "db:generate": "node --env-file=../../.env.local --no-warnings node_modules/drizzle-kit/bin.cjs generate",
     "db:push": "node --env-file=../../.env.local --no-warnings node_modules/drizzle-kit/bin.cjs push",
-    "db:migrate": "node --env-file=../../.env.local --no-warnings node_modules/drizzle-kit/bin.cjs migrate",
+    "db:migrate": "node --env-file=../../.env.local --no-warnings ./scripts/migrate.mjs",
+    "db:migrate:kit": "node --env-file=../../.env.local --no-warnings node_modules/drizzle-kit/bin.cjs migrate",
     "db:studio": "node --env-file=../../.env.local --no-warnings node_modules/drizzle-kit/bin.cjs studio"
   },
   "dependencies": {
