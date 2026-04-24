@@ -13,10 +13,12 @@
 #        dashboard, NOT included in the Worker bundle. Re-run per-
 #        environment (production, staging) if you add them later.
 #
-#   3. pnpm --filter @foxbook/transparency deploy
+#   3. pnpm --filter @foxbook/transparency cf:deploy
 #        Ships the Worker. First deploy lands on foxbook-transparency.
 #        workers.dev; production route below is commented out until DNS
-#        + zone binding settle.
+#        + zone binding settle. Named `cf:deploy` (not `deploy`) because
+#        pnpm has a built-in `deploy` command that would shadow the
+#        package script when invoked via `pnpm --filter ... deploy`.
 #
 # wrangler is workspace-local (not on global PATH). The pnpm-script
 # shortcuts above resolve node_modules/.bin/wrangler automatically; if

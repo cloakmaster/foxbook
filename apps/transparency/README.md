@@ -26,7 +26,7 @@ pnpm --filter @foxbook/transparency cf:login
 pnpm --filter @foxbook/transparency cf:secret
 
 # 3. Ship the Worker.
-pnpm --filter @foxbook/transparency deploy
+pnpm --filter @foxbook/transparency cf:deploy
 ```
 
 Equivalent non-script invocation if you prefer:
@@ -37,6 +37,8 @@ pnpm exec wrangler login
 pnpm exec wrangler secret put DATABASE_URL
 pnpm exec wrangler deploy
 ```
+
+`pnpm deploy` (without the `cf:` prefix) would collide with pnpm's built-in deploy-to-directory command — that's why the script is named `cf:deploy`, matching `cf:login` and `cf:secret`.
 
 Step 2 is load-bearing. Without it, `/root`, `/leaf/:index`, `/inclusion/:index`, and `/consistency` all 500 because `@neondatabase/serverless` has no connection URL at request time. The symptom is "the Worker is broken"; the actual cause is "the Worker has no DB credentials."
 

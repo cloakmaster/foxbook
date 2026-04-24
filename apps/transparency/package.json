@@ -11,9 +11,9 @@
     "test": "vitest run",
     "lint": "biome lint .",
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
     "cf:login": "wrangler login",
-    "cf:secret": "wrangler secret put DATABASE_URL"
+    "cf:secret": "wrangler secret put DATABASE_URL",
+    "cf:deploy": "wrangler deploy"
   },
   "dependencies": {
     "@foxbook/db": "workspace:*",
