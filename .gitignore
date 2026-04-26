@@ -28,6 +28,10 @@ __pycache__/
 # Claude Code local settings
 .claude/settings.local.json
 
+# Day-N-specific preflight extensions (per-day flags don't accumulate in repo;
+# canonical 14 flags live in scripts/preflight-day-N.sh)
+scripts/preflight-day-N.local.sh
+
 # Logs
 *.log
 npm-debug.log*

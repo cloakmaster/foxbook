@@ -151,3 +151,26 @@ Unsafe-operation lint (filed, not written today — add a custom Biome / eslint 
 **Cascade policy on FKs touching `claims.id`** (keys + verifications tables if / when they gain a claim_id foreign key): **`ON DELETE SET NULL`**, not `ON DELETE CASCADE`. The Merkle leaf already holds the historical `(did, ed25519_public_key_hex, recovery_key_fingerprint, published_at)` binding — so a key row that loses its `claim_id` FK doesn't lose its audit trail; the leaf is the audit. `CASCADE` is simpler, but it deletes key rows that other read paths (e.g. "show me every key this did has ever used, active or not") might want to surface. Write the policy into Migration 0003 explicitly; do NOT let Drizzle's default decide.
 
 **Revocation has its own smoke test** — `pnpm smoke:revoke --claim-id <id>` (or via a `pnpm -F @foxbook/api smoke:revoke` dispatch, same pattern as `smoke:tier1`). Script contract: mint a claim → run tier1 → revoke with the recovery key → assert the revocation leaf is in the log → assert the claims row is gone → assert a re-claim by a different caller succeeds AND produces a new agent-key-registration leaf (not a duplicate of the revoked one). Those five assertions are the revocation contract; unit tests with mocked repos prove the code paths exist, the smoke test proves they carry water end-to-end against live Neon + Cloudflare.
+
+## Addendum 2 — Firehose emission pattern (PR D pin, 2026-04-26)
+
+The original addendum above pinned the side-effect pattern: "emit a `firehose_events` row inside the transaction, let the firehose fanout (Day-6 PR D) deliver webhooks / notifications / external calls asynchronously outside the tx." This addendum-2 makes the **inverse** explicit ahead of PR D landing.
+
+**Caller-side `tx.insert(firehose_events)` is permitted by the original hygiene rule.** It is a local Postgres write inside the caller's transaction with no `fetch`, no adapter call, no sleep. Introducing firehose emission to the codebase does not require an exception; the hygiene rule already permits it.
+
+**The inverse lock: `merkle-repository.append` MUST NOT swallow derivative writes.** Any future expansion that pushes the firehose insert (or any other derivative write — audit log, metrics row, mirror table) inside `append` is forbidden without a follow-on ADR. The reason is structural: once one derivative write lives inside `append`, the next reviewer can argue precedent; six months later `append` is a god-method, advisory locks are held longer, the tx-context hygiene rule is moot because every caller's tx is implicitly the repository's tx. The pattern that survives review under fatigue is the one that makes the next "small" expansion visible.
+
+**Concrete Day-6 application:**
+
+- `revocation.recorded` (PR B's revoke handler) — emitted by the handler, inside the handler's `db.transaction`, AFTER `merkle.append({ tx })` returns and BEFORE the `claims` delete. Not by `append` itself.
+- `claim.verified` (PR D refactors `/claim/verify-gist` to a single `db.transaction`) — emitted by the refactored verify-gist handler, same pattern. The refactor also retroactively closes the Day-5 non-atomicity gap between `merkle.append`'s leaf write and the operational state writes (`claim` insert, `keys` insert) that previously ran outside any shared transaction.
+
+**What changes if firehose emission needs to grow:**
+
+- New event type at an existing emit site → add to the handler's `tx.insert(firehose_events)` call. No ADR.
+- New event type at a new emit site → add the call at the new handler. No ADR.
+- Push the insert *into* `merkle-repository.append` because "every leaf append now also wants to emit" → file a follow-on ADR explaining why `append`'s contract should grow, including the impact on advisory-lock duration and tx-context hygiene. This addendum-2 is the gate.
+
+**Row-size pin (so PR D doesn't paint itself into a corner).** `firehose_events` rows must serialize to under 1 KB to fit `pg_notify`'s 8 KB payload limit with ~8× headroom for envelope expansion. The Day-6 schema is restricted to `event_type, leaf_index, did, timestamp, hash` (plus PG bookkeeping columns). If a future event type breaches the limit, the trigger is changed to emit only `{ event_id, event_type }` and the listener fetches the full row via out-of-band `SELECT` before SSE-fanning. Document the fallback in the trigger source comment so future-author doesn't re-derive it.
+
+**Why this is filed as a standing ADR refinement rather than a one-time PR-body note:** future-author can find the rule via `git log -- docs/decisions/0004-*` not just buried in a closed PR's description. The discipline survives the lifetime of the PR.
