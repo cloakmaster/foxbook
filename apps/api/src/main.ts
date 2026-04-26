@@ -3,6 +3,7 @@ import { createMerkleRepository, createNodeClient } from "@foxbook/db";
 import { serve } from "@hono/node-server";
 
 import { createClaimRepository } from "./claim/repository.js";
+import { createRevocationCommitter } from "./claim/revocation-committer.js";
 import { DrizzleDiscoveryRepository } from "./discover/repository.js";
 import { createApp } from "./server.js";
 
@@ -36,6 +37,7 @@ const app = createApp({
     claimRepo: createClaimRepository(db),
     gist: { verifyGistContainsCode },
     merkle,
+    revocationCommitter: createRevocationCommitter(db, merkle),
   },
 });
 

@@ -35,6 +35,13 @@ function fakeClaimDeps(
   }));
   const gistSpy = vi.fn(async () => ({ status: "match" as const, body: "ok" }));
 
+  // claimStart and claimVerifyGist don't call revocationCommitter; the
+  // default fake throws if it's ever invoked so a regression in the
+  // happy path doesn't silently exercise revocation code.
+  const revokeSpy = vi.fn(async () => {
+    throw new Error("revocationCommitter should not be called by claimStart/claimVerifyGist");
+  });
+
   const deps: ClaimDeps = {
     claimRepo: {
       insertClaim: async (row) => {
@@ -70,6 +77,7 @@ function fakeClaimDeps(
     },
     gist: { verifyGistContainsCode: gistSpy },
     merkle: { append: appendSpy },
+    revocationCommitter: revokeSpy,
     ...overrides,
   };
   return { deps, appendSpy, gistSpy };

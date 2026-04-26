@@ -25,6 +25,9 @@ function stubClaimDeps(): ClaimDeps {
         throw new Error("discover tests never call merkle.append");
       },
     },
+    revocationCommitter: async () => {
+      throw new Error("discover tests never call revocationCommitter");
+    },
   };
 }
 
