@@ -17,6 +17,11 @@
 // in afterEach (idempotent — DELETE WHERE id matches; no-op if the
 // transaction rolled back the insert too).
 
+import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { loadEnvFile } from "node:process";
+import { fileURLToPath } from "node:url";
+
 import { generateKeypair, keypairFromSeed } from "@foxbook/core";
 import {
   createMerkleRepository,
@@ -29,9 +34,31 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 const SHOULD_RUN = process.env.RUN_INTEGRATION_TESTS === "1";
 
+// Load .env.local when this integration test actually runs. Vitest's
+// default invocation (`vitest run` from the test script) does NOT
+// inherit Node's `--env-file=` flag, so DATABASE_URL isn't in
+// process.env at suite-load and createNodeClient() throws. Smoke
+// scripts dodge this by going through `node --env-file=...` directly;
+// the test surface uses vitest, which doesn't.
+//
+// Local-load only: gated behind RUN_INTEGRATION_TESTS=1 + existsSync
+// so CI (no .env.local) is unaffected. Idempotent — re-loading the
+// same file silently overwrites; safe if a parent shell already
+// exported DATABASE_URL with the same value.
+//
+// loadEnvFile is Node's built-in (added 20.12.0 / 21.7.0). Available
+// on this project's >=22 engine constraint.
+if (SHOULD_RUN) {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const envFile = resolve(here, "..", "..", "..", ".env.local");
+  if (existsSync(envFile)) {
+    loadEnvFile(envFile);
+  }
+}
+
 function hexFromBytes(b: Uint8Array): string {
   let s = "";
-  for (let i = 0; i < b.length; i++) s += b[i]!.toString(16).padStart(2, "0");
+  for (let i = 0; i < b.length; i++) s += b[i]?.toString(16).padStart(2, "0");
   return s;
 }
 
