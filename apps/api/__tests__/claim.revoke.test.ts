@@ -192,10 +192,7 @@ describe("claimRevoke — happy path", () => {
       revocation_timestamp: "2026-04-26T12:00:00Z",
       reason_code: "owner_request",
     });
-    const result = await claimRevoke(
-      { claimId: claim.id, revocationRecordJws: jws },
-      deps,
-    );
+    const result = await claimRevoke({ claimId: claim.id, revocationRecordJws: jws }, deps);
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.revoked).toBe(true);
@@ -219,10 +216,7 @@ describe("claimRevoke — happy path", () => {
       revoked_key_hex: claim.ed25519PublicKeyHex,
       revocation_timestamp: "2026-04-26T12:00:00Z",
     });
-    const result = await claimRevoke(
-      { claimId: claim.id, revocationRecordJws: jws },
-      deps,
-    );
+    const result = await claimRevoke({ claimId: claim.id, revocationRecordJws: jws }, deps);
     expect(result.ok).toBe(true);
     expect(revokeSpy).toHaveBeenCalledTimes(1);
     const fullLeaf = revokeSpy.mock.calls[0]?.[0]?.fullLeaf as Record<string, unknown>;
@@ -256,10 +250,7 @@ describe("claimRevoke — negative paths (none of which call revocationCommitter
       revoked_key_hex: SIGNING_PUB_HEX,
       revocation_timestamp: "2026-04-26T12:00:00Z",
     });
-    const result = await claimRevoke(
-      { claimId: started.claim.id, revocationRecordJws: jws },
-      deps,
-    );
+    const result = await claimRevoke({ claimId: started.claim.id, revocationRecordJws: jws }, deps);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.status).toBe("bad-state");
@@ -286,10 +277,7 @@ describe("claimRevoke — negative paths (none of which call revocationCommitter
       wrong.privateKey,
       wrong.publicKey,
     );
-    const result = await claimRevoke(
-      { claimId: claim.id, revocationRecordJws: jws },
-      deps,
-    );
+    const result = await claimRevoke({ claimId: claim.id, revocationRecordJws: jws }, deps);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe("recovery-key-mismatch");
     expect(revokeSpy).not.toHaveBeenCalled();
@@ -334,10 +322,7 @@ describe("claimRevoke — negative paths (none of which call revocationCommitter
     );
     const fakeSig = base64url(new Uint8Array(64));
     const tok = `${headerBad}.${payloadOk}.${fakeSig}`;
-    const result = await claimRevoke(
-      { claimId: claim.id, revocationRecordJws: tok },
-      deps,
-    );
+    const result = await claimRevoke({ claimId: claim.id, revocationRecordJws: tok }, deps);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe("recovery-key-signature-invalid");
     expect(revokeSpy).not.toHaveBeenCalled();
@@ -355,10 +340,7 @@ describe("claimRevoke — negative paths (none of which call revocationCommitter
     });
     const realParts = real.split(".");
     const tampered = `${realParts[0]}.${realParts[1]}.${base64url(new Uint8Array(64))}`;
-    const result = await claimRevoke(
-      { claimId: claim.id, revocationRecordJws: tampered },
-      deps,
-    );
+    const result = await claimRevoke({ claimId: claim.id, revocationRecordJws: tampered }, deps);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe("recovery-key-signature-invalid");
     expect(revokeSpy).not.toHaveBeenCalled();
@@ -374,10 +356,7 @@ describe("claimRevoke — negative paths (none of which call revocationCommitter
       revoked_key_hex: claim.ed25519PublicKeyHex,
       revocation_timestamp: "2026-04-26T12:00:00Z",
     });
-    const result = await claimRevoke(
-      { claimId: claim.id, revocationRecordJws: jws },
-      deps,
-    );
+    const result = await claimRevoke({ claimId: claim.id, revocationRecordJws: jws }, deps);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe("invalid-leaf");
     expect(revokeSpy).not.toHaveBeenCalled();
@@ -392,10 +371,7 @@ describe("claimRevoke — negative paths (none of which call revocationCommitter
       revoked_key_hex: "0".repeat(64),
       revocation_timestamp: "2026-04-26T12:00:00Z",
     });
-    const result = await claimRevoke(
-      { claimId: claim.id, revocationRecordJws: jws },
-      deps,
-    );
+    const result = await claimRevoke({ claimId: claim.id, revocationRecordJws: jws }, deps);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe("invalid-leaf");
     expect(revokeSpy).not.toHaveBeenCalled();
@@ -413,10 +389,7 @@ describe("claimRevoke — negative paths (none of which call revocationCommitter
       revocation_timestamp: "2026-04-26T12:00:00Z",
       reason_code: "bad_reason" as "owner_request",
     });
-    const result = await claimRevoke(
-      { claimId: claim.id, revocationRecordJws: jws },
-      deps,
-    );
+    const result = await claimRevoke({ claimId: claim.id, revocationRecordJws: jws }, deps);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe("invalid-leaf");
     expect(revokeSpy).not.toHaveBeenCalled();

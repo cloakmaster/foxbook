@@ -80,9 +80,7 @@
         "agents_url_unique": {
           "name": "agents_url_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "url"
-          ]
+          "columns": ["url"]
         }
       },
       "policies": {},
@@ -311,12 +309,8 @@
           "name": "keys_claim_id_claims_id_fk",
           "tableFrom": "keys",
           "tableTo": "claims",
-          "columnsFrom": [
-            "claim_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["claim_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -660,12 +654,8 @@
           "name": "verifications_claim_id_claims_id_fk",
           "tableFrom": "verifications",
           "tableTo": "claims",
-          "columnsFrom": [
-            "claim_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["claim_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -681,50 +671,27 @@
     "public.asset_type": {
       "name": "asset_type",
       "schema": "public",
-      "values": [
-        "github_handle",
-        "x_handle",
-        "domain"
-      ]
+      "values": ["github_handle", "x_handle", "domain"]
     },
     "public.claim_method": {
       "name": "claim_method",
       "schema": "public",
-      "values": [
-        "gist",
-        "tweet",
-        "email",
-        "dns",
-        "endpoint"
-      ]
+      "values": ["gist", "tweet", "email", "dns", "endpoint"]
     },
     "public.claim_state": {
       "name": "claim_state",
       "schema": "public",
-      "values": [
-        "unclaimed",
-        "gist_pending",
-        "tier1_verified",
-        "tier2_pending",
-        "tier2_verified"
-      ]
+      "values": ["unclaimed", "gist_pending", "tier1_verified", "tier2_pending", "tier2_verified"]
     },
     "public.key_purpose": {
       "name": "key_purpose",
       "schema": "public",
-      "values": [
-        "signing",
-        "recovery"
-      ]
+      "values": ["signing", "recovery"]
     },
     "public.report_event_type": {
       "name": "report_event_type",
       "schema": "public",
-      "values": [
-        "hire.settled",
-        "hire.failed",
-        "delegation.announced"
-      ]
+      "values": ["hire.settled", "hire.failed", "delegation.announced"]
     }
   },
   "schemas": {},

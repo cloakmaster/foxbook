@@ -3,10 +3,7 @@
   "$id": "https://foxbook.dev/schemas/tl-leaf/v1.json",
   "title": "Foxbook transparency-log leaf taxonomy (v1)",
   "description": "The set of event shapes written to tl_leaves.leaf_data. Schema revisions (additive within v1.x per ADR 0004; $id never changes):\n  - v1.0 — `agent-key-registration` only.\n  - v1.1 — adds `revocation` per Day-6 PR B (ADR 0004 addendum-1: delete-on-revoke; recovery-key-signed leaf body via canonical.ts per ADR 0005).\nExplicit deferrals (must not land silently before their target):\n  - `claim-event` (shape TBD) → Day 5+, pairs with the claim flow state machine.\n  - `key-rotation` → Day 7, pairs with the recovery-key harness per foundation §6.6.\n  - `manifest-version-diff` → week 2+, after manifests_versions has callers.\n  - `tier-upgrade` → v1.1+ (filed for v1.1 to close the Tier-2 attestability asymmetry per Day-6 PR C body).\n  - Firehose `hire.settled`/`hire.failed`/`delegation.announced`/`claim.verified`/`revocation.recorded` events are NOT leaves — they live in firehose_events and reference leaves by inclusion proof.\nAll leaf shapes $ref shared primitives in x-foxbook.v1.json (did, ed25519PublicKeyHex, recoveryKeyFingerprint) rather than redefining them — prevents the \"two definitions of did\" drift bug.",
-  "oneOf": [
-    { "$ref": "#/$defs/agentKeyRegistration" },
-    { "$ref": "#/$defs/revocation" }
-  ],
+  "oneOf": [{ "$ref": "#/$defs/agentKeyRegistration" }, { "$ref": "#/$defs/revocation" }],
   "$defs": {
     "agentKeyRegistration": {
       "type": "object",

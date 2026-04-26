@@ -142,8 +142,6 @@ export type RevocationCommitterInput = {
   fullLeaf: unknown;
 };
 
-export type RevocationCommitter = (
-  input: RevocationCommitterInput,
-) => Promise<MerkleAppendResult>;
+export type RevocationCommitter = (input: RevocationCommitterInput) => Promise<MerkleAppendResult>;
 
 export type { MerkleAppendResult };

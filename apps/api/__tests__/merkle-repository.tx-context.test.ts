@@ -19,9 +19,9 @@
 
 import { generateKeypair, keypairFromSeed } from "@foxbook/core";
 import {
-  type MerkleRepository,
   createMerkleRepository,
   createNodeClient,
+  type MerkleRepository,
   schema,
 } from "@foxbook/db";
 import { eq, sql } from "drizzle-orm";
