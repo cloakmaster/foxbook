@@ -1,0 +1,24 @@
+# Foxbook first live Tier-1 Merkle append
+# 2026-04-26T16:51:32.837Z
+
+asset_type:          github_handle
+asset_value:         cloakmaster
+agent_did:           did:foxbook:01KQ5B58FVE3GHT0B4WE3224W3
+claim_id:            edbd6983-ed4e-4d3b-ab0b-85bfaf8c97f4
+verification_code:   K2PJECAWHGX23RJNS42SZDBA69XBGGAD
+gist_url:            https://gist.github.com/cloakmaster/49e71312242bd1e763b2f4c8647419a9
+ed25519_public_key:  85872bf4fa87c8a45b1810f90d7b1d8589b90c594fae842880dbc506056abc35
+ed25519_seed:        a0e6ed06d1f9d6ffc363436dfdcdfe1ccc9e5060bb500246b5f7d0afd5f367ca
+recovery_key_fp:     sha256:e1cc1154c9ab8960eb621fe47f11167727c4a91bac697524a3f05a69f44dabd3
+
+# Merkle leaf
+leaf_index:          1
+leaf_hash:           0ee058fd9867f8aeafc3a32deabfece8998b96efe1915426cc00a623d79573e1
+root_after:          8e8959aecf14bb0f6430d425a48e5af718ebc629f8546945b5020124aa33ce35
+
+# Signed tree head (JWS compact, EdDSA)
+sth_jws:             eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJsb2dfaWQiOiJmb3hib29rLXYxIiwidHJlZV9zaXplIjoyLCJyb290X2hhc2giOiI4ZTg5NTlhZWNmMTRiYjBmNjQzMGQ0MjVhNDhlNWFmNzE4ZWJjNjI5Zjg1NDY5NDViNTAyMDEyNGFhMzNjZTM1IiwidGltZXN0YW1wIjoiMjAyNi0wNC0yNlQxNjo1MTozMi42NTlaIiwidmVyc2lvbiI6IjEuMC1kcmFmdCJ9.SOTCdxiwqZzvFKCqo2pRZdQUXJwj19-F9kEkHaZPk0qNbmnP84vNu5cuEqSP611ah7BQWS5I1Vg7NFc_UJErAQ
+
+# Inclusion proof (verifies against the transparency Worker)
+inclusion_path:      /inclusion/1
+# inclusion_url: (re-run with --worker-url once the Worker is deployed)
