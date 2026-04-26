@@ -1,0 +1,25 @@
+# Foxbook first live Tier-1 revocation
+# 2026-04-26T18:36:15.063Z
+
+asset_value:                    cloakmaster
+agent_did:                      did:foxbook:01KQ5H6YVE139XTY9AGCTGBMF2
+revoked_claim_id:               9f814f3d-b274-4a45-9578-4d6e6fe5da56
+revoked_signing_key:            fd35db1d264d4635ab0912e4e48f952e71a047c39c92b440e66a7fc4a6b74c95
+recovery_key_fingerprint:       sha256:a40780d2faca717516309fdb242560b332503769b31e04a128f40289660a83b9
+
+# Tier-1 leaf (registration)
+tier1_leaf_index:               4
+tier1_root_after:               ee363edc88c69192f8f238f4a6fae6d01657d82a06792ed8007538dca66451b7
+
+# Revocation leaf
+revocation_leaf_index:          5
+revocation_leaf_hash:           6c068c0fffb4a05ade6439b571f306cd327968ea16140ae6fb1877683fd12a17
+revocation_sth_jws:             eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJsb2dfaWQiOiJmb3hib29rLXYxIiwidHJlZV9zaXplIjo2LCJyb290X2hhc2giOiIyMjBhYjU4M2QyYjgwOTA5YmYwNTU2N2M3MTViZjkyZTRmOWU5MDdiNjBhMDU1OTk1NTBlYWM5Yjk5Y2FmODMyIiwidGltZXN0YW1wIjoiMjAyNi0wNC0yNlQxODozNjoxNC42ODNaIiwidmVyc2lvbiI6IjEuMC1kcmFmdCJ9.mzvOhlo87_F2kiSHWPsfVU_PpV_DSmiumoiaI4i7WiqnD35NdnVAd7_pUqPoep0_k09GMLaec6rt2QzSksZiAQ
+revocation_timestamp:           2026-04-26T18:36:14.468Z
+revocation_wall_clock_ms:       467.2
+revocation_wall_clock_budget:   500
+
+# Re-claim proof (asset slot freed by delete-on-revoke)
+reclaim_claim_id:               74f2e408-8945-41da-a396-ecae3e61d6e4
+reclaim_agent_did:              did:foxbook:01KQ5H7W73R1GM15MXMCHW4BGA
+reclaim_signing_key:            825a482295c7dcbfa496d38458ebeb30ba59cafad9c1414ce4b872d62c48470c
