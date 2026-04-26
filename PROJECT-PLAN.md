@@ -1,9 +1,18 @@
 # Foxbook — Project Plan (V1 Build)
 
 **Build window:** 2026-04-21 → 2026-06-01 (6 weeks, closable at 4).
-**Last updated:** 2026-04-21.
-**Authoritative source for design:** `LOCKED.md` + `foxbook-foundation.md`.
+**Last updated:** 2026-04-26.
+**Authoritative source for design:** `LOCKED.md` + `foxbook-foundation.md` + `docs/decisions/*`.
 **This file:** tracks execution, not design. Updated at end of every week.
+
+## Pinned ADRs (binding architectural decisions; supersede via new ADR only)
+
+- [ADR 0001](docs/decisions/0001-service-agnostic-core.md) — service-agnostic core (`core/**` + `packages/**` ban list).
+- [ADR 0002](docs/decisions/0002-db-layer-discipline.md) — forward-only migrations, scripted `db:migrate`.
+- [ADR 0003](docs/decisions/0003-foxbook-enums-as-schemas.md) — Foxbook-specific enums live in JSON schemas, not generated TS types.
+- [ADR 0004](docs/decisions/0004-tl-leaf-schema-evolution.md) — tl-leaf additive-only within v1.x; revocation atomicity (addendum-1); firehose emission inverse-lock (addendum-2).
+- [ADR 0005](docs/decisions/0005-canonical-on-both-sides.md) — `core/crypto/canonical.ts` is the sole canonicalisation primitive; never rehash storage decodes.
+- [ADR 0006](docs/decisions/0006-protocol-not-marketplace.md) — Foxbook is protocol infrastructure, not a marketplace; path ordering is irreversible.
 
 ---
 
@@ -21,6 +30,17 @@ Load-bearing SLO: **firehose staleness p95 <60s.** If an architectural choice pu
 
 **90 days post-launch (any one):** <1K real claims, <100 real tx/day (scouts excluded), incumbent ships equivalent with 10x our distribution, standards body ships incompatible registry spec.
 
+**6-month adoption test (per ADR 0006, co-option-failure indicator):** at least ONE of —
+
+- Foxbook referenced in MCP docs (any first-party Anthropic surface).
+- A2A spec mentions `x-foxbook` extension (registered upstream OR cited as canonical reference).
+- A framework SDK (LangGraph / CrewAI / Mastra / AutoGen) integrates Foxbook claim verification natively.
+- Named adoption by a real agent-builder shop with a real product (NOT a demo, NOT a fork-with-no-traffic).
+
+Zero of the four at month 4 = co-option failure mode is materialising; pivot signal. Reassess thesis or wind down.
+
+**12-month business test (per ADR 0006, monetization thesis):** hosted-log-as-a-service + enterprise audit/compliance pipeline (SR 11-7, EU AI Act, cyber-insurance underwriting demand). Zero pipeline at month 9 = monetization thesis is wrong; rethink.
+
 ---
 
 ## Weekly milestones (what must be true by end of each week)
@@ -29,7 +49,19 @@ Load-bearing SLO: **firehose staleness p95 <60s.** If an architectural choice pu
 Repo live. Hosting + staging provisioned. Crypto primitives (Ed25519/JWS/did:foxbook) cross-language. Postgres schema v0. Merkle log append path. AgentCard + `x-foxbook` schemas. Claim flow scaffolded (Tier 1 via GitHub Gist demoable on staging). Pre-pop scraper producing shadow URLs. Firehose envelope drafted. Capability taxonomy v1 committed. Scout roster locked. Load-test plan committed. Hero agent outreach pipeline at 50+ soft commits.
 
 ### Week 2 — Surfaces (Tue Apr 28 → Mon May 4)
-Claim flow complete (Tier 1 + Tier 2 end-to-end in prod). Discovery API on Meilisearch returning ranked results. Firehose production fanout working (Cloudflare Durable Objects). First scout transacting on staging. Firehose envelope **frozen**. Transparency log UI live at `transparency.foxbook.dev`. Pre-pop at 20K+ shadow URLs. Observability dashboards wired. Hero roster at 75+ soft commits, 25+ signed claims.
+Claim flow complete (Tier 1 + Tier 2 end-to-end in prod). Discovery API on Meilisearch returning ranked results. Firehose production fanout working (Cloudflare Durable Objects). First scout transacting on staging. Firehose envelope **frozen**. Transparency log UI live at `transparency.foxbook.dev`. Pre-pop at 20K+ shadow URLs. Observability dashboards wired. Hero roster at 75+ soft commits, 25+ signed claims. **Distribution Track shipped (see below).**
+
+#### Week-2 Distribution Track (operationalises ADR 0006)
+
+Three actions, parallel to engineering. The pipeline against co-option (Anthropic-native MCP identity / Google-internal A2A verifier) is built here — it is not a marketing afterthought, it is protocol-infrastructure work.
+
+(a) **`docs/rfc-a2a-x-foxbook-extension.md`** — drafted as an upstream-PR-shaped document proposing `x-foxbook` v1 as a registered A2A extension. Cites the live transparency log (`transparency.foxbook.dev`) and cross-language verification primitives (`schemas/crypto-test-vectors.json` jws_round_trip vector). Submitted to the A2A repository by the end of week 2. The PR's job is registering the extension; adoption is the leading-indicator metric, not PR merge.
+
+(b) **`packages/sdk-claim/`** — TS-first scaffold with three files: `index.ts` (public surface re-exports), `claim.ts` (claim-flow client), `verify.ts` (inclusion-proof + STH verification). **Function signatures only on Day 7**, sub-100-line public surface. Implementation lands in week 2. The signatures committed Day 7 set the contract that the RFC and the outreach DMs both reference; if they're wrong, all three deliverables drift.
+
+(c) **`docs/outreach.md`** — 10 named targets across MCP team contacts, A2A spec maintainers, framework authors (LangGraph / CrewAI / AutoGen / Mastra), and agent-security analyst voices. 100-word DM template (one per target, tailored): _"I built the reference implementation of the verification layer your spec assumes. Two signed claims and inclusion proofs are public at [URL]. What blocks you from referencing this?"_ The phrasing is deliberate: it's an offer of work-already-done, not a request for review. Sent over week 2; week-3 retro lists who replied, who didn't, what they said.
+
+Slipping all three is a co-option-failure leading indicator (per ADR 0006).
 
 ### Week 3 — Load test + hardening (Tue May 5 → Mon May 11)
 **Load test executed by end of week.** Discovery p50 <500ms, p99 <1.5s under projected V1 load. Firehose p50 <30s, p95 <60s. Key rotation / revocation e2e test passing in prod. All 5-10 scouts running. Shield middleware for LangChain + CrewAI. Browser extension MVP (Chrome). OG image template rendering on all profile pages. **Gut-check: does the firehose feel alive when Benjamin opens `foxbook.dev/live`? If no, raise it now.**
