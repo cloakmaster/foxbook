@@ -15,6 +15,30 @@ import type { AssetType, ClaimRepository, ClaimRow, ClaimState } from "./types.j
 
 const UNIQUE_VIOLATION_CODE = "23505";
 
+// Drizzle (>= 0.44) wraps query errors in DrizzleQueryError with the
+// original postgres-js error in `cause`. Older versions surfaced the
+// SQLSTATE on the top-level error. Walk the cause chain so both forms
+// translate to a clean asset-conflict instead of a 500.
+export function isUniqueViolation(e: unknown): boolean {
+  let cur: unknown = e;
+  for (let depth = 0; depth < 4; depth++) {
+    if (
+      cur &&
+      typeof cur === "object" &&
+      "code" in cur &&
+      (cur as { code: unknown }).code === UNIQUE_VIOLATION_CODE
+    ) {
+      return true;
+    }
+    if (cur && typeof cur === "object" && "cause" in cur) {
+      cur = (cur as { cause: unknown }).cause;
+      continue;
+    }
+    return false;
+  }
+  return false;
+}
+
 function rowToClaim(r: typeof schema.claims.$inferSelect): ClaimRow {
   // The Day-5 flow populates every nullable column; rows in other
   // states may not have them. We narrow only when we know they're
@@ -54,13 +78,7 @@ export function createClaimRepository(db: NodeDbClient): ClaimRepository {
         if (!id) throw new Error("insertClaim: RETURNING produced no row");
         return { ok: true, id };
       } catch (e) {
-        // postgres-js surfaces the SQLSTATE on the error object's `code`.
-        if (
-          e &&
-          typeof e === "object" &&
-          "code" in e &&
-          (e as { code: string }).code === UNIQUE_VIOLATION_CODE
-        ) {
+        if (isUniqueViolation(e)) {
           return { ok: false, status: "asset-conflict" };
         }
         throw e;
