@@ -2,17 +2,20 @@
 // through the deps so tests drive the exact same handler with a
 // fake repo / fake verifier / fake appender.
 
-import { mintDid } from "@foxbook/core";
+import { jwsVerify, mintDid, sha256Hex } from "@foxbook/core";
 import { validateTlLeaf } from "@foxbook/validators";
 
 import type {
   ClaimRepository,
+  ClaimRevokeInput,
+  ClaimRevokeResult,
   ClaimStartInput,
   ClaimStartResult,
   ClaimVerifyGistInput,
   ClaimVerifyGistResult,
   GistVerifier,
   MerkleAppender,
+  RevocationCommitter,
 } from "./types.js";
 import { mintVerificationCode } from "./verification-code.js";
 
@@ -20,7 +23,25 @@ export type ClaimDeps = {
   claimRepo: ClaimRepository;
   gist: GistVerifier;
   merkle: MerkleAppender;
+  /** Atomic-tx surface for POST /claim/revoke. Production wiring lives
+   * in ./revocation-committer.ts; tests inject a vi.fn that records
+   * the call. See RevocationCommitter docs for the tx-context hygiene
+   * rules a real implementation MUST honour (ADR 0004 addendum-1). */
+  revocationCommitter: RevocationCommitter;
 };
+
+// ---- Local JWS helpers (base64url decode is not exported by @foxbook/core; ----
+// keeping it inline here so the handler doesn't reach into core internals).
+
+const textDecoder = new TextDecoder();
+
+function base64urlDecode(s: string): Uint8Array {
+  const padded = s.replaceAll("-", "+").replaceAll("_", "/") + "===".slice((s.length + 3) % 4);
+  const raw = atob(padded);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
 
 /**
  * POST /api/v1/claim/start — mint a verification code, insert a
@@ -136,5 +157,185 @@ export async function claimVerifyGist(
     leafHash: appendResult.leafHash,
     rootAfter: appendResult.rootAfter,
     sthJws: appendResult.sthJws,
+  };
+}
+
+/**
+ * POST /api/v1/claim/revoke — recovery-key-signed revocation flow.
+ *
+ * Sequence:
+ *   1. Find claim. 404 if absent.
+ *   2. State must be tier1_verified (only verified claims can be revoked
+ *      in v0; gist_pending claims have no Merkle leaf to revoke against).
+ *   3. Decode the JWS — header MUST carry an OKP/Ed25519 jwk so the
+ *      verifier knows which public key to check the signature against
+ *      AND the SHA-256 fingerprint matches claim.recovery_key_fingerprint.
+ *   4. Verify the JWS signature via @foxbook/core's jwsVerify (which
+ *      uses the SAME canonical-bytes rule as the signer).
+ *   5. Authoritative re-bind: payload.did === claim.agent_did and
+ *      payload.revoked_key_hex === claim.ed25519_public_key_hex. Without
+ *      these, a recovery-key holder could revoke a DIFFERENT key/did
+ *      via the same claim row.
+ *   6. Build the full leaf (payload + recovery_key_signature) in
+ *      alphabetical key order so canonical bytes are deterministic
+ *      across signers/verifiers.
+ *   7. validateTlLeaf gates on $defs/revocation shape.
+ *   8. Hand off to deps.revocationCommitter — the atomic-tx surface
+ *      (merkle.append({tx}) + INSERT firehose_events + DELETE claims).
+ */
+export async function claimRevoke(
+  input: ClaimRevokeInput,
+  deps: ClaimDeps,
+): Promise<ClaimRevokeResult> {
+  const claim = await deps.claimRepo.findById(input.claimId);
+  if (!claim) return { ok: false, status: "not-found-claim" };
+  if (claim.state !== "tier1_verified") {
+    return { ok: false, status: "bad-state", currentState: claim.state };
+  }
+
+  const parts = input.revocationRecordJws.split(".");
+  if (parts.length !== 3) {
+    return {
+      ok: false,
+      status: "recovery-key-signature-invalid",
+      reason: "JWS not 3-segment compact form",
+    };
+  }
+  const headerB64 = parts[0] as string;
+  const payloadB64 = parts[1] as string;
+
+  let header: Record<string, unknown>;
+  let payload: Record<string, unknown>;
+  try {
+    header = JSON.parse(textDecoder.decode(base64urlDecode(headerB64))) as Record<string, unknown>;
+    payload = JSON.parse(textDecoder.decode(base64urlDecode(payloadB64))) as Record<
+      string,
+      unknown
+    >;
+  } catch {
+    return {
+      ok: false,
+      status: "recovery-key-signature-invalid",
+      reason: "JWS header/payload not valid base64url JSON",
+    };
+  }
+
+  if (header.alg !== "EdDSA") {
+    return {
+      ok: false,
+      status: "recovery-key-signature-invalid",
+      reason: `JWS alg "${String(header.alg)}" not supported (require EdDSA)`,
+    };
+  }
+  const jwk = header.jwk as { kty?: unknown; crv?: unknown; x?: unknown } | undefined;
+  if (
+    !jwk ||
+    typeof jwk !== "object" ||
+    jwk.kty !== "OKP" ||
+    jwk.crv !== "Ed25519" ||
+    typeof jwk.x !== "string"
+  ) {
+    return {
+      ok: false,
+      status: "recovery-key-signature-invalid",
+      reason: "JWS header missing or malformed jwk (require OKP/Ed25519/x)",
+    };
+  }
+  const recoveryPubBytes = base64urlDecode(jwk.x);
+  if (recoveryPubBytes.length !== 32) {
+    return {
+      ok: false,
+      status: "recovery-key-signature-invalid",
+      reason: `recovery key bytes wrong length: ${recoveryPubBytes.length} (expect 32 for Ed25519)`,
+    };
+  }
+
+  // Match the recovery-key fingerprint that was stored at claim time.
+  // claim.recovery_key_fingerprint is `sha256:<64-hex>` per x-foxbook
+  // schema's recoveryKeyFingerprint pattern.
+  const expectedFingerprint = `sha256:${sha256Hex(recoveryPubBytes)}`;
+  if (expectedFingerprint !== claim.recoveryKeyFingerprint) {
+    return {
+      ok: false,
+      status: "recovery-key-mismatch",
+      reason: "JWS jwk fingerprint does not match claim.recovery_key_fingerprint",
+    };
+  }
+
+  // Verify signature over the JWS signing input. jwsVerify uses the SAME
+  // canonical-bytes rule as jwsSign — caller's key order in the payload
+  // is what gets signed, byte-for-byte.
+  let verifyResult: { valid: boolean };
+  try {
+    verifyResult = jwsVerify(input.revocationRecordJws, recoveryPubBytes);
+  } catch (e) {
+    return {
+      ok: false,
+      status: "recovery-key-signature-invalid",
+      reason: e instanceof Error ? e.message : "jwsVerify threw",
+    };
+  }
+  if (!verifyResult.valid) {
+    return {
+      ok: false,
+      status: "recovery-key-signature-invalid",
+      reason: "JWS signature did not verify against jwk.x",
+    };
+  }
+
+  // Authoritative re-bind: payload must reference THIS claim, not any
+  // other did/key combination.
+  if (payload.did !== claim.agentDid) {
+    return {
+      ok: false,
+      status: "invalid-leaf",
+      reason: `payload did "${String(payload.did)}" does not match claim agent_did "${claim.agentDid}"`,
+    };
+  }
+  if (payload.revoked_key_hex !== claim.ed25519PublicKeyHex) {
+    return {
+      ok: false,
+      status: "invalid-leaf",
+      reason: "payload revoked_key_hex does not match claim ed25519_public_key_hex",
+    };
+  }
+
+  // Build the FULL leaf for storage. Field order is alphabetical so
+  // canonical bytes are deterministic across signers/verifiers/scouts.
+  // Verifiers reconstruct THIS shape from the wire and re-hash through
+  // canonical.ts to validate inclusion proofs (ADR 0005).
+  const fullLeaf: Record<string, unknown> = {
+    did: payload.did,
+    leaf_type: "revocation",
+  };
+  if (payload.reason_code !== undefined) {
+    fullLeaf.reason_code = payload.reason_code;
+  }
+  fullLeaf.recovery_key_signature = input.revocationRecordJws;
+  fullLeaf.revocation_timestamp = payload.revocation_timestamp;
+  fullLeaf.revoked_key_hex = payload.revoked_key_hex;
+
+  const validation = validateTlLeaf(fullLeaf);
+  if (!validation.valid) {
+    return {
+      ok: false,
+      status: "invalid-leaf",
+      reason: `tl-leaf validation failed: ${validation.errors
+        .map((e) => `${e.path} ${e.message}`)
+        .join("; ")}`,
+    };
+  }
+
+  // Atomic tx: leaf append + firehose event + claim delete. The
+  // committer is responsible for honouring ADR 0004 addendum-1's
+  // tx-context hygiene rule (no fetch, no adapter, no sleep).
+  const result = await deps.revocationCommitter({ claim, fullLeaf });
+
+  return {
+    ok: true,
+    revoked: true,
+    leafIndex: result.leafIndex,
+    leafHash: result.leafHash,
+    sthJws: result.sthJws,
   };
 }

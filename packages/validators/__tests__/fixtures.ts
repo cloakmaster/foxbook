@@ -47,3 +47,18 @@ export const validAgentKeyRegistrationLeaf = {
   recovery_key_fingerprint: `sha256:${"c".repeat(64)}`,
   published_at: "2026-04-23T10:00:00Z",
 } as const;
+
+// Day-6 PR B: revocation leaf shape per ADR 0004 + tl-leaf v1.1
+// additive bump. The recovery_key_signature is a placeholder JWS
+// string that satisfies the schema's regex (header.payload.signature
+// in base64url) — real signatures are produced by core/src/crypto/jws.ts
+// in production paths and exercised end-to-end via smoke:revoke.
+export const validRevocationLeaf = {
+  leaf_type: "revocation",
+  did: "did:foxbook:01H8XS4WHV8YNGSZPQ5XK9QR6M",
+  revoked_key_hex: "a".repeat(64),
+  recovery_key_signature:
+    "eyJhbGciOiJFZERTQSJ9.eyJsZWFmX3R5cGUiOiJyZXZvY2F0aW9uIn0.c2lnbmF0dXJlLXBsYWNlaG9sZGVy",
+  revocation_timestamp: "2026-04-26T12:00:00Z",
+  reason_code: "owner_request",
+} as const;

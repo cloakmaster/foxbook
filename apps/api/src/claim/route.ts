@@ -1,8 +1,12 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
-import { claimStartBodySchema, claimVerifyGistBodySchema } from "./body-schema.js";
-import { type ClaimDeps, claimStart, claimVerifyGist } from "./handlers.js";
+import {
+  claimRevokeBodySchema,
+  claimStartBodySchema,
+  claimVerifyGistBodySchema,
+} from "./body-schema.js";
+import { type ClaimDeps, claimRevoke, claimStart, claimVerifyGist } from "./handlers.js";
 
 /**
  * Mount POST /claim/start + POST /claim/verify-gist with injected deps.
@@ -69,6 +73,45 @@ export function claimRoute(deps: ClaimDeps): Hono {
       { status: result.status, reason: "reason" in result ? result.reason : undefined },
       statusCode,
     );
+  });
+
+  app.post("/claim/revoke", zValidator("json", claimRevokeBodySchema), async (c) => {
+    const body = c.req.valid("json");
+    const result = await claimRevoke(
+      { claimId: body.claim_id, revocationRecordJws: body.revocation_record_jws },
+      deps,
+    );
+    if (result.ok) {
+      return c.json(
+        {
+          revoked: true,
+          leaf_index: result.leafIndex,
+          leaf_hash: result.leafHash,
+          sth_jws: result.sthJws,
+        },
+        200,
+      );
+    }
+    // Discriminated status → HTTP code mapping. Mirrors verify-gist's
+    // pattern: 4xx = caller fault, 200 with status field = transient
+    // (none here today; revoke has no still-pending equivalent).
+    if (result.status === "not-found-claim") {
+      return c.json({ status: result.status }, 404);
+    }
+    if (result.status === "bad-state") {
+      return c.json({ status: result.status, current_state: result.currentState }, 400);
+    }
+    if (
+      result.status === "recovery-key-mismatch" ||
+      result.status === "recovery-key-signature-invalid"
+    ) {
+      return c.json(
+        { status: result.status, reason: "reason" in result ? result.reason : undefined },
+        403,
+      );
+    }
+    // result.status === "invalid-leaf"
+    return c.json({ status: result.status, reason: result.reason }, 422);
   });
 
   return app;

@@ -8,11 +8,13 @@ export {
 } from "./client.js";
 export {
   createMerkleRepository,
+  type MerkleAppendOptions,
   type MerkleAppendResult,
   type MerkleConsistencyProof,
   type MerkleInclusionProof,
   type MerkleRepository,
   type MerkleRepositoryOptions,
   type MerkleRootSnapshot,
+  type MerkleTransaction,
 } from "./merkle-repository.js";
 export * as schema from "./schema/index.js";

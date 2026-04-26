@@ -6,6 +6,12 @@ import type { MerkleAppendResult, MerkleRepository } from "@foxbook/db";
 
 export type AssetType = "github_handle" | "x_handle" | "domain";
 
+// claim_state values that come back from the DB. Day-6 PR B keeps the
+// enum unchanged: delete-on-revoke per ADR 0004 addendum-1 means a
+// revoked claim row is physically gone, so a "revoked" enum value
+// would be dead schema. Soft-revoke (if it ever becomes a real
+// product requirement) adds the value via a forward-only migration
+// at that time.
 export type ClaimState =
   | "unclaimed"
   | "gist_pending"
@@ -85,5 +91,57 @@ export type GistVerifier = {
 
 /** The write-side Merkle surface the claim flow needs. */
 export type MerkleAppender = Pick<MerkleRepository, "append">;
+
+// ---- Revocation (Day-6 PR B) ----
+
+/**
+ * Allowed revocation reason codes per schemas/tl-leaf.v1.json#/$defs/revocation.
+ * Additive within v1.x per ADR 0003 + ADR 0004; new values land via JSON-schema
+ * bump, never via code-side enum constants.
+ */
+export type RevocationReasonCode = "key_compromise" | "owner_request" | "superseded";
+
+/** Input shape for POST /api/v1/claim/revoke. */
+export type ClaimRevokeInput = {
+  claimId: string;
+  /** Compact-JWS string. Header MUST carry an EdDSA `jwk` for the recovery
+   * public key. Payload is the canonical revocation leaf body sans
+   * `recovery_key_signature` (the signature can't sign itself). */
+  revocationRecordJws: string;
+};
+
+export type ClaimRevokeResult =
+  | {
+      ok: true;
+      revoked: true;
+      leafIndex: number;
+      leafHash: string;
+      sthJws: string;
+    }
+  | { ok: false; status: "not-found-claim" }
+  | { ok: false; status: "bad-state"; currentState: ClaimState }
+  | { ok: false; status: "recovery-key-mismatch"; reason?: string }
+  | { ok: false; status: "recovery-key-signature-invalid"; reason: string }
+  | { ok: false; status: "invalid-leaf"; reason: string };
+
+/**
+ * Atomic-tx surface for revocation. Production wiring (revocation-committer.ts)
+ * runs `db.transaction(async (tx) => {merkle.append(leaf, {tx}); tx.insert(firehoseEvents); tx.delete(claims);})`.
+ * Tests inject a fake that records the call + returns a stubbed result.
+ *
+ * Encapsulating the whole tx behind one deps function keeps the handler
+ * testable without mocking Drizzle's transaction surface, AND keeps the
+ * tx body in one production file (revocation-committer.ts) where ADR
+ * 0004 addendum-1 hygiene rules are auditable.
+ */
+export type RevocationCommitterInput = {
+  /** The claim row whose row will be DELETEd as part of the tx. */
+  claim: ClaimRow;
+  /** The full revocation leaf — including `recovery_key_signature` —
+   * canonicalized + hashed by merkle-repository at append time. */
+  fullLeaf: unknown;
+};
+
+export type RevocationCommitter = (input: RevocationCommitterInput) => Promise<MerkleAppendResult>;
 
 export type { MerkleAppendResult };

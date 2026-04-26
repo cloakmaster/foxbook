@@ -25,8 +25,17 @@
 import { canonicalJsonBytes, jwsSign, merkle } from "@foxbook/core";
 import { sql } from "drizzle-orm";
 
-import type { DbClient } from "./client.js";
+import type { DbClient, NodeDbClient } from "./client.js";
 import * as schema from "./schema/index.js";
+
+/**
+ * The transaction handle Drizzle hands to a `db.transaction(async (tx) => …)`
+ * callback. Extracted from NodeDbClient so the tx-context variant of `append`
+ * can declare its caller-tx type without dragging the full Drizzle pg-core
+ * surface into this module's public API. Apps that pass `opts.tx` from their
+ * own `db.transaction` callback get this same type for free.
+ */
+export type MerkleTransaction = Parameters<Parameters<NodeDbClient["transaction"]>[0]>[0];
 
 const DEFAULT_LOG_ID = "foxbook-v1";
 const STH_VERSION = "1.0-draft";
@@ -134,8 +143,27 @@ export type MerkleRepositoryOptions = {
   signingKey?: Uint8Array;
 };
 
+/**
+ * Options for `append`. The `tx` variant is the ADR 0004 addendum-1
+ * pattern: when the caller is already inside a `db.transaction(async (tx)
+ * => …)`, pass that `tx` here so the leaf write + STH update participate
+ * in the caller's transaction (atomic with whatever else the caller is
+ * doing) instead of opening a sub-transaction.
+ *
+ * Tx-context hygiene: the caller's transaction body MUST contain only fast,
+ * local Postgres operations on the same connection — no `fetch`, no
+ * adapter calls, no sleeps, no non-Drizzle awaits. The advisory lock is
+ * held for the FULL caller transaction (not just `append`'s call), so any
+ * slow operation in the caller's body extends the lock hold and serialises
+ * every other log-write in the system. ADR 0004 addendum spells out the
+ * full rule + the ratified exception (caller-side `tx.insert(firehose_events)`).
+ */
+export type MerkleAppendOptions = {
+  tx?: MerkleTransaction;
+};
+
 export type MerkleRepository = {
-  append: (leafData: unknown) => Promise<MerkleAppendResult>;
+  append: (leafData: unknown, opts?: MerkleAppendOptions) => Promise<MerkleAppendResult>;
   getRoot: () => Promise<MerkleRootSnapshot | null>;
   getLeaf: (
     index: number,
@@ -150,18 +178,31 @@ export function createMerkleRepository(
 ): MerkleRepository {
   const logId = opts.logId ?? DEFAULT_LOG_ID;
 
-  async function append(leafData: unknown): Promise<MerkleAppendResult> {
+  async function append(
+    leafData: unknown,
+    appendOpts?: MerkleAppendOptions,
+  ): Promise<MerkleAppendResult> {
     if (!opts.signingKey) {
       throw new Error(
         "MerkleRepository.append requires an Ed25519 signingKey in opts. Read-only consumers (the transparency Worker) must not call append.",
       );
     }
     const signingKey = opts.signingKey;
-    return await db.transaction(async (tx) => {
+
+    // Body shared between the two transaction shapes — when the caller
+    // already owns a tx (opts.tx) we run inside it, otherwise we open
+    // our own. Both paths see the same advisory-lock + two-insert pair;
+    // the only difference is who holds the COMMIT boundary.
+    const runInsideTx = async (tx: MerkleTransaction): Promise<MerkleAppendResult> => {
       // Per-log_id advisory lock: cheap, released atomically on COMMIT.
       // hashtext() maps the log_id string to a stable 32-bit int so
       // two processes agree on the same lock slot. SERIALIZABLE is the
       // documented fallback if this ever hits a pooler quirk.
+      //
+      // When the caller passes opts.tx, the lock is held for the full
+      // CALLER transaction — until the caller's COMMIT, not until this
+      // function returns. ADR 0004 addendum-1 documents the tx-context
+      // hygiene rule the caller must honour.
       await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${logId}))`);
 
       // Load prior STH (if any) for this log. We only need the last
@@ -226,7 +267,16 @@ export function createMerkleRepository(
         sthJws,
         publishedAt,
       };
-    });
+    };
+
+    if (appendOpts?.tx) {
+      // Tx-context variant: caller owns the transaction, advisory lock
+      // is held for caller's full tx duration. No db.transaction() here —
+      // we'd otherwise open a sub-transaction (savepoint), which the ADR
+      // 0004 addendum-1 explicitly rejects.
+      return await runInsideTx(appendOpts.tx);
+    }
+    return await db.transaction(async (tx) => runInsideTx(tx as MerkleTransaction));
   }
 
   async function getRoot(): Promise<MerkleRootSnapshot | null> {

@@ -22,6 +22,13 @@
       "when": 1776933958396,
       "tag": "0002_claims_asset_cols",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777224136327,
+      "tag": "0003_revocation_fks",
+      "breakpoints": true
     }
   ]
 }

@@ -21,6 +21,7 @@
     "check:generated": "node scripts/check-generated.mjs",
     "capture:merkle-vectors": "pnpm --filter @foxbook/core capture:merkle-vectors",
     "smoke:tier1": "pnpm --filter @foxbook/api smoke:tier1 --",
+    "smoke:revoke": "pnpm --filter @foxbook/api smoke:revoke --",
     "prepare": "husky"
   },
   "devDependencies": {
