@@ -11,9 +11,8 @@
 // instead of a clean 409 asset-conflict. This file exercises both
 // shapes so the fix doesn't silently regress.
 
-import { describe, expect, it } from "vitest";
-
 import type { NodeDbClient } from "@foxbook/db";
+import { describe, expect, it } from "vitest";
 import { createClaimRepository, isUniqueViolation } from "../src/claim/repository.js";
 
 function dbThrowing(error: unknown): NodeDbClient {
