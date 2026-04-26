@@ -30,6 +30,8 @@ Load-bearing SLO: **firehose staleness p95 <60s.** If an architectural choice pu
 
 **90 days post-launch (any one):** <1K real claims, <100 real tx/day (scouts excluded), incumbent ships equivalent with 10x our distribution, standards body ships incompatible registry spec.
 
+**Week-2 leading indicator (per ADR 0006 + cross-LLM strategic review 2026-04-26):** **10 external verifier runs against the live transparency log without Benjamin's hand-holding.** Defined as: 10 strangers (the 10 named targets in `docs/outreach.md`) successfully run verification against a Foxbook claim within 5 minutes of receiving the DM, with zero follow-up Q&A. Tracked as a per-target `verifier_run` column in `outreach.md`. This is the near-term diagnostic that the agent hiring gate framing + reference SDK + adversarial demo are landing — actionable in days, not months. The 6-month adoption test below remains the longer-arc gate; both stay tracked.
+
 **6-month adoption test (per ADR 0006, co-option-failure indicator):** at least ONE of —
 
 - Foxbook referenced in MCP docs (any first-party Anthropic surface).
@@ -49,19 +51,41 @@ Zero of the four at month 4 = co-option failure mode is materialising; pivot sig
 Repo live. Hosting + staging provisioned. Crypto primitives (Ed25519/JWS/did:foxbook) cross-language. Postgres schema v0. Merkle log append path. AgentCard + `x-foxbook` schemas. Claim flow scaffolded (Tier 1 via GitHub Gist demoable on staging). Pre-pop scraper producing shadow URLs. Firehose envelope drafted. Capability taxonomy v1 committed. Scout roster locked. Load-test plan committed. Hero agent outreach pipeline at 50+ soft commits.
 
 ### Week 2 — Surfaces (Tue Apr 28 → Mon May 4)
-Claim flow complete (Tier 1 + Tier 2 end-to-end in prod). Discovery API on Meilisearch returning ranked results. Firehose production fanout working (Cloudflare Durable Objects). First scout transacting on staging. Firehose envelope **frozen**. Transparency log UI live at `transparency.foxbook.dev`. Pre-pop at 20K+ shadow URLs. Observability dashboards wired. Hero roster at 75+ soft commits, 25+ signed claims. **Distribution Track shipped (see below).**
+Claim flow complete (Tier 1 + Tier 2 end-to-end in prod). Discovery API on Meilisearch returning ranked results. Firehose production fanout working (Cloudflare Durable Objects). First scout transacting on staging. Firehose envelope **frozen**. Transparency log UI live at `transparency.foxbook.dev`. Pre-pop at 20K+ shadow URLs. Observability dashboards wired. Hero roster at 75+ soft commits, 25+ signed claims. **Distribution Track shipped (see below) — A2A upstreaming + MCP channel + reference SDK.**
 
 #### Week-2 Distribution Track (operationalises ADR 0006)
 
-Three actions, parallel to engineering. The pipeline against co-option (Anthropic-native MCP identity / Google-internal A2A verifier) is built here — it is not a marketing afterthought, it is protocol-infrastructure work.
+Parallel to engineering. The pipeline against co-option (Anthropic-native MCP identity / Google-internal A2A verifier) is built here — it is not a marketing afterthought, it is protocol-infrastructure work. Cross-LLM strategic review (Gemini + ChatGPT, 2026-04-26 PM) sharpened the framing on three load-bearing points which now anchor every Distribution Track artifact:
 
-(a) **`docs/rfc-a2a-x-foxbook-extension.md`** — drafted as an upstream-PR-shaped document proposing `x-foxbook` v1 as a registered A2A extension. Cites the live transparency log (`transparency.foxbook.dev`) and cross-language verification primitives (`schemas/crypto-test-vectors.json` jws_round_trip vector). Submitted to the A2A repository by the end of week 2. The PR's job is registering the extension; adoption is the leading-indicator metric, not PR merge.
+**Headline framing — agent hiring gate.** Foxbook's load-bearing use-case is `await foxbookVerifyAgentCard(card, {requireInclusionProof, requireFreshSTH})` inserted before any agent-to-agent call. Four discriminated failure modes: `unverified` → blocked, `verified` → allowed, `handle-mismatch` → blocked, `stale-proof` → warning. This reframes Foxbook from "identity registry" (passive) to "runtime safety primitive" (active, in the agent's hot path). Every Distribution Track artifact below leads with this reframe.
 
-(b) **`packages/sdk-claim/`** — TS-first scaffold with three files: `index.ts` (public surface re-exports), `claim.ts` (claim-flow client), `verify.ts` (inclusion-proof + STH verification). **Function signatures only on Day 7**, sub-100-line public surface. Implementation lands in week 2. The signatures committed Day 7 set the contract that the RFC and the outreach DMs both reference; if they're wrong, all three deliverables drift.
+**Headline artifact — adversarial demo.** The 2026-04-24 identity-guard live-proof at `ops/evidence/2026-04-24-identity-guard-cloakmaster-vs-samrg472.md` is the headline evidence: "I tried to hijack someone else's GitHub handle; Foxbook refused — `fetchCount === 0` at the adapter, no Gist content ever read, 409 identity-mismatch returned." Referenced in the RFC's motivating example AND every outreach DM.
 
-(c) **`docs/outreach.md`** — 10 named targets across MCP team contacts, A2A spec maintainers, framework authors (LangGraph / CrewAI / AutoGen / Mastra), and agent-security analyst voices. 100-word DM template (one per target, tailored): _"I built the reference implementation of the verification layer your spec assumes. Two signed claims and inclusion proofs are public at [URL]. What blocks you from referencing this?"_ The phrasing is deliberate: it's an offer of work-already-done, not a request for review. Sent over week 2; week-3 retro lists who replied, who didn't, what they said.
+**A2A upstreaming sub-track (three artifacts, docs + reference SDK):**
 
-Slipping all three is a co-option-failure leading indicator (per ADR 0006).
+(a) **`docs/rfc-a2a-x-foxbook-extension.md`** — upstream-PR-shaped document proposing `x-foxbook` v1 as a registered A2A extension. Motivating example uses the agent hiring gate framing + the adversarial demo evidence. Cites the live transparency log (`transparency.foxbook.dev`) and cross-language verification primitives (`schemas/crypto-test-vectors.json` jws_round_trip vector). Submitted to the A2A repository by the end of week 2. The PR's job is registering the extension; adoption is the leading-indicator metric, not PR merge.
+
+(b) **`packages/sdk-claim/`** — TS-first reference SDK. Three files (`index.ts`, `claim.ts`, `verify.ts`); function signatures committed Day 7. Public surface is **six functions** total (cross-LLM-feedback expansion):
+
+  - **Claim primitives** (`claim.ts`): `claimStart`, `claimVerifyGist`, `claimRevoke` — discriminated-union returns matching the apps/api handlers.
+  - **Verification primitive** (`verify.ts`): `verify({leaf_index, worker_base})` — inclusion proof against the public Worker.
+  - **Convenience wrappers** (`verify.ts`): `foxbookVerify(handle)` returning `{tier: 1|2|3, revoked: boolean, did, leafIndex}` — handle-level lookup; **NOT a numeric trust score** (see "Cross-LLM Strategic Feedback (2026-04-26)" below for rejection rationale). `verifyAgentCard(card, {requireInclusionProof, requireFreshSTH})` returning the four-way agent-hiring-gate discriminated result. The wrappers are the API the RFC + outreach DMs reference; the primitives are the building blocks they compose from.
+
+  Function bodies stub `throw new Error("not implemented")` on Day 7. Implementation lands in week 2. Signatures committed Day 7 set the contract; if they shift, the RFC + outreach DMs land referencing an outdated surface.
+
+(c) **`docs/outreach.md`** — 10 named targets across MCP team contacts, A2A spec maintainers, framework authors (LangGraph / CrewAI / AutoGen / Mastra), and agent-security analyst voices. 100-word DM template per target, leading with the adversarial demo evidence and the agent hiring gate framing: _"I built the reference implementation of the verification layer your spec assumes — and the live transparency log already caught a real handle-hijack attempt (evidence at [URL]). The wrapper is `await foxbookVerifyAgentCard(card)` before any agent-to-agent call. What blocks you from referencing this?"_ Phrasing is deliberate: offer-of-work-already-done, not request-for-review. Sent over week 2; week-3 retro lists who replied, who didn't, what they said.
+
+  **Per-target tracking column** — `outreach.md` includes a `verifier_run` column tracking whether each recipient successfully ran verification against a Foxbook claim within 5 minutes of receiving the DM, with zero follow-up Q&A. Aggregate is the Week-2 leading indicator (see Abandon triggers below).
+
+**MCP channel sub-track (one artifact, spans Week 2-3):**
+
+(d) **`apps/mcp-foxbook-server/`** — Model Context Protocol server exposing Foxbook verification primitives as MCP tools. Three tools at v1: `foxbook_verify_agent` (handle → `{tier, revoked, did, leafIndex}`), `foxbook_get_inclusion_proof` (leaf_index → proof + STH), `foxbook_check_revocation` (did + ed25519_public_key_hex → revoked? + revocation_leaf_index). Target: submission to Anthropic's MCP registry. Rationale: parasitic distribution into the channel where agent-builders are already shopping for capabilities. The A2A upstreaming sub-track addresses one half of the co-option failure mode (Google-internal A2A verifier); this addresses the other (Anthropic-native MCP identity). **Both must ship for ADR 0006's co-option defence to be coherent.**
+
+**Supporting expansion:**
+
+(e) **`docs/distribution.md`** (currently a v0 stub from PR #27) — expanded to **lead with the adversarial demo + the agent hiring gate framing**. The stub's `§4` (SDK as hypergrowth leverage) gets concrete reference-SDK content; `§7` (week-1 demo path) gets the adversarial demo as the headline artifact. Keep it under one page; it's the recruiter for the RFC + outreach + MCP server.
+
+Slipping the A2A upstreaming sub-track (a/b/c) is a co-option-failure leading indicator (per ADR 0006). Slipping the MCP channel (d) is the same indicator on the other distribution channel. (e) is supporting and can absorb a short slip.
 
 ### Week 3 — Load test + hardening (Tue May 5 → Mon May 11)
 **Load test executed by end of week.** Discovery p50 <500ms, p99 <1.5s under projected V1 load. Firehose p50 <30s, p95 <60s. Key rotation / revocation e2e test passing in prod. All 5-10 scouts running. Shield middleware for LangChain + CrewAI. Browser extension MVP (Chrome). OG image template rendering on all profile pages. **Gut-check: does the firehose feel alive when Benjamin opens `foxbook.dev/live`? If no, raise it now.**
@@ -247,6 +271,14 @@ Copy to `docs/retros/week-NN.md` every Monday night.
 - Does not plan for enterprise features, paid tiers, or compliance SKU in V1. Those are V3.
 - Does not rely on HN/Reddit/PH launches as primary distribution. Those are supplementary.
 - Does not plan ad spend, partnership deals, or inbound commitment from hyperscalers.
+
+### Cross-LLM Strategic Feedback (2026-04-26 PM) — rejected with rationale
+
+Two recommendations from cross-LLM strategic review (Gemini + ChatGPT, same review pass that surfaced the agent-hiring-gate reframe + adversarial-demo headlining + MCP server in the Week-2 Distribution Track above) reviewed and **explicitly rejected**. Captured here so they don't resurface in future planning sessions under fatigue.
+
+**(a) Numeric trust score in `sdk-claim` verification responses.** Rejected. Conflates verification (objective, cryptographic) with reputation (subjective, deferred). A response shape like `{trust_score: 0.87}` collapses two distinct concerns — "what does the cryptography prove?" and "what does the marketplace product judge?" — into a single number, breaking the ADR 0006 separation between protocol-level guarantees and platform-level opinions. v1 `sdk-claim` returns `{tier, revoked, did, leafIndex}` only. No numeric score, no aggregate ranking, no opinionated trust judgement. Reputation/scoring is filed for v2+ behind protocol-canonicality maturity; if it ever ships, it ships as a separate marketplace-product concern with its own ADR amendment, not as a sneak path through `sdk-claim`'s response shape.
+
+**(b) Stripe-gated developer paywall ($20/month for writes) in v1.** Rejected. Premature without external write demand; charging zero-to-N users is theatre that adds friction during the adoption-pipeline phase exactly when frictionlessness is load-bearing. Documented as a v2+ candidate alongside the enterprise audit/compliance monetization wedge already named in [ADR 0006 §3](docs/decisions/0006-protocol-not-marketplace.md) (SR 11-7 model risk management, EU AI Act agent governance, cyber-insurance underwriting). Implementation requires external traction signal first — the 6-month adoption test must show signal before any paywall conversation reopens. Re-proposing this in v1 without that signal is the kind of premature monetization move ADR 0006 §4's path-ordering rule exists to block.
 
 ---
 
