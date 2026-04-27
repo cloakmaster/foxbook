@@ -18,8 +18,19 @@ function stubClaimDeps(): ClaimDeps {
       findById: async () => null,
       markTier1Verified: async () => {},
       insertSigningKey: async () => {},
+      markTier2Verified: async () => {},
     },
     gist: { verifyGistContainsCode: async () => ({ status: "error" }) },
+    dns: {
+      verifyDnsTxtContainsCode: async () => {
+        throw new Error("discover tests never call dns adapter");
+      },
+    },
+    endpoint: {
+      verifyEndpointSignedNonce: async () => {
+        throw new Error("discover tests never call endpoint adapter");
+      },
+    },
     merkle: {
       append: async () => {
         throw new Error("discover tests never call merkle.append");

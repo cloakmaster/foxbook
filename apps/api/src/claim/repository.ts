@@ -106,5 +106,15 @@ export function createClaimRepository(db: NodeDbClient): ClaimRepository {
         active: true,
       });
     },
+
+    async markTier2Verified(id) {
+      // Day-7 PR C — Tier 2 transition. App-state-only today (no
+      // Merkle leaf); see PR C body's security-model asymmetry note +
+      // tier-upgrade $defs filed for v1.1.
+      await db
+        .update(schema.claims)
+        .set({ state: "tier2_verified", completedAt: new Date() })
+        .where(eq(schema.claims.id, id));
+    },
   };
 }

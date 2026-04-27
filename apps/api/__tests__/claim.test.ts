@@ -74,8 +74,27 @@ function fakeClaimDeps(
       insertSigningKey: async (agentDid, publicKeyHex) => {
         state.signingKeyInserts.push({ agentDid, publicKeyHex });
       },
+      markTier2Verified: async (id) => {
+        const r = state.rowsById.get(id);
+        if (r) state.rowsById.set(id, { ...r, state: "tier2_verified" });
+      },
     },
     gist: { verifyGistContainsCode: gistSpy },
+    // PR C: DNS + endpoint adapter fakes default to throwing — these
+    // tests exercise the Tier-1 path; calling Tier-2 by accident
+    // should fail loudly rather than silently no-op.
+    dns: {
+      verifyDnsTxtContainsCode: vi.fn(async () => {
+        throw new Error("dns.verifyDnsTxtContainsCode should not be called by tier-1 tests");
+      }),
+    },
+    endpoint: {
+      verifyEndpointSignedNonce: vi.fn(async () => {
+        throw new Error(
+          "endpoint.verifyEndpointSignedNonce should not be called by tier-1 tests",
+        );
+      }),
+    },
     merkle: { append: appendSpy },
     revocationCommitter: revokeSpy,
     ...overrides,
