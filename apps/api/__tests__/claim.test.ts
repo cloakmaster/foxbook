@@ -90,9 +90,7 @@ function fakeClaimDeps(
     },
     endpoint: {
       verifyEndpointSignedNonce: vi.fn(async () => {
-        throw new Error(
-          "endpoint.verifyEndpointSignedNonce should not be called by tier-1 tests",
-        );
+        throw new Error("endpoint.verifyEndpointSignedNonce should not be called by tier-1 tests");
       }),
     },
     merkle: { append: appendSpy },

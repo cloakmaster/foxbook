@@ -26,10 +26,7 @@ describe("verifyEndpointSignedNonce — happy path", () => {
     const keypair = generateKeypair();
     const nonce = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let lastInit: RequestInit | undefined;
-    const fetchImpl: typeof globalThis.fetch = (async (
-      _url: unknown,
-      init?: RequestInit,
-    ) => {
+    const fetchImpl: typeof globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
       lastInit = init;
       // Reference endpoint: signs canonical {nonce} with the signing
       // key, returns {jws}.

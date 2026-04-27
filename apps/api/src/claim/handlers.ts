@@ -421,10 +421,7 @@ export async function claimVerifyDns(
     return { ok: false, status: "bad-state", currentState: claim.state };
   }
 
-  const result = await deps.dns.verifyDnsTxtContainsCode(
-    claim.assetValue,
-    claim.verificationCode,
-  );
+  const result = await deps.dns.verifyDnsTxtContainsCode(claim.assetValue, claim.verificationCode);
 
   if (result.status === "match") {
     await deps.claimRepo.markTier2Verified(claim.id);

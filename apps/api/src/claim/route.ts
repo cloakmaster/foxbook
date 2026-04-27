@@ -127,33 +127,29 @@ export function claimRoute(deps: ClaimDeps): Hono {
 
   // ---- Tier 2 (Day-7 PR C) ----
 
-  app.post(
-    "/claim/start-domain",
-    zValidator("json", claimStartDomainBodySchema),
-    async (c) => {
-      const body = c.req.valid("json");
-      const result = await claimStartDomain(
-        {
-          assetValue: body.asset_value,
-          ed25519PublicKeyHex: body.ed25519_public_key_hex,
-          recoveryKeyFingerprint: body.recovery_key_fingerprint,
-          ...(body.agent_did !== undefined ? { agentDid: body.agent_did } : {}),
-        },
-        deps,
-      );
-      if (!result.ok) return c.json({ status: result.status }, 409);
-      return c.json(
-        {
-          claim_id: result.claim.id,
-          agent_did: result.claim.agentDid,
-          verification_code: result.claim.verificationCode,
-          state: result.claim.state,
-          instructions: `Two paths: (a) DNS — publish a TXT record at _foxbook-claim.${result.claim.assetValue} containing "foxbook-verification=${result.claim.verificationCode}", then POST /api/v1/claim/verify-dns. (b) Endpoint challenge — host an HTTPS endpoint that signs the nonce we send with your ed25519 private key and returns the JWS, then POST /api/v1/claim/verify-endpoint with endpoint_url.`,
-        },
-        201,
-      );
-    },
-  );
+  app.post("/claim/start-domain", zValidator("json", claimStartDomainBodySchema), async (c) => {
+    const body = c.req.valid("json");
+    const result = await claimStartDomain(
+      {
+        assetValue: body.asset_value,
+        ed25519PublicKeyHex: body.ed25519_public_key_hex,
+        recoveryKeyFingerprint: body.recovery_key_fingerprint,
+        ...(body.agent_did !== undefined ? { agentDid: body.agent_did } : {}),
+      },
+      deps,
+    );
+    if (!result.ok) return c.json({ status: result.status }, 409);
+    return c.json(
+      {
+        claim_id: result.claim.id,
+        agent_did: result.claim.agentDid,
+        verification_code: result.claim.verificationCode,
+        state: result.claim.state,
+        instructions: `Two paths: (a) DNS — publish a TXT record at _foxbook-claim.${result.claim.assetValue} containing "foxbook-verification=${result.claim.verificationCode}", then POST /api/v1/claim/verify-dns. (b) Endpoint challenge — host an HTTPS endpoint that signs the nonce we send with your ed25519 private key and returns the JWS, then POST /api/v1/claim/verify-endpoint with endpoint_url.`,
+      },
+      201,
+    );
+  });
 
   app.post("/claim/verify-dns", zValidator("json", claimVerifyDnsBodySchema), async (c) => {
     const body = c.req.valid("json");

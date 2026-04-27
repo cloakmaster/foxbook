@@ -44,9 +44,7 @@ describe("verifyDnsTxtContainsCode — discriminated statuses", () => {
   });
 
   it("not-found: NXDOMAIN (Status=3)", async () => {
-    const fetchImpl = mockFetchOnce(async () =>
-      jsonResponse({ Status: 3, TC: false, Answer: [] }),
-    );
+    const fetchImpl = mockFetchOnce(async () => jsonResponse({ Status: 3, TC: false, Answer: [] }));
     const result = await verifyDnsTxtContainsCode(TARGET_DOMAIN, TARGET_CODE, {
       fetch: fetchImpl,
     });
@@ -54,9 +52,7 @@ describe("verifyDnsTxtContainsCode — discriminated statuses", () => {
   });
 
   it("error/servfail: Status=2 (transient upstream)", async () => {
-    const fetchImpl = mockFetchOnce(async () =>
-      jsonResponse({ Status: 2, TC: false, Answer: [] }),
-    );
+    const fetchImpl = mockFetchOnce(async () => jsonResponse({ Status: 2, TC: false, Answer: [] }));
     const result = await verifyDnsTxtContainsCode(TARGET_DOMAIN, TARGET_CODE, {
       fetch: fetchImpl,
     });
@@ -91,9 +87,7 @@ describe("verifyDnsTxtContainsCode — discriminated statuses", () => {
   });
 
   it("error/rate_limited: HTTP 429 from Cloudflare", async () => {
-    const fetchImpl = mockFetchOnce(async () =>
-      new Response("rate limited", { status: 429 }),
-    );
+    const fetchImpl = mockFetchOnce(async () => new Response("rate limited", { status: 429 }));
     const result = await verifyDnsTxtContainsCode(TARGET_DOMAIN, TARGET_CODE, {
       fetch: fetchImpl,
     });

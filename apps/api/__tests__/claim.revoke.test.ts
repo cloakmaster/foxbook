@@ -115,9 +115,7 @@ function fakeDeps(state: FakeState, overrides: Partial<ClaimDeps> = {}) {
     },
     endpoint: {
       verifyEndpointSignedNonce: vi.fn(async () => {
-        throw new Error(
-          "endpoint.verifyEndpointSignedNonce should not be called by revoke tests",
-        );
+        throw new Error("endpoint.verifyEndpointSignedNonce should not be called by revoke tests");
       }),
     },
     merkle: { append: appendSpy },
