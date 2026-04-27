@@ -17,8 +17,13 @@ URL="${API_BASE%/}/firehose"
 echo "→ tailing ${URL}" >&2
 
 if command -v jq >/dev/null 2>&1; then
+  # awk uses explicit fflush() after each match — without it, awk's
+  # block-buffered stdout on a pipe holds events for ~4KB, which never
+  # fills on a low-volume firehose (Day-7 verification gate caught this:
+  # raw curl received events but the awk-piped variant showed nothing).
+  # fflush() is POSIX-portable across BSD/macOS/GNU awk.
   curl -N -sS -H 'Accept: text/event-stream' "${URL}" \
-    | awk '/^data: /{ sub(/^data: /, ""); print }' \
+    | awk '/^data: /{ sub(/^data: /, ""); print; fflush() }' \
     | while IFS= read -r line; do
         echo "${line}" | jq -c '.'
       done
