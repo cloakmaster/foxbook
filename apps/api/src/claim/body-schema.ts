@@ -32,3 +32,32 @@ export const claimRevokeBodySchema = z.object({
   revocation_record_jws: z.string().regex(compactJwsPattern),
 });
 export type ClaimRevokeBody = z.infer<typeof claimRevokeBodySchema>;
+
+// Day-7 PR C — Tier-2 verification routes.
+//
+// /claim/start-domain is a domain-asset variant of /claim/start. The
+// asset_type is fixed at "domain"; we keep the rest of the shape
+// identical to claimStartBodySchema so callers don't relearn the
+// payload between tiers.
+export const claimStartDomainBodySchema = z.object({
+  asset_value: z
+    .string()
+    .min(1)
+    .max(253)
+    .regex(/^[a-z0-9.-]+$/i, "asset_value must be a DNS-shaped domain"),
+  ed25519_public_key_hex: z.string().regex(hex64Pattern),
+  recovery_key_fingerprint: z.string().regex(sha256HexPattern),
+  agent_did: z.string().regex(didPattern).optional(),
+});
+export type ClaimStartDomainBody = z.infer<typeof claimStartDomainBodySchema>;
+
+export const claimVerifyDnsBodySchema = z.object({
+  claim_id: z.string().uuid(),
+});
+export type ClaimVerifyDnsBody = z.infer<typeof claimVerifyDnsBodySchema>;
+
+export const claimVerifyEndpointBodySchema = z.object({
+  claim_id: z.string().uuid(),
+  endpoint_url: z.string().url(),
+});
+export type ClaimVerifyEndpointBody = z.infer<typeof claimVerifyEndpointBodySchema>;

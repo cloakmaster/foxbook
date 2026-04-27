@@ -35,13 +35,27 @@ importers:
 
   adapters/ap2: {}
 
-  adapters/dns: {}
+  adapters/dns:
+    devDependencies:
+      vitest:
+        specifier: ^4.1.5
+        version: 4.1.5(@types/node@22.19.17)(@vitest/ui@4.1.5)(vite@8.0.9(@types/node@22.19.17)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.8.3))
 
   adapters/email:
     dependencies:
       resend:
         specifier: ^6.12.2
         version: 6.12.2
+    devDependencies:
+      vitest:
+        specifier: ^4.1.5
+        version: 4.1.5(@types/node@22.19.17)(@vitest/ui@4.1.5)(vite@8.0.9(@types/node@22.19.17)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.8.3))
+
+  adapters/endpoint-challenge:
+    dependencies:
+      '@foxbook/core':
+        specifier: workspace:*
+        version: link:../../core
     devDependencies:
       vitest:
         specifier: ^4.1.5
@@ -69,6 +83,12 @@ importers:
 
   apps/api:
     dependencies:
+      '@foxbook/adapter-dns':
+        specifier: workspace:*
+        version: link:../../adapters/dns
+      '@foxbook/adapter-endpoint-challenge':
+        specifier: workspace:*
+        version: link:../../adapters/endpoint-challenge
       '@foxbook/adapter-gist':
         specifier: workspace:*
         version: link:../../adapters/gist

@@ -19,8 +19,19 @@ function stubClaimDeps(): ClaimDeps {
     claimRepo: {
       insertClaim: async () => ({ ok: true, id: "stub" }),
       findById: async () => null,
+      markTier2Verified: async () => {},
     },
     gist: { verifyGistContainsCode: async () => ({ status: "error" }) },
+    dns: {
+      verifyDnsTxtContainsCode: async () => {
+        throw new Error("discover tests never call dns adapter");
+      },
+    },
+    endpoint: {
+      verifyEndpointSignedNonce: async () => {
+        throw new Error("discover tests never call endpoint adapter");
+      },
+    },
     verificationCommitter: async () => {
       throw new Error("discover tests never call verificationCommitter");
     },

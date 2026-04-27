@@ -1,8 +1,8 @@
 {
-  "name": "@foxbook/adapter-dns",
+  "name": "@foxbook/adapter-endpoint-challenge",
   "version": "0.0.0",
   "private": true,
-  "description": "DNS TXT challenge Tier-2 adapter (Cloudflare DoH via fetch).",
+  "description": "Endpoint signed-nonce Tier-2 verification adapter (Ed25519 over canonical JSON via fetch).",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "biome lint ."
+  },
+  "dependencies": {
+    "@foxbook/core": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^4.1.5"

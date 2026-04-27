@@ -82,8 +82,22 @@ function fakeDeps(state: FakeState, overrides: Partial<ClaimDeps> = {}) {
         return { ok: true, id };
       },
       findById: async (id) => state.rowsById.get(id) ?? null,
+      markTier2Verified: async (id) => {
+        const r = state.rowsById.get(id);
+        if (r) state.rowsById.set(id, { ...r, state: "tier2_verified" });
+      },
     },
     gist: { verifyGistContainsCode: vi.fn(async () => ({ status: "match" as const, body: "ok" })) },
+    dns: {
+      verifyDnsTxtContainsCode: vi.fn(async () => {
+        throw new Error("dns.verifyDnsTxtContainsCode should not be called by revoke tests");
+      }),
+    },
+    endpoint: {
+      verifyEndpointSignedNonce: vi.fn(async () => {
+        throw new Error("endpoint.verifyEndpointSignedNonce should not be called by revoke tests");
+      }),
+    },
     // PR D: claimVerifyGist now hands off to verificationCommitter
     // instead of calling merkle.append directly. The fake mimics the
     // production tx body's observable side effects (state transition +

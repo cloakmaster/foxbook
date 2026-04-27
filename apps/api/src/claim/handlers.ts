@@ -9,10 +9,18 @@ import type {
   ClaimRepository,
   ClaimRevokeInput,
   ClaimRevokeResult,
+  ClaimStartDomainInput,
+  ClaimStartDomainResult,
   ClaimStartInput,
   ClaimStartResult,
+  ClaimVerifyDnsInput,
+  ClaimVerifyDnsResult,
+  ClaimVerifyEndpointInput,
+  ClaimVerifyEndpointResult,
   ClaimVerifyGistInput,
   ClaimVerifyGistResult,
+  DnsVerifier,
+  EndpointVerifier,
   GistVerifier,
   RevocationCommitter,
   VerificationCommitter,
@@ -22,6 +30,14 @@ import { mintVerificationCode } from "./verification-code.js";
 export type ClaimDeps = {
   claimRepo: ClaimRepository;
   gist: GistVerifier;
+  /** Day-7 PR C — Tier 2 DNS verifier. Production wiring lives in
+   *  apps/api/src/main.ts via @foxbook/adapter-dns; tests inject a
+   *  hand-rolled fake. */
+  dns: DnsVerifier;
+  /** Day-7 PR C — Tier 2 endpoint-challenge verifier. Production
+   *  wiring via @foxbook/adapter-endpoint-challenge; tests inject a
+   *  hand-rolled fake. */
+  endpoint: EndpointVerifier;
   /** Atomic-tx surface for POST /claim/verify-gist. Production wiring
    * lives in ./verification-committer.ts; tests inject a vi.fn that
    * records the call + returns a stubbed MerkleAppendResult. See
@@ -349,4 +365,155 @@ export async function claimRevoke(
     leafHash: result.leafHash,
     sthJws: result.sthJws,
   };
+}
+
+// ---- Tier 2 verification handlers (Day-7 PR C) ----
+
+/**
+ * POST /api/v1/claim/start-domain — domain-asset variant of /claim/start.
+ *
+ * Mints a verification_code, writes the claim row in tier2_pending state,
+ * returns the code so the caller can publish it as a TXT record at
+ * `_foxbook-claim.<domain>` (DNS path) or hold it for the endpoint-
+ * challenge round-trip. Tier-2 today is app-state-only — no Merkle leaf
+ * (security-model asymmetry; tier-upgrade additive $defs filed for v1.1
+ * per PR C body).
+ */
+export async function claimStartDomain(
+  input: ClaimStartDomainInput,
+  deps: ClaimDeps,
+): Promise<ClaimStartDomainResult> {
+  const agentDid = input.agentDid ?? mintDid();
+  const verificationCode = mintVerificationCode();
+
+  const inserted = await deps.claimRepo.insertClaim({
+    agentDid,
+    state: "tier2_pending",
+    assetType: "domain",
+    assetValue: input.assetValue,
+    ed25519PublicKeyHex: input.ed25519PublicKeyHex,
+    recoveryKeyFingerprint: input.recoveryKeyFingerprint,
+    verificationCode,
+  });
+  if (!inserted.ok) {
+    return { ok: false, status: inserted.status };
+  }
+
+  const fullRow = await deps.claimRepo.findById(inserted.id);
+  if (!fullRow) {
+    throw new Error(`claim ${inserted.id} vanished between insert and lookup`);
+  }
+  return { ok: true, claim: fullRow };
+}
+
+/**
+ * POST /api/v1/claim/verify-dns — single-attempt DNS TXT poll. Caller
+ * retries with backoff on `still-pending`; the route handler does NOT
+ * loop internally because that would block the request beyond reasonable
+ * latency budgets.
+ *
+ * Discriminated statuses pass through verbatim from the DNS adapter:
+ *   match              → tier2_verified, returns ok
+ *   not-found          → NXDOMAIN; no retry sensible
+ *   still-pending      → caller retries with 2s backoff (5x)
+ *   identity-mismatch  → different agent's claim sits on this domain
+ *   error / *          → transient (servfail, timeout, rate_limited)
+ */
+export async function claimVerifyDns(
+  input: ClaimVerifyDnsInput,
+  deps: ClaimDeps,
+): Promise<ClaimVerifyDnsResult> {
+  const claim = await deps.claimRepo.findById(input.claimId);
+  if (!claim) return { ok: false, status: "not-found-claim" };
+  if (claim.assetType !== "domain") {
+    return { ok: false, status: "wrong-asset-type", assetType: claim.assetType };
+  }
+  if (claim.state !== "tier2_pending") {
+    return { ok: false, status: "bad-state", currentState: claim.state };
+  }
+
+  const result = await deps.dns.verifyDnsTxtContainsCode(claim.assetValue, claim.verificationCode);
+
+  if (result.status === "match") {
+    await deps.claimRepo.markTier2Verified(claim.id);
+    return { ok: true, tier: 2 };
+  }
+  if (result.status === "not-found") {
+    return { ok: false, status: "not-found" };
+  }
+  if (result.status === "still-pending") {
+    return { ok: false, status: "still-pending" };
+  }
+  if (result.status === "identity-mismatch") {
+    return {
+      ok: false,
+      status: "identity-mismatch",
+      reason: result.reason,
+      foundCode: result.foundCode,
+    };
+  }
+  // result.status === "error"
+  return result.detail !== undefined
+    ? { ok: false, status: "error", reason: result.reason, detail: result.detail }
+    : { ok: false, status: "error", reason: result.reason };
+}
+
+/**
+ * POST /api/v1/claim/verify-endpoint — Ed25519 signed-nonce round-trip.
+ *
+ * The handler mints a fresh nonce, hands it to the adapter (which POSTs
+ * to the caller-supplied endpoint and verifies the JWS comes back signed
+ * by the claim's `ed25519_public_key_hex`), and transitions tier2_pending
+ * → tier2_verified on `match`. Mismatches discriminate signature failures
+ * (tampering / wrong key) from nonce-mismatch (replay) so an operator
+ * dashboard can see them apart.
+ */
+export async function claimVerifyEndpoint(
+  input: ClaimVerifyEndpointInput,
+  deps: ClaimDeps,
+): Promise<ClaimVerifyEndpointResult> {
+  const claim = await deps.claimRepo.findById(input.claimId);
+  if (!claim) return { ok: false, status: "not-found-claim" };
+  if (claim.assetType !== "domain") {
+    return { ok: false, status: "wrong-asset-type", assetType: claim.assetType };
+  }
+  if (claim.state !== "tier2_pending") {
+    return { ok: false, status: "bad-state", currentState: claim.state };
+  }
+
+  // Fresh nonce per round-trip. 32 random bytes hex-encoded — same
+  // shape as the verification_code but a separate value so a stale
+  // verification_code can't be replayed against the endpoint.
+  const nonce = mintNonceHex();
+
+  const result = await deps.endpoint.verifyEndpointSignedNonce(
+    input.endpointUrl,
+    nonce,
+    claim.ed25519PublicKeyHex,
+  );
+
+  if (result.status === "match") {
+    await deps.claimRepo.markTier2Verified(claim.id);
+    return { ok: true, tier: 2 };
+  }
+  if (result.status === "signature-invalid") {
+    return { ok: false, status: "signature-invalid", reason: result.reason };
+  }
+  if (result.status === "nonce-mismatch") {
+    return { ok: false, status: "nonce-mismatch", sent: result.sent, received: result.received };
+  }
+  // result.status === "error"
+  return result.detail !== undefined
+    ? { ok: false, status: "error", reason: result.reason, detail: result.detail }
+    : { ok: false, status: "error", reason: result.reason };
+}
+
+/** 32 random bytes -> 64-char lowercase hex. Same primitive shape we use
+ *  for ed25519_public_key_hex; cryptographically random per round trip. */
+function mintNonceHex(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  let s = "";
+  for (let i = 0; i < bytes.length; i++) s += bytes[i]?.toString(16).padStart(2, "0");
+  return s;
 }

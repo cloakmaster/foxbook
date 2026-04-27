@@ -1,3 +1,5 @@
+import { verifyDnsTxtContainsCode } from "@foxbook/adapter-dns";
+import { verifyEndpointSignedNonce } from "@foxbook/adapter-endpoint-challenge";
 import { verifyGistContainsCode } from "@foxbook/adapter-gist";
 import { createMerkleRepository, createNodeClient } from "@foxbook/db";
 import { serve } from "@hono/node-server";
@@ -49,6 +51,8 @@ const app = createApp({
   claim: {
     claimRepo: createClaimRepository(db),
     gist: { verifyGistContainsCode },
+    dns: { verifyDnsTxtContainsCode },
+    endpoint: { verifyEndpointSignedNonce },
     verificationCommitter: createVerificationCommitter(db, merkle),
     revocationCommitter: createRevocationCommitter(db, merkle),
   },

@@ -4,9 +4,20 @@ import { Hono } from "hono";
 import {
   claimRevokeBodySchema,
   claimStartBodySchema,
+  claimStartDomainBodySchema,
+  claimVerifyDnsBodySchema,
+  claimVerifyEndpointBodySchema,
   claimVerifyGistBodySchema,
 } from "./body-schema.js";
-import { type ClaimDeps, claimRevoke, claimStart, claimVerifyGist } from "./handlers.js";
+import {
+  type ClaimDeps,
+  claimRevoke,
+  claimStart,
+  claimStartDomain,
+  claimVerifyDns,
+  claimVerifyEndpoint,
+  claimVerifyGist,
+} from "./handlers.js";
 
 /**
  * Mount POST /claim/start + POST /claim/verify-gist with injected deps.
@@ -113,6 +124,93 @@ export function claimRoute(deps: ClaimDeps): Hono {
     // result.status === "invalid-leaf"
     return c.json({ status: result.status, reason: result.reason }, 422);
   });
+
+  // ---- Tier 2 (Day-7 PR C) ----
+
+  app.post("/claim/start-domain", zValidator("json", claimStartDomainBodySchema), async (c) => {
+    const body = c.req.valid("json");
+    const result = await claimStartDomain(
+      {
+        assetValue: body.asset_value,
+        ed25519PublicKeyHex: body.ed25519_public_key_hex,
+        recoveryKeyFingerprint: body.recovery_key_fingerprint,
+        ...(body.agent_did !== undefined ? { agentDid: body.agent_did } : {}),
+      },
+      deps,
+    );
+    if (!result.ok) return c.json({ status: result.status }, 409);
+    return c.json(
+      {
+        claim_id: result.claim.id,
+        agent_did: result.claim.agentDid,
+        verification_code: result.claim.verificationCode,
+        state: result.claim.state,
+        instructions: `Two paths: (a) DNS — publish a TXT record at _foxbook-claim.${result.claim.assetValue} containing "foxbook-verification=${result.claim.verificationCode}", then POST /api/v1/claim/verify-dns. (b) Endpoint challenge — host an HTTPS endpoint that signs the nonce we send with your ed25519 private key and returns the JWS, then POST /api/v1/claim/verify-endpoint with endpoint_url.`,
+      },
+      201,
+    );
+  });
+
+  app.post("/claim/verify-dns", zValidator("json", claimVerifyDnsBodySchema), async (c) => {
+    const body = c.req.valid("json");
+    const result = await claimVerifyDns({ claimId: body.claim_id }, deps);
+    if (result.ok) {
+      return c.json({ tier: result.tier }, 200);
+    }
+    const statusCode =
+      result.status === "not-found-claim"
+        ? 404
+        : result.status === "identity-mismatch"
+          ? 409
+          : result.status === "bad-state" || result.status === "wrong-asset-type"
+            ? 400
+            : 200; // still-pending / not-found / error → caller decides retry
+    return c.json(
+      {
+        status: result.status,
+        ...("reason" in result && result.reason !== undefined ? { reason: result.reason } : {}),
+        ...("foundCode" in result ? { found_code: result.foundCode } : {}),
+        ...("detail" in result && result.detail !== undefined ? { detail: result.detail } : {}),
+        ...("currentState" in result ? { current_state: result.currentState } : {}),
+        ...("assetType" in result ? { asset_type: result.assetType } : {}),
+      },
+      statusCode,
+    );
+  });
+
+  app.post(
+    "/claim/verify-endpoint",
+    zValidator("json", claimVerifyEndpointBodySchema),
+    async (c) => {
+      const body = c.req.valid("json");
+      const result = await claimVerifyEndpoint(
+        { claimId: body.claim_id, endpointUrl: body.endpoint_url },
+        deps,
+      );
+      if (result.ok) return c.json({ tier: result.tier }, 200);
+      const statusCode =
+        result.status === "not-found-claim"
+          ? 404
+          : result.status === "signature-invalid" ||
+              result.status === "nonce-mismatch" ||
+              result.status === "bad-state" ||
+              result.status === "wrong-asset-type"
+            ? 400
+            : 200; // error → 200+status (transient endpoint failures)
+      return c.json(
+        {
+          status: result.status,
+          ...("reason" in result && result.reason !== undefined ? { reason: result.reason } : {}),
+          ...("sent" in result ? { sent: result.sent } : {}),
+          ...("received" in result ? { received: result.received } : {}),
+          ...("detail" in result && result.detail !== undefined ? { detail: result.detail } : {}),
+          ...("currentState" in result ? { current_state: result.currentState } : {}),
+          ...("assetType" in result ? { asset_type: result.assetType } : {}),
+        },
+        statusCode,
+      );
+    },
+  );
 
   return app;
 }
