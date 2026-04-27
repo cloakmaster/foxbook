@@ -1,6 +1,6 @@
 # Trademark notice
 
-**Foxbook** is a trademark of Benjamin [Last Name].
+**Foxbook** is a trademark of Benjamin Bandali.
 
 The protocol and the reference implementation in this repository are licensed
 under the Apache License 2.0 (see [`LICENSE`](LICENSE)) — anyone can fork,
