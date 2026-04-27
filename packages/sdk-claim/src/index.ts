@@ -34,14 +34,14 @@ export {
   type ClaimStartResult,
   type ClaimVerifyGistInput,
   type ClaimVerifyGistResult,
+  claimRevoke,
+  claimStart,
+  claimVerifyGist,
   DEFAULT_API_BASE,
   type Ed25519PublicKeyHex,
   type FoxbookDid,
   type RecoveryKeyFingerprint,
   type VerificationCode,
-  claimRevoke,
-  claimStart,
-  claimVerifyGist,
 } from "./claim.js";
 
 export {
@@ -49,12 +49,12 @@ export {
   DEFAULT_WORKER_BASE,
   type FoxbookVerifyOptions,
   type FoxbookVerifyResult,
+  foxbookVerify,
   type VerifiableAgentCard,
   type VerifyAgentCardOptions,
   type VerifyAgentCardResult,
   type VerifyInput,
   type VerifyResult,
-  foxbookVerify,
   verify,
   verifyAgentCard,
 } from "./verify.js";

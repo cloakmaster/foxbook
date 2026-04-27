@@ -98,9 +98,7 @@ export async function foxbookVerify(
   _handle: string,
   _options?: FoxbookVerifyOptions,
 ): Promise<FoxbookVerifyResult> {
-  throw new Error(
-    "@foxbook/sdk-claim: foxbookVerify not implemented (week-2 Distribution Track)",
-  );
+  throw new Error("@foxbook/sdk-claim: foxbookVerify not implemented (week-2 Distribution Track)");
 }
 
 // ---- verifyAgentCard (agent-hiring-gate runtime-safety primitive) ----
