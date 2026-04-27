@@ -193,6 +193,8 @@ importers:
         specifier: ^0.31.10
         version: 0.31.10
 
+  packages/sdk-claim: {}
+
   packages/sdk-ts: {}
 
   packages/shield: {}
