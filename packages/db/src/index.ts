@@ -1,8 +1,10 @@
 export {
   createDbClient,
+  createDirectPostgresClient,
   createEdgeClient,
   createNodeClient,
   type DbClient,
+  type DirectPostgresClient,
   type EdgeDbClient,
   type NodeDbClient,
 } from "./client.js";
