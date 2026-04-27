@@ -1,0 +1,14 @@
+{
+  "name": "@foxbook/sdk-claim",
+  "version": "0.0.0",
+  "private": true,
+  "description": "TypeScript reference SDK for Foxbook claim flow + verification. Six-function public surface (claimStart / claimVerifyGist / claimRevoke / verify / foxbookVerify / verifyAgentCard). Day-7 PR E ships signatures + discriminated-union types only; bodies stub throw('not implemented') — implementation lands week 2 per PROJECT-PLAN.md Distribution Track.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'no tests yet — signatures only, week-2 implementation' && exit 0",
+    "lint": "biome lint ."
+  }
+}
