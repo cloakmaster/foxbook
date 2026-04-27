@@ -48,11 +48,6 @@ function fakeDeps(state: FakeState, overrides: Partial<ClaimDeps> = {}) {
         return { ok: true, id };
       },
       findById: async (id) => state.rowsById.get(id) ?? null,
-      markTier1Verified: async (id) => {
-        const r = state.rowsById.get(id);
-        if (r) state.rowsById.set(id, { ...r, state: "tier1_verified" });
-      },
-      insertSigningKey: async () => {},
       markTier2Verified: async (id) => {
         const r = state.rowsById.get(id);
         if (r)
@@ -70,11 +65,9 @@ function fakeDeps(state: FakeState, overrides: Partial<ClaimDeps> = {}) {
     },
     dns: { verifyDnsTxtContainsCode: dnsSpy },
     endpoint: { verifyEndpointSignedNonce: endpointSpy },
-    merkle: {
-      append: vi.fn(async () => {
-        throw new Error("tier-2 tests should not call merkle.append");
-      }),
-    },
+    verificationCommitter: vi.fn(async () => {
+      throw new Error("tier-2 tests should not call verificationCommitter");
+    }),
     revocationCommitter: vi.fn(async () => {
       throw new Error("tier-2 tests should not call revocationCommitter");
     }),

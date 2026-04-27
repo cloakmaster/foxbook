@@ -18,7 +18,7 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle as drizzleNeon } from "drizzle-orm/neon-http";
 import { drizzle as drizzlePg } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import postgres, { type Sql } from "postgres";
 
 import * as schema from "./schema/index.js";
 
@@ -70,12 +70,60 @@ export function createEdgeClient(url: string) {
  */
 export const createDbClient = createNodeClient;
 
+/**
+ * Direct postgres-js client (raw `Sql` tagged template — NOT wrapped in
+ * Drizzle). Returned as-is so callers can use postgres-js features
+ * Drizzle does not surface, principally `sql.listen(channel, onNotify,
+ * onListen)` for LISTEN/NOTIFY subscriptions.
+ *
+ * Reads DATABASE_URL_DIRECT (NOT DATABASE_URL). Throws loud if it's
+ * missing or contains '-pooler' in the host. Pooled connections (Neon's
+ * PgBouncer transaction-pooling) silently drop LISTEN subscriptions on
+ * recycling, so any caller that needs LISTEN MUST go through this
+ * factory and the direct URL — never silently fall back to the pooled
+ * one. (PR D firehose listener; ADR 0004 addendum-2.)
+ *
+ * Connection options are tuned for long-lived listeners:
+ *   - max: 1            — one connection per listener instance.
+ *   - idle_timeout: 0   — never time out idle connections (LISTEN must
+ *                          stay subscribed indefinitely).
+ *   - max_lifetime: 0   — never recycle the connection on a clock.
+ *   - prepare: false    — no prepared statements (cleaner shutdown).
+ */
+export function createDirectPostgresClient(
+  url: string = process.env.DATABASE_URL_DIRECT ?? "",
+): Sql {
+  if (!url) {
+    throw new Error(
+      "createDirectPostgresClient: DATABASE_URL_DIRECT is not set. " +
+        "LISTEN-using callers MUST use the non-pooled URL — pooled connections drop LISTEN subscriptions on recycling. " +
+        "Set DATABASE_URL_DIRECT in .env.local or pass it explicitly. NEVER fall back to DATABASE_URL.",
+    );
+  }
+  if (url.includes("-pooler")) {
+    throw new Error(
+      "createDirectPostgresClient: DATABASE_URL_DIRECT contains '-pooler' — must be a direct (non-pooled) Postgres URL.",
+    );
+  }
+  return postgres(url, {
+    max: 1,
+    idle_timeout: 0,
+    max_lifetime: 0,
+    prepare: false,
+    connection: { application_name: "foxbook-firehose-listener" },
+  });
+}
+
 export type NodeDbClient = ReturnType<typeof createNodeClient>;
 export type EdgeDbClient = ReturnType<typeof createEdgeClient>;
+export type DirectPostgresClient = Sql;
 
 /**
- * Union of both client types. Most code paths don't care which driver
- * backs them (they hold a Drizzle interface), so this narrows rarely.
- * Merkle repository in `./merkle-repository.ts` accepts this union.
+ * Union of both Drizzle client types. Most code paths don't care which
+ * driver backs them (they hold a Drizzle interface), so this narrows
+ * rarely. Merkle repository in `./merkle-repository.ts` accepts this
+ * union. The direct postgres-js client is intentionally NOT in this
+ * union — it's a different abstraction (raw SQL) for a different
+ * purpose (LISTEN/NOTIFY).
  */
 export type DbClient = NodeDbClient | EdgeDbClient;

@@ -72,18 +72,24 @@ export type ClaimVerifyGistResult =
  * Repository seam the handlers talk to. Backed by Drizzle in
  * production (repository.ts) and by an in-memory fake in tests —
  * same pattern the discover handlers use.
+ *
+ * Day-7 PR D removed `markTier1Verified` and `insertSigningKey` from
+ * this surface: those writes now live inside the verify-gist
+ * atomic-tx body (verification-committer.ts), so handlers + tests
+ * never call them directly outside that committer.
+ *
+ * Day-7 PR C added `markTier2Verified` for the tier-2 (DNS / endpoint)
+ * state transition. App-state-only today (no Merkle leaf); see PR C
+ * body's security-model asymmetry note + tier-upgrade $defs filed for
+ * v1.1.
  */
 export type ClaimRepository = {
   insertClaim: (
     row: Omit<ClaimRow, "id" | "startedAt" | "completedAt">,
   ) => Promise<{ ok: true; id: string } | { ok: false; status: "asset-conflict" }>;
   findById: (id: string) => Promise<ClaimRow | null>;
-  markTier1Verified: (id: string) => Promise<void>;
-  insertSigningKey: (agentDid: string, publicKeyHex: string) => Promise<void>;
   /** Day-7 PR C — Tier 2. Transitions a `tier2_pending` row to
-   *  `tier2_verified`. Tier-2 today is app-state-only (no Merkle leaf;
-   *  see security-model asymmetry note in PR C body + tier-upgrade
-   *  $defs filed for v1.1). */
+   *  `tier2_verified`. */
   markTier2Verified: (id: string) => Promise<void>;
 };
 
@@ -165,6 +171,42 @@ export type RevocationCommitterInput = {
 };
 
 export type RevocationCommitter = (input: RevocationCommitterInput) => Promise<MerkleAppendResult>;
+
+// ---- Verification (Day-7 PR D) ----
+
+/**
+ * Atomic-tx surface for verify-gist. Production wiring
+ * (verification-committer.ts) runs ONE `db.transaction` callback
+ * containing four LOCAL Postgres writes against the SAME connection:
+ *
+ *   1. UPDATE claims  state→tier1_verified, completed_at=now
+ *   2. INSERT keys    signing key + claim_id FK
+ *   3. merkle.append({tx})  advisory-lock + tl_leaves + transparency_log
+ *   4. INSERT firehose_events  PR D fanout seed
+ *
+ * The advisory lock from `merkle.append` is held for the full caller-tx
+ * duration. Per ADR 0004 addendum-1, the tx body MUST contain ONLY
+ * local Postgres operations on the same connection — no `fetch`,
+ * adapter call, sleep, or non-Drizzle await. The committer abstraction
+ * keeps the handler testable without mocking Drizzle's transaction
+ * surface AND keeps the tx body in one production file where the
+ * hygiene rules are auditable.
+ *
+ * Closes the Day-5 non-atomicity gap where the three writes ran
+ * independently — a crash between leaf append and operational state
+ * writes left the Merkle log saying "tier1" while Postgres disagreed.
+ */
+export type VerificationCommitterInput = {
+  /** The pre-validated claim row. The committer transitions its state. */
+  claim: ClaimRow;
+  /** Pre-validated agent-key-registration leaf. The committer
+   *  canonicalizes + hashes it inside `merkle.append`. */
+  leafPayload: unknown;
+};
+
+export type VerificationCommitter = (
+  input: VerificationCommitterInput,
+) => Promise<MerkleAppendResult>;
 
 // ---- Tier 2 verification (Day-7 PR C) ----
 

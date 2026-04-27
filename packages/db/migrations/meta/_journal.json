@@ -29,6 +29,13 @@
       "when": 1777224136327,
       "tag": "0003_revocation_fks",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777881600000,
+      "tag": "0004_firehose_trigger",
+      "breakpoints": true
     }
   ]
 }

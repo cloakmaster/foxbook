@@ -91,21 +91,10 @@ export function createClaimRepository(db: NodeDbClient): ClaimRepository {
       return rowToClaim(rows[0]!);
     },
 
-    async markTier1Verified(id) {
-      await db
-        .update(schema.claims)
-        .set({ state: "tier1_verified", completedAt: new Date() })
-        .where(eq(schema.claims.id, id));
-    },
-
-    async insertSigningKey(agentDid, publicKeyHex) {
-      await db.insert(schema.keys).values({
-        agentDid,
-        purpose: "signing",
-        publicKeyHex,
-        active: true,
-      });
-    },
+    // Day-7 PR D removed `markTier1Verified` and `insertSigningKey`:
+    // those writes now live inside the verify-gist atomic-tx body
+    // (verification-committer.ts), which calls tx.update + tx.insert
+    // directly against Drizzle's tx handle.
 
     async markTier2Verified(id) {
       // Day-7 PR C — Tier 2 transition. App-state-only today (no

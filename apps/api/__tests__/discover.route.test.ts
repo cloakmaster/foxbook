@@ -1,4 +1,7 @@
+import { EventEmitter } from "node:events";
+
 import { describe, expect, it } from "vitest";
+
 import type { ClaimDeps } from "../src/claim/handlers.js";
 import type { DiscoveryRepository } from "../src/discover/types.js";
 import { createApp } from "../src/server.js";
@@ -16,8 +19,6 @@ function stubClaimDeps(): ClaimDeps {
     claimRepo: {
       insertClaim: async () => ({ ok: true, id: "stub" }),
       findById: async () => null,
-      markTier1Verified: async () => {},
-      insertSigningKey: async () => {},
       markTier2Verified: async () => {},
     },
     gist: { verifyGistContainsCode: async () => ({ status: "error" }) },
@@ -31,10 +32,8 @@ function stubClaimDeps(): ClaimDeps {
         throw new Error("discover tests never call endpoint adapter");
       },
     },
-    merkle: {
-      append: async () => {
-        throw new Error("discover tests never call merkle.append");
-      },
+    verificationCommitter: async () => {
+      throw new Error("discover tests never call verificationCommitter");
     },
     revocationCommitter: async () => {
       throw new Error("discover tests never call revocationCommitter");
@@ -43,7 +42,11 @@ function stubClaimDeps(): ClaimDeps {
 }
 
 function makeApp(repo: DiscoveryRepository = emptyRepo()) {
-  return createApp({ discoveryRepo: repo, claim: stubClaimDeps() });
+  return createApp({
+    discoveryRepo: repo,
+    claim: stubClaimDeps(),
+    firehoseEmitter: new EventEmitter(),
+  });
 }
 
 describe("GET /api/v1/discover — route", () => {
