@@ -1,0 +1,7 @@
+date,run_tag,row_id,event_type,client_sent_at,db_published_at,sse_received_at,latency_db_to_sse_ms,latency_client_to_sse_ms,note
+2026-04-27,run-1,4cae4627-ea43-4e92-87e2-100812533d3e,claim.verified,2026-04-27T07:27:49.314Z,2026-04-27T07:27:49.651Z,2026-04-27T07:27:49.674Z,23,360,first bench in 5-run series after dev restart
+2026-04-27,run-2,165f810d-026b-4cf9-aaf7-6d002bb9b72a,claim.verified,2026-04-27T07:27:50.781Z,2026-04-27T07:27:51.103Z,2026-04-27T07:27:51.122Z,19,341,
+2026-04-27,run-3,2cb1a28a-7d00-4c5d-a9bb-036d1c2c8a2b,claim.verified,2026-04-27T07:27:52.230Z,2026-04-27T07:27:52.558Z,2026-04-27T07:27:52.578Z,20,348,
+2026-04-27,run-4,d2576c49-5d1b-47f8-95e2-e2a07c6e9084,claim.verified,2026-04-27T07:27:53.682Z,2026-04-27T07:27:54.005Z,2026-04-27T07:27:54.026Z,21,344,
+2026-04-27,run-5,022c0880-eee2-47d4-8aea-deb4e416ffea,claim.verified,2026-04-27T07:27:55.126Z,2026-04-27T07:27:55.448Z,2026-04-27T07:27:55.468Z,20,342,
+2026-04-27,reconnect-proof,d42f9258-2896-46e7-987e-b47beee95424,claim.verified,2026-04-27T07:28:28.654Z,2026-04-27T07:28:28.982Z,2026-04-27T07:28:29.002Z,20,348,fired ~8s after pg_terminate_backend(listener_pid=2734) — same SSE client received without client-side reconnect; postgres-js handled LISTEN reconnect transparently at library layer (no firehose_listener_reconnect sentinel logged at our wrapper level — silent recovery)
