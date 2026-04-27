@@ -45,14 +45,6 @@ const SIGNING_PUB_HEX = hexFromBytes(SIGNING.publicKey);
 const RECOVERY_FINGERPRINT = `sha256:${sha256Hex(RECOVERY.publicKey)}`;
 
 function fakeDeps(state: FakeState, overrides: Partial<ClaimDeps> = {}) {
-  const appendSpy = vi.fn(async (leafData: unknown) => ({
-    leafIndex: 1,
-    leafHash: "f".repeat(64),
-    rootAfter: "a".repeat(64),
-    sthJws: "eyJhbGciOiJFZERTQSJ9.eyJ9.x",
-    publishedAt: new Date("2026-04-26T12:00:00Z"),
-    leafData,
-  }));
   // Default committer impersonates the production tx body's success
   // path: returns a stubbed MerkleAppendResult, records the call.
   const revokeSpy = vi.fn<RevocationCommitter>(async ({ claim, fullLeaf }) => {
@@ -90,25 +82,38 @@ function fakeDeps(state: FakeState, overrides: Partial<ClaimDeps> = {}) {
         return { ok: true, id };
       },
       findById: async (id) => state.rowsById.get(id) ?? null,
-      markTier1Verified: async (id) => {
-        const r = state.rowsById.get(id);
-        if (r)
-          state.rowsById.set(id, {
-            ...r,
-            state: "tier1_verified",
-            completedAt: new Date("2026-04-26T11:30:00Z"),
-          });
-      },
-      insertSigningKey: async (agentDid, publicKeyHex) => {
-        state.signingKeyInserts.push({ agentDid, publicKeyHex });
-      },
     },
     gist: { verifyGistContainsCode: vi.fn(async () => ({ status: "match" as const, body: "ok" })) },
-    merkle: { append: appendSpy },
+    // PR D: claimVerifyGist now hands off to verificationCommitter
+    // instead of calling merkle.append directly. The fake mimics the
+    // production tx body's observable side effects (state transition +
+    // signing-key push) so the setupTier1Verified helper still works
+    // unchanged.
+    verificationCommitter: vi.fn(async ({ claim }) => {
+      const r = state.rowsById.get(claim.id);
+      if (r) {
+        state.rowsById.set(claim.id, {
+          ...r,
+          state: "tier1_verified",
+          completedAt: new Date("2026-04-26T11:30:00Z"),
+        });
+      }
+      state.signingKeyInserts.push({
+        agentDid: claim.agentDid,
+        publicKeyHex: claim.ed25519PublicKeyHex,
+      });
+      return {
+        leafIndex: 0,
+        leafHash: "f".repeat(64),
+        rootAfter: "a".repeat(64),
+        sthJws: "eyJhbGciOiJFZERTQSJ9.eyJ9.x",
+        publishedAt: new Date("2026-04-26T11:30:00Z"),
+      };
+    }),
     revocationCommitter: revokeSpy,
     ...overrides,
   };
-  return { deps, appendSpy, revokeSpy };
+  return { deps, revokeSpy };
 }
 
 const GOOD_INPUT = {

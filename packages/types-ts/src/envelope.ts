@@ -13,7 +13,15 @@ export interface FoxbookFirehoseEnvelopeV1 {
    * ULID-based event identifier prefixed fbx_.
    */
   event_id: string;
-  event_type: "hire.settled" | "hire.failed" | "delegation.announced";
+  /**
+   * Day-7 PR D additively introduces claim.verified + revocation.recorded for the first wired firehose events. The hire.* + delegation.announced shapes (hirer/hiree/task/payment/...) remain the strict envelope for hire events. Per-event-type required-field gating across the new event types lands as a pre-freeze refinement (PROJECT-PLAN Day 7-9). Today the firehose wire payload for claim.verified / revocation.recorded carries {event_type, did, leaf_index, leaf_hash, timestamp, ...} inside the firehose_events.payload jsonb column without strict required-field validation; that's a deliberate scope cut so PR D is a minimal additive bump.
+   */
+  event_type:
+    | "hire.settled"
+    | "hire.failed"
+    | "delegation.announced"
+    | "claim.verified"
+    | "revocation.recorded";
   /**
    * When the agents finished settling, ISO-8601.
    */

@@ -4,7 +4,9 @@ import { serve } from "@hono/node-server";
 
 import { createClaimRepository } from "./claim/repository.js";
 import { createRevocationCommitter } from "./claim/revocation-committer.js";
+import { createVerificationCommitter } from "./claim/verification-committer.js";
 import { DrizzleDiscoveryRepository } from "./discover/repository.js";
+import { createFirehoseListener } from "./firehose/listener.js";
 import { createApp } from "./server.js";
 
 function parseHex(s: string): Uint8Array {
@@ -31,14 +33,26 @@ if (!signingKey) {
 
 const merkle = createMerkleRepository(db, signingKey ? { signingKey } : {});
 
+// PR D: firehose listener over DATABASE_URL_DIRECT. Construction throws
+// loud if the env var is missing or pooled — no silent fallback to
+// DATABASE_URL. start() returns immediately; the connect-subscribe-
+// heartbeat loop runs in the background. On clean shutdown (SIGTERM),
+// the process exits naturally; the listener's persistent connection is
+// torn down by Postgres-side. (Future: add an explicit shutdown hook
+// when SSE clients accumulate enough that we want graceful drain —
+// today single-subscriber, not load-bearing.)
+const firehoseListener = createFirehoseListener();
+firehoseListener.start();
+
 const app = createApp({
   discoveryRepo: new DrizzleDiscoveryRepository(db),
   claim: {
     claimRepo: createClaimRepository(db),
     gist: { verifyGistContainsCode },
-    merkle,
+    verificationCommitter: createVerificationCommitter(db, merkle),
     revocationCommitter: createRevocationCommitter(db, merkle),
   },
+  firehoseEmitter: firehoseListener.emitter,
 });
 
 serve({ fetch: app.fetch, port }, (info) => {
