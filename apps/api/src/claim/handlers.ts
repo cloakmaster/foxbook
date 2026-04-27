@@ -14,15 +14,20 @@ import type {
   ClaimVerifyGistInput,
   ClaimVerifyGistResult,
   GistVerifier,
-  MerkleAppender,
   RevocationCommitter,
+  VerificationCommitter,
 } from "./types.js";
 import { mintVerificationCode } from "./verification-code.js";
 
 export type ClaimDeps = {
   claimRepo: ClaimRepository;
   gist: GistVerifier;
-  merkle: MerkleAppender;
+  /** Atomic-tx surface for POST /claim/verify-gist. Production wiring
+   * lives in ./verification-committer.ts; tests inject a vi.fn that
+   * records the call + returns a stubbed MerkleAppendResult. See
+   * VerificationCommitter docs for the tx-context hygiene rules a real
+   * implementation MUST honour (ADR 0004 addendum-1 + addendum-2). */
+  verificationCommitter: VerificationCommitter;
   /** Atomic-tx surface for POST /claim/revoke. Production wiring lives
    * in ./revocation-committer.ts; tests inject a vi.fn that records
    * the call. See RevocationCommitter docs for the tx-context hygiene
@@ -142,22 +147,28 @@ export async function claimVerifyGist(
     };
   }
 
-  // State transition + keys row + Merkle leaf. The append is the
-  // authoritative timestamp of tier1 — we reach it only if every
-  // prior check passed.
-  await deps.claimRepo.markTier1Verified(claim.id);
-  await deps.claimRepo.insertSigningKey(claim.agentDid, claim.ed25519PublicKeyHex);
-
-  const appendResult = await deps.merkle.append(leafPayload);
-
-  return {
-    ok: true,
-    tier: 1,
-    leafIndex: appendResult.leafIndex,
-    leafHash: appendResult.leafHash,
-    rootAfter: appendResult.rootAfter,
-    sthJws: appendResult.sthJws,
-  };
+  // Hand off to the verification committer — the atomic-tx surface
+  // (claim state update + keys insert + merkle.append({tx}) + firehose
+  // insert, all inside ONE db.transaction). Closes the Day-5 non-
+  // atomicity gap. See verification-committer.ts for the tx body and
+  // ADR 0004 addendum-1 + addendum-2 for the hygiene rules.
+  try {
+    const appendResult = await deps.verificationCommitter({ claim, leafPayload });
+    return {
+      ok: true,
+      tier: 1,
+      leafIndex: appendResult.leafIndex,
+      leafHash: appendResult.leafHash,
+      rootAfter: appendResult.rootAfter,
+      sthJws: appendResult.sthJws,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      status: "error",
+      reason: e instanceof Error ? e.message : String(e),
+    };
+  }
 }
 
 /**

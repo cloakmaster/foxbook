@@ -24,15 +24,40 @@ function freshState(): FakeState {
 function fakeClaimDeps(
   state: FakeState,
   overrides: Partial<ClaimDeps> = {},
-): { deps: ClaimDeps; appendSpy: ReturnType<typeof vi.fn>; gistSpy: ReturnType<typeof vi.fn> } {
-  const appendSpy = vi.fn(async (leafData: unknown) => ({
-    leafIndex: 0,
-    leafHash: "f".repeat(64),
-    rootAfter: "a".repeat(64),
-    sthJws: "eyJhbGciOiJFZERTQSJ9.eyJ9.x",
-    publishedAt: new Date("2026-04-23T10:00:00Z"),
-    leafData, // for assertion
-  }));
+): {
+  deps: ClaimDeps;
+  committerSpy: ReturnType<typeof vi.fn>;
+  gistSpy: ReturnType<typeof vi.fn>;
+} {
+  // PR D: the verify-gist atomic-tx surface. Production wiring runs
+  // four writes inside one db.transaction; the fake here mimics the
+  // observable behaviour (state transition + key insert + result
+  // shape) WITHOUT a real DB. Tests assert on state.rowsById to
+  // verify the tier1_verified transition happened and on
+  // state.signingKeyInserts to verify the keys insert happened —
+  // both are what the production committer's tx does.
+  const committerSpy = vi.fn(async ({ claim, leafPayload }) => {
+    void leafPayload; // touched by the assertion-on-shape test below
+    const r = state.rowsById.get(claim.id);
+    if (r) {
+      state.rowsById.set(claim.id, {
+        ...r,
+        state: "tier1_verified",
+        completedAt: new Date("2026-04-23T10:00:00Z"),
+      });
+    }
+    state.signingKeyInserts.push({
+      agentDid: claim.agentDid,
+      publicKeyHex: claim.ed25519PublicKeyHex,
+    });
+    return {
+      leafIndex: 0,
+      leafHash: "f".repeat(64),
+      rootAfter: "a".repeat(64),
+      sthJws: "eyJhbGciOiJFZERTQSJ9.eyJ9.x",
+      publishedAt: new Date("2026-04-23T10:00:00Z"),
+    };
+  });
   const gistSpy = vi.fn(async () => ({ status: "match" as const, body: "ok" }));
 
   // claimStart and claimVerifyGist don't call revocationCommitter; the
@@ -67,20 +92,13 @@ function fakeClaimDeps(
         return { ok: true, id };
       },
       findById: async (id) => state.rowsById.get(id) ?? null,
-      markTier1Verified: async (id) => {
-        const r = state.rowsById.get(id);
-        if (r) state.rowsById.set(id, { ...r, state: "tier1_verified" });
-      },
-      insertSigningKey: async (agentDid, publicKeyHex) => {
-        state.signingKeyInserts.push({ agentDid, publicKeyHex });
-      },
     },
     gist: { verifyGistContainsCode: gistSpy },
-    merkle: { append: appendSpy },
+    verificationCommitter: committerSpy,
     revocationCommitter: revokeSpy,
     ...overrides,
   };
-  return { deps, appendSpy, gistSpy };
+  return { deps, committerSpy, gistSpy };
 }
 
 const GOOD_INPUT = {
@@ -125,9 +143,9 @@ describe("claimStart", () => {
 });
 
 describe("claimVerifyGist — happy path", () => {
-  it("on match: markTier1Verified, insertSigningKey, append leaf, return tier=1", async () => {
+  it("on match: hands off to verificationCommitter, transitions to tier1, returns tier=1", async () => {
     const state = freshState();
-    const { deps, appendSpy, gistSpy } = fakeClaimDeps(state);
+    const { deps, committerSpy, gistSpy } = fakeClaimDeps(state);
     const started = await claimStart(GOOD_INPUT, deps);
     if (!started.ok) throw new Error("setup: claimStart failed");
 
@@ -142,14 +160,14 @@ describe("claimVerifyGist — happy path", () => {
       expect(result.leafIndex).toBe(0);
     }
     expect(gistSpy).toHaveBeenCalledTimes(1);
-    expect(appendSpy).toHaveBeenCalledTimes(1);
+    expect(committerSpy).toHaveBeenCalledTimes(1);
     expect(state.signingKeyInserts).toHaveLength(1);
     expect(state.rowsById.get(started.claim.id)?.state).toBe("tier1_verified");
   });
 
-  it("append is called with the exact agent-key-registration leaf shape", async () => {
+  it("committer is called with the exact agent-key-registration leaf shape", async () => {
     const state = freshState();
-    const { deps, appendSpy } = fakeClaimDeps(state);
+    const { deps, committerSpy } = fakeClaimDeps(state);
     const started = await claimStart(GOOD_INPUT, deps);
     if (!started.ok) throw new Error("setup: claimStart failed");
 
@@ -158,7 +176,12 @@ describe("claimVerifyGist — happy path", () => {
       deps,
     );
 
-    const leafData = appendSpy.mock.calls[0]?.[0] as Record<string, unknown>;
+    const callArg = committerSpy.mock.calls[0]?.[0] as {
+      claim: ClaimRow;
+      leafPayload: Record<string, unknown>;
+    };
+    expect(callArg.claim.id).toBe(started.claim.id);
+    const leafData = callArg.leafPayload;
     expect(leafData.leaf_type).toBe("agent-key-registration");
     expect(leafData.did).toBe(started.claim.agentDid);
     expect(leafData.ed25519_public_key_hex).toBe(GOOD_INPUT.ed25519PublicKeyHex);
@@ -167,23 +190,23 @@ describe("claimVerifyGist — happy path", () => {
   });
 });
 
-describe("claimVerifyGist — negative paths (all of which MUST NOT call append)", () => {
+describe("claimVerifyGist — negative paths (all of which MUST NOT call the committer)", () => {
   it("not-found-claim: unknown claim_id → 404-equivalent, no side effects", async () => {
     const state = freshState();
-    const { deps, appendSpy, gistSpy } = fakeClaimDeps(state);
+    const { deps, committerSpy, gistSpy } = fakeClaimDeps(state);
     const result = await claimVerifyGist(
       { claimId: "does-not-exist", gistUrl: "https://gist.github.com/samrg472/abc" },
       deps,
     );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe("not-found-claim");
-    expect(appendSpy).not.toHaveBeenCalled();
+    expect(committerSpy).not.toHaveBeenCalled();
     expect(gistSpy).not.toHaveBeenCalled();
   });
 
   it("wrong-asset-type: x_handle or domain → 400, no Gist call", async () => {
     const state = freshState();
-    const { deps, appendSpy, gistSpy } = fakeClaimDeps(state);
+    const { deps, committerSpy, gistSpy } = fakeClaimDeps(state);
     const started = await claimStart(
       { ...GOOD_INPUT, assetType: "domain", assetValue: "acme.com" },
       deps,
@@ -196,12 +219,12 @@ describe("claimVerifyGist — negative paths (all of which MUST NOT call append)
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe("wrong-asset-type");
     expect(gistSpy).not.toHaveBeenCalled();
-    expect(appendSpy).not.toHaveBeenCalled();
+    expect(committerSpy).not.toHaveBeenCalled();
   });
 
   it("identity-mismatch from Gist adapter → no append, no state transition", async () => {
     const state = freshState();
-    const { deps, appendSpy } = fakeClaimDeps(state, {
+    const { deps, committerSpy } = fakeClaimDeps(state, {
       gist: {
         verifyGistContainsCode: vi.fn(async () => ({
           status: "identity-mismatch" as const,
@@ -217,13 +240,13 @@ describe("claimVerifyGist — negative paths (all of which MUST NOT call append)
     );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe("identity-mismatch");
-    expect(appendSpy).not.toHaveBeenCalled();
+    expect(committerSpy).not.toHaveBeenCalled();
     expect(state.rowsById.get(started.claim.id)?.state).toBe("gist_pending");
   });
 
   it("still-pending from Gist → no append, claim stays gist_pending", async () => {
     const state = freshState();
-    const { deps, appendSpy } = fakeClaimDeps(state, {
+    const { deps, committerSpy } = fakeClaimDeps(state, {
       gist: { verifyGistContainsCode: vi.fn(async () => ({ status: "still-pending" as const })) },
     });
     const started = await claimStart(GOOD_INPUT, deps);
@@ -234,13 +257,13 @@ describe("claimVerifyGist — negative paths (all of which MUST NOT call append)
     );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe("still-pending");
-    expect(appendSpy).not.toHaveBeenCalled();
+    expect(committerSpy).not.toHaveBeenCalled();
     expect(state.rowsById.get(started.claim.id)?.state).toBe("gist_pending");
   });
 
   it("not-found (Gist 404) from adapter → no append", async () => {
     const state = freshState();
-    const { deps, appendSpy } = fakeClaimDeps(state, {
+    const { deps, committerSpy } = fakeClaimDeps(state, {
       gist: { verifyGistContainsCode: vi.fn(async () => ({ status: "not-found" as const })) },
     });
     const started = await claimStart(GOOD_INPUT, deps);
@@ -251,12 +274,12 @@ describe("claimVerifyGist — negative paths (all of which MUST NOT call append)
     );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe("not-found");
-    expect(appendSpy).not.toHaveBeenCalled();
+    expect(committerSpy).not.toHaveBeenCalled();
   });
 
   it("claim not in gist_pending state → bad-request, no append", async () => {
     const state = freshState();
-    const { deps, appendSpy, gistSpy } = fakeClaimDeps(state);
+    const { deps, committerSpy, gistSpy } = fakeClaimDeps(state);
     const started = await claimStart(GOOD_INPUT, deps);
     if (!started.ok) throw new Error("setup failed");
     // simulate claim already verified
@@ -271,6 +294,6 @@ describe("claimVerifyGist — negative paths (all of which MUST NOT call append)
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe("bad-request");
     expect(gistSpy).not.toHaveBeenCalled();
-    expect(appendSpy).not.toHaveBeenCalled();
+    expect(committerSpy).not.toHaveBeenCalled();
   });
 });
