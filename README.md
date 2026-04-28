@@ -1,6 +1,6 @@
 # 🦊 Foxbook
 
-Verifiable agent identity for Agent2Agent and MCP.
+Verifiable agent identity for A2A and MCP.
 
 ```typescript
 import { verifyAgentCard } from "@foxbook/sdk-claim";
