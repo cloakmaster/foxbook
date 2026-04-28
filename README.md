@@ -59,7 +59,6 @@ That's the whole verification surface. No trust score. No reputation field. Iden
 **Not yet live**
 
 - SDK npm publish (week 2; signatures committed today, bodies stubbed).
-- `transparency.foxbook.dev` canonical DNS (in flight; placeholder URL works).
 - MCP server (Day 8+).
 - Production WAN load test (week 3).
 - Multi-vendor federated logs (the protocol contract is identical; bring your own deployment).
