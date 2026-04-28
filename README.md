@@ -52,8 +52,8 @@ That's the whole verification surface. No trust score. No reputation field. Iden
 - Transparency log on Cloudflare Workers, signed tree head per append, consistency proofs.
 - Tier-1 verification via GitHub Gist, with an identity guard at the URL-owner level.
 - Tier-2 via DNS TXT (Cloudflare DoH) and signed-nonce endpoint challenge.
-- Recovery-key signed revocation, atomic across leaf append and claim delete. Live Postgres bench at 467ms wall-clock.
-- Firehose stream at 20ms median commit-to-receive.
+- Recovery-key signed revocation, atomic across leaf append and claim delete. Postgres revocation observed at 467ms wall-clock (single-run benchmark).
+- Firehose commit-to-receive latency: 20ms median (single-run benchmark).
 - 173 in-process tests, 4 gated integration tests.
 
 **Not yet live**
