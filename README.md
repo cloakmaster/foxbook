@@ -26,9 +26,7 @@ curl -s https://transparency.foxbook.dev/root | jq
 
 Returns a signed tree head. Walk `/inclusion/:i` against `/root` and you have a verifiable Merkle inclusion proof. RFC 9162-shaped, no auth, no API key.
 
-A real handle-hijack attempt, refused before any network I/O. `fetchCount === 0` at the adapter. [Read the transcript.](ops/evidence/2026-04-24-identity-guard-adversarial.md)
-
-> If `transparency.foxbook.dev` doesn't resolve yet, use `https://foxbook-transparency.inkog-io.workers.dev` (canonical CNAME landing).
+An adversarial test of the identity guard, refused before any network I/O. `fetchCount === 0` at the adapter. [Read the transcript.](ops/evidence/2026-04-24-identity-guard-adversarial.md)
 
 ---
 
