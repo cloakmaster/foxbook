@@ -41,7 +41,7 @@ A receiving agent reading an AgentCard has no cryptographic basis for trusting t
 - `handle-mismatch` → block (the card claims a handle the log doesn't attest)
 - `stale-proof` → caller's risk policy (refresh, retry, warn)
 
-That's the whole verification surface. No trust score. No reputation field. Identity goes here; reputation goes in a layer above ([ADR 0006](docs/decisions/0006-protocol-not-marketplace.md)).
+That's the whole verification surface. No trust score. No reputation field. Identity goes here; reputation goes in a layer above.
 
 ---
 
@@ -58,9 +58,9 @@ That's the whole verification surface. No trust score. No reputation field. Iden
 
 **Not yet live**
 
-- SDK npm publish (week 2; signatures committed today, bodies stubbed).
-- MCP server (Day 8+).
-- Production WAN load test (week 3).
+- SDK npm publish (signatures committed; implementation in progress).
+- MCP server (in progress).
+- Production WAN load test (planned).
 - Multi-vendor federated logs (the protocol contract is identical; bring your own deployment).
 
 [Full roadmap.](PROJECT-PLAN.md) [Day-by-day retros.](docs/retros/)
