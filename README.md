@@ -5,9 +5,10 @@ Verifiable agent identity for A2A and MCP.
 ```typescript
 import { verifyAgentCard } from "@foxbook/sdk-claim";
 
-const v = await verifyAgentCard(card);
-if (v.status !== "verified") return refuse(v);
-// safe to dispatch
+// Before your agent calls another agent, check its card.
+const result = await verifyAgentCard(otherAgent.card);
+if (result.status !== "verified") return;
+// Verified. Safe to call.
 ```
 
 Open source. Apache 2.0. Run your own log; the protocol contract is what makes you interoperable.
@@ -18,7 +19,7 @@ Open source. Apache 2.0. Run your own log; the protocol contract is what makes y
 
 ## When this fires
 
-You're building a flow with LangGraph or CrewAI. Your agent needs to hand work off to another agent it didn't write — found through a directory, a marketplace, or a referral. The other agent's card says `handle: @somebody-trustworthy`. That's just a string. Anyone can write anything there. If you call the other agent before checking, the work goes to whoever wrote the handle, not whoever owns it.
+You're building an agent. It needs to hand work off to another agent it didn't write. The other agent's card says `handle: @somebody-trustworthy`. That's just a string. Anyone can write anything there. If you call the other agent before checking, the work goes to whoever wrote the handle, not whoever owns it.
 
 `verifyAgentCard(card)` is the check before the call.
 
@@ -57,7 +58,7 @@ That's the whole verification surface. No trust score. No reputation field. Iden
 
 I'm a solo founder. Over the last six weeks, A2A and MCP both opened discussions about trust between agents — composable evidence, reputation, identity fields on agent cards. None of them landed the piece underneath: a way to prove an agent actually owns the handle it claims.
 
-So I built it in nine days. The log above is live. The adversarial test of the identity guard refused a fake claim before any network call. If it's useful, run your own log. If something breaks, file an issue.
+So I built it. The log above is live. The adversarial test of the identity guard refused a fake claim before any network call. If it's useful, run your own log. If something breaks, file an issue.
 
 ---
 
@@ -65,11 +66,11 @@ So I built it in nine days. The log above is live. The adversarial test of the i
 
 **Live**
 
-- Transparency log on Cloudflare Workers, signed tree head per append, consistency proofs.
+- Public transparency log: signed tree head per append, consistency proofs.
 - Tier-1 verification via GitHub Gist, with an identity guard at the URL-owner level.
-- Tier-2 via DNS TXT (Cloudflare DoH) and signed-nonce endpoint challenge.
-- Recovery-key signed revocation, atomic across leaf append and claim delete. Postgres revocation observed at 467ms wall-clock (single-run benchmark).
-- Firehose commit-to-receive latency: 20ms median (single-run benchmark).
+- Tier-2 verification via DNS TXT and signed-nonce endpoint challenge.
+- Recovery-key signed revocation: atomic across leaf append and claim delete. Observed at 467ms wall-clock against live Postgres (single-run benchmark).
+- Firehose stream: 20ms median commit-to-receive latency (single-run benchmark).
 - 173 in-process tests, 4 gated integration tests.
 
 **Not yet live**
@@ -79,20 +80,20 @@ So I built it in nine days. The log above is live. The adversarial test of the i
 - Production WAN load test (planned).
 - Multi-vendor federated logs (the protocol contract is identical; bring your own deployment).
 
-[Full roadmap.](PROJECT-PLAN.md) [Day-by-day retros.](docs/retros/)
+[Full roadmap.](PROJECT-PLAN.md)
 
 ---
 
 ## Quickstart
 
-Verify a leaf, no install:
+Verify one record (a "leaf" in the Merkle tree), no install:
 
 ```bash
 curl -s https://transparency.foxbook.dev/inclusion/1
 curl -s https://transparency.foxbook.dev/root
 ```
 
-Walk the proof per RFC 9162. Your verifier in any language should produce byte-identical output against the cross-language test vectors at [`schemas/crypto-test-vectors.json`](schemas/crypto-test-vectors.json).
+The proof can be verified in any language. Test vectors at [`schemas/crypto-test-vectors.json`](schemas/crypto-test-vectors.json) keep implementations in sync.
 
 Workspace, locally:
 
