@@ -16,6 +16,12 @@ Open source. Apache 2.0. Run your own log; the protocol contract is what makes y
 
 ---
 
+## When this fires
+
+You're building a LangGraph or CrewAI flow that delegates work to an agent you didn't write, discovered through a directory or a hand-off. Its AgentCard claims `handle: @somebody-trustworthy`. That string is just a string; anyone can write whatever they want there. If you dispatch before checking, the work routes to whoever wrote the handle, not to whoever owns it. `verifyAgentCard(card)` is the gate before the dispatch.
+
+---
+
 ## Live demo
 
 The log is real. One curl proves it.
@@ -32,7 +38,7 @@ An adversarial test of the identity guard, refused before any network I/O. `fetc
 
 ## Why
 
-A receiving agent reading an AgentCard has no cryptographic basis for trusting the handle field. Foxbook fixes that.
+When an agent dispatches work to another agent, it has no cryptographic basis for trusting the handle field on the receiving AgentCard. Today the answer is "trust the registry" or "roll your own." Foxbook is a third option: a public log anyone can verify against, in one function call, returning four honest outcomes.
 
 `verifyAgentCard(card)` returns one of four outcomes:
 
@@ -42,6 +48,12 @@ A receiving agent reading an AgentCard has no cryptographic basis for trusting t
 - `stale-proof` → caller's risk policy (refresh, retry, warn)
 
 That's the whole verification surface. No trust score. No reputation field. Identity goes here; reputation goes in a layer above.
+
+---
+
+## Why this exists
+
+I'm a solo founder. Over the last six weeks, A2A and MCP both opened trust-related discussions: composable evidence, reputation ledgers, identity-extension fields. The cryptographic primitive they all assume hadn't been written. I spent nine days writing it. The log above is live, and the adversarial test of the identity guard refused a mismatched claim before any network I/O. If it's useful, run your own log. If you hit edges, file an issue.
 
 ---
 
