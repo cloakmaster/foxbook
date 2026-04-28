@@ -18,7 +18,9 @@ Open source. Apache 2.0. Run your own log; the protocol contract is what makes y
 
 ## When this fires
 
-You're building a LangGraph or CrewAI flow that delegates work to an agent you didn't write, discovered through a directory or a hand-off. Its AgentCard claims `handle: @somebody-trustworthy`. That string is just a string; anyone can write whatever they want there. If you dispatch before checking, the work routes to whoever wrote the handle, not to whoever owns it. `verifyAgentCard(card)` is the gate before the dispatch.
+You're building a flow with LangGraph or CrewAI. Your agent needs to hand work off to another agent it didn't write — found through a directory, a marketplace, or a referral. The other agent's card says `handle: @somebody-trustworthy`. That's just a string. Anyone can write anything there. If you call the other agent before checking, the work goes to whoever wrote the handle, not whoever owns it.
+
+`verifyAgentCard(card)` is the check before the call.
 
 ---
 
@@ -38,7 +40,7 @@ An adversarial test of the identity guard, refused before any network I/O. `fetc
 
 ## Why
 
-When an agent dispatches work to another agent, it has no cryptographic basis for trusting the handle field on the receiving AgentCard. Today the answer is "trust the registry" or "roll your own." Foxbook is a third option: a public log anyone can verify against, in one function call, returning four honest outcomes.
+When one agent calls another, it has no cryptographic way to prove the handle on the other agent's card is real. Today the answer is "trust the directory" or "build your own check." Foxbook is a third answer: a public log anyone can verify against, in one function call, four possible outcomes.
 
 `verifyAgentCard(card)` returns one of four outcomes:
 
@@ -53,7 +55,9 @@ That's the whole verification surface. No trust score. No reputation field. Iden
 
 ## Why this exists
 
-I'm a solo founder. Over the last six weeks, A2A and MCP both opened trust-related discussions: composable evidence, reputation ledgers, identity-extension fields. The cryptographic primitive they all assume hadn't been written. I spent nine days writing it. The log above is live, and the adversarial test of the identity guard refused a mismatched claim before any network I/O. If it's useful, run your own log. If you hit edges, file an issue.
+I'm a solo founder. Over the last six weeks, A2A and MCP both opened discussions about trust between agents — composable evidence, reputation, identity fields on agent cards. None of them landed the piece underneath: a way to prove an agent actually owns the handle it claims.
+
+So I built it in nine days. The log above is live. The adversarial test of the identity guard refused a fake claim before any network call. If it's useful, run your own log. If something breaks, file an issue.
 
 ---
 
