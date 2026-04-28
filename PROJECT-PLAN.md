@@ -59,7 +59,7 @@ Parallel to engineering. The pipeline against co-option (Anthropic-native MCP id
 
 **Headline framing — agent hiring gate.** Foxbook's load-bearing use-case is `await foxbookVerifyAgentCard(card, {requireInclusionProof, requireFreshSTH})` inserted before any agent-to-agent call. Four discriminated failure modes: `unverified` → blocked, `verified` → allowed, `handle-mismatch` → blocked, `stale-proof` → warning. This reframes Foxbook from "identity registry" (passive) to "runtime safety primitive" (active, in the agent's hot path). Every Distribution Track artifact below leads with this reframe.
 
-**Headline artifact — adversarial demo.** The 2026-04-24 identity-guard live-proof at `ops/evidence/2026-04-24-identity-guard-cloakmaster-vs-samrg472.md` is the headline evidence: "I tried to hijack someone else's GitHub handle; Foxbook refused — `fetchCount === 0` at the adapter, no Gist content ever read, 409 identity-mismatch returned." Referenced in the RFC's motivating example AND every outreach DM.
+**Headline artifact — adversarial demo.** The 2026-04-24 identity-guard live-proof at `ops/evidence/2026-04-24-identity-guard-adversarial.md` is the headline evidence: "I tried to hijack someone else's GitHub handle; Foxbook refused — `fetchCount === 0` at the adapter, no Gist content ever read, 409 identity-mismatch returned." Referenced in the RFC's motivating example AND every outreach DM.
 
 **A2A upstreaming sub-track (three artifacts, docs + reference SDK):**
 

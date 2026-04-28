@@ -41,15 +41,15 @@ Forking a transparency log is structurally low-credibility — trust history is 
 
 ---
 
-## 2. Motivating example — the cloakmaster vs samrg472 identity-guard demo
+## 2. Motivating example — the cloakmaster identity-guard adversarial demo
 
-On 2026-04-24, we attempted to hijack a GitHub handle through the Foxbook claim flow. The transcript is at [`ops/evidence/2026-04-24-identity-guard-cloakmaster-vs-samrg472.md`](../ops/evidence/2026-04-24-identity-guard-cloakmaster-vs-samrg472.md). The condensed version:
+On 2026-04-24, we attempted to hijack a GitHub handle through the Foxbook claim flow. The transcript is at [`ops/evidence/2026-04-24-identity-guard-adversarial.md`](../ops/evidence/2026-04-24-identity-guard-adversarial.md) (third-party target handle redacted). The condensed version:
 
-1. Foxbook minted a verification code for `claim_id=A` against `asset_value=samrg472`.
+1. Foxbook minted a verification code for `claim_id=A` against `asset_value=<target-handle-redacted>`.
 2. The `cloakmaster` agent (a different real GitHub handle) published a Gist containing the code.
-3. The agent posted that Gist URL — `gist.github.com/cloakmaster/...` — to `POST /api/v1/claim/verify-gist`, asking Foxbook to attest "samrg472 is verified by this signing key."
+3. The agent posted that Gist URL — `gist.github.com/cloakmaster/...` — to `POST /api/v1/claim/verify-gist`, asking Foxbook to attest "this handle is verified by this signing key."
 
-The reference verifier refused with `409 identity-mismatch`. **Crucially: `fetchCount === 0` at the adapter** — Foxbook never even fetched the Gist contents. The identity check ran against the URL's path username (`cloakmaster`) before any network I/O, and the mismatch with the claim's `asset_value` (`samrg472`) terminated the flow.
+The reference verifier refused with `409 identity-mismatch`. **Crucially: `fetchCount === 0` at the adapter** — Foxbook never even fetched the Gist contents. The identity check ran against the URL's path username (`cloakmaster`) before any network I/O, and the mismatch with the claim's `asset_value` (`<target-handle-redacted>`) terminated the flow.
 
 That guard is not a special case. It's the structural property `x-foxbook` v1 inherits: **the evidence URL's owner identity is bound to the claim's asset value before any content is read**. A scout that respects this binding cannot be tricked into attesting handle ownership the publisher does not own.
 
@@ -70,7 +70,7 @@ The full schema lives at [`schemas/x-foxbook.v1.json`](../schemas/x-foxbook.v1.j
     "verification_tier": 1,
     "verified_asset": {
       "type": "github_handle",
-      "value": "samrg472",
+      "value": "example-agent-handle",
       "verified_at": "2026-04-26T10:00:00Z",
       "method": "github_gist"
     },
@@ -195,7 +195,7 @@ Future planners MUST NOT re-propose any of the above without an ADR amendment th
 - ADR 0001 — service-agnostic core (`docs/decisions/0001-service-agnostic-core.md`)
 - ADR 0005 — canonical bytes are written once (`docs/decisions/0005-canonical-bytes.md`)
 - LOCKED.md — pinned non-negotiables (`docs/foundation/LOCKED.md`)
-- Live evidence — identity-guard refusal (`ops/evidence/2026-04-24-identity-guard-cloakmaster-vs-samrg472.md`)
+- Live evidence — identity-guard refusal (`ops/evidence/2026-04-24-identity-guard-adversarial.md`)
 - Live evidence — first-live-revocation 467ms (`ops/bench-results/2026-04-26-first-live-revocation.txt`)
 - Schema — `schemas/x-foxbook.v1.json`
 - Schema — `schemas/tl-leaf.v1.json`

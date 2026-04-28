@@ -105,4 +105,4 @@ These are binding when DMs go out — not aspirations.
 - [`packages/sdk-claim/`](../packages/sdk-claim) — six-function reference SDK; the contract recipients reference.
 - [ADR 0006 — protocol-not-marketplace](decisions/0006-protocol-not-marketplace.md) — §1 framing that constrains every DM.
 - [PROJECT-PLAN.md](../PROJECT-PLAN.md) — Abandon Triggers + 6/12-month tests + Week-2 Distribution Track operational scope.
-- Adversarial demo — [`ops/evidence/2026-04-24-identity-guard-cloakmaster-vs-samrg472.md`](../ops/evidence/2026-04-24-identity-guard-cloakmaster-vs-samrg472.md)
+- Adversarial demo — [`ops/evidence/2026-04-24-identity-guard-adversarial.md`](../ops/evidence/2026-04-24-identity-guard-adversarial.md)
