@@ -64,7 +64,7 @@ The base framing for all 10 — adapt per recipient (DMs 1, 3, 9 below show thre
 
 > Hi [name],
 >
-> I built a reference implementation of the **agent-verification primitive** that [your spec / your framework / your security-research framing] needs underneath any trust-scoring or evidence-format work — Foxbook: Ed25519 + RFC-9162-shaped Merkle transparency log + recovery-key revocation, MIT-licensed, JSON-Schema interop.
+> I built a reference implementation of the **agent-verification primitive** that [your spec / your framework / your security-research framing] needs underneath any trust-scoring or evidence-format work — Foxbook: Ed25519 + RFC-9162-shaped Merkle transparency log + recovery-key revocation, Apache-2.0-licensed, JSON-Schema interop.
 >
 > The live transparency log already caught a real handle-hijack attempt — see [evidence](https://github.com/cloakmaster/foxbook/blob/main/ops/evidence/2026-04-24-identity-guard-adversarial.md). Short version: cloakmaster posted another GitHub user's verification code in their own Gist; the verifier refused with `409 identity-mismatch` and `fetchCount === 0` at the adapter — no Gist content was ever read. The identity check ran against the URL's path-segment owner before any network I/O.
 >
@@ -82,7 +82,7 @@ Hi David,
 I built and shipped a reference implementation of the agent-verification
 primitive that MCP's identity story will need underneath any tool-poisoning
 defence — Foxbook: Ed25519 + RFC-9162-shaped Merkle transparency log +
-recovery-key revocation, MIT-licensed, JSON-Schema interop.
+recovery-key revocation, Apache-2.0-licensed, JSON-Schema interop.
 
 The live transparency log already caught a real handle-hijack attempt — see
 ops/evidence/2026-04-24-identity-guard-adversarial.md
@@ -120,7 +120,7 @@ composable trust evidence, #1752 standard identity extension, #1631
 reputation-aware discovery) and built what I think is the verification
 primitive sitting upstream of all four — Foxbook: Ed25519 + RFC-9162-shaped
 Merkle transparency log + recovery-key revocation + JSON-Schema interop,
-MIT-licensed, ~140-LOC reference SDK.
+Apache-2.0-licensed, ~140-LOC reference SDK.
 
 Differentiation: we deliberately reject the numeric trust score in our
 verification response. `verifyAgentCard(card)` returns one of four
@@ -138,7 +138,7 @@ ops/evidence/2026-04-24-identity-guard-adversarial.md.
 I've filed an A2A Discussion proposing `x-foxbook` v1 as a registered
 extension namespace, framed as verification-primitive-upstream-of-
 evidence-format rather than competing trust scheme:
-[DISCUSSION_URL filed 2026-04-28 — see a2aproject/A2A discussions].
+https://github.com/a2aproject/A2A/discussions/1803
 
 What blocks you (and the Google-side TSC voices) from referencing the
 adversarial-demo evidence + the verification primitive in the spec's
@@ -158,7 +158,7 @@ in the agent-identity layer those papers imply.
 
 Foxbook is a reference implementation of cryptographic agent verification:
 Ed25519 + RFC-9162-shaped Merkle transparency log + recovery-key revocation
-+ JSON-Schema interop. MIT-licensed. ~140-LOC reference SDK. The live log
++ JSON-Schema interop. Apache-2.0-licensed. ~140-LOC reference SDK. The live log
 already caught a real handle-hijack attempt — cloakmaster tried to claim
 another GitHub user's identity via the Gist verification flow; the verifier
 refused at the adapter with 409 identity-mismatch and 0 bytes of Gist
@@ -224,7 +224,7 @@ These are binding when DMs go out — not aspirations.
 
 - [`distribution.md`](distribution.md) — Week-2 Distribution Track headline framing.
 - [`rfc-a2a-x-foxbook-extension.md`](rfc-a2a-x-foxbook-extension.md) — RFC text recipients land on. **Day-9 follow-up needed: revise to acknowledge A2A discussions #1734 / #1752 / #1631 / #1720 + name the verification-primitive-vs-evidence-format split explicitly. PR #38's text was written assuming greenfield; field is crowded.**
-- A2A upstream Discussion (filed 2026-04-28): see `[DISCUSSION_URL]` placeholder above (replace post-filing).
+- A2A upstream Discussion (filed 2026-04-29): https://github.com/a2aproject/A2A/discussions/1803
 - [`packages/sdk-claim/`](../packages/sdk-claim) — six-function reference SDK; the contract recipients reference.
 - [ADR 0006 — protocol-not-marketplace](decisions/0006-protocol-not-marketplace.md) — §1 framing that constrains every DM; §4 path-ordering rule that grounds the no-trust-score stance.
 - [PROJECT-PLAN.md](../PROJECT-PLAN.md) — Abandon Triggers + 6/12-month tests + Week-2 Distribution Track operational scope.
