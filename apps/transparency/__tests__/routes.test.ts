@@ -95,6 +95,24 @@ function populatedState(): FakeState {
   };
 }
 
+describe("transparency Worker — /", () => {
+  it("returns 200 + text/html with the landing page", async () => {
+    const app = createApp(() => fakeRepo(emptyState()));
+    const res = await app.request("/", {}, ENV);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toMatch(/text\/html/);
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=3600");
+    const body = await res.text();
+    expect(body).toContain("Foxbook Transparency Log");
+    expect(body).toContain("/root");
+    expect(body).toContain("/leaf/:index");
+    expect(body).toContain("/inclusion/:index");
+    expect(body).toContain("/consistency");
+    expect(body).toContain("https://github.com/cloakmaster/foxbook");
+    expect(body).toContain("https://github.com/a2aproject/A2A/discussions/1803");
+  });
+});
+
 describe("transparency Worker — /health", () => {
   it("returns 200 with service identifier", async () => {
     const app = createApp(() => fakeRepo(emptyState()));
