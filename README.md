@@ -113,19 +113,6 @@ pnpm -r test
 
 ---
 
-## Docs
-
-|   |   |
-|---|---|
-| [RFC: x-foxbook v1 for A2A AgentCard](docs/rfc-a2a-x-foxbook-extension.md) | The proposal upstream. |
-| [User journey](docs/user-journey.md) | Five steps from "first heard" to "shipped in production." |
-| [Distribution plan](docs/distribution.md) | The agent-hiring-gate framing. |
-| [Pre-mortem](docs/pre-mortem-v1.md) | Top 5 ways v1 fails. Top 3 mitigations. |
-| [Architecture decisions](docs/decisions/) | Six pinned ADRs. Do not re-open without a new ADR. |
-| [Bench artifacts](ops/bench-results/) | The numbers, raw. |
-
----
-
 ## License
 
 Apache 2.0. See [`LICENSE`](LICENSE).
