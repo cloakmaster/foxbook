@@ -79,20 +79,22 @@ The base framing for all 10 — adapt per recipient (DMs 1, 3, 9 below show thre
 ```
 Hi David,
 
-Built a transparency log for verifiable agent identity — RFC-9162-shaped,
-Apache 2.0, live at https://transparency.foxbook.dev (7 leaves).
+Built a public log + one-function check that verifies whether an
+agent's handle is really theirs before another agent calls it.
+No directory lookup, no trust-the-card-blindly.
 
-An adversarial test caught a real handle-hijack: the verifier refused
-with `fetchCount === 0`, no Gist content was ever read, because the
-path-segment owner check runs before any network I/O. Transcript:
+Live: https://transparency.foxbook.dev
+
+Adversarial test — tried to claim a GitHub handle the caller
+didn't own. The check refused at the source, before any Gist
+fetch happened. Transcript:
 https://github.com/cloakmaster/foxbook/blob/main/ops/evidence/2026-04-24-identity-guard-adversarial.md
 
-Filed an A2A Discussion proposing this as a primitive MCP could `$ref`
-for handle verification:
+Filed as a proposal upstream of A2A — could MCP reference this
+for handle verification?
 https://github.com/a2aproject/A2A/discussions/1803
 
-Worth a 5-min look? Happy to hear what would block referencing this from
-MCP's identity guidance, or what you'd want to see different.
+5 min worth a look?
 
 — Benjamin (@cloakmaster)
 ```
@@ -102,21 +104,22 @@ MCP's identity guidance, or what you'd want to see different.
 ```
 Hi Holt,
 
-Read through A2A #1734, #1752, #1631, and #1720 — built what I think is
-the verification primitive sitting upstream of all four. Apache 2.0
-transparency log, RFC-9162-shaped, live at
-https://transparency.foxbook.dev.
+Read through #1734, #1752, #1631, and #1720 — built what looks
+like the layer underneath all four: a public log + one-function
+check for agent identity.
 
-The differentiator: `verifyAgentCard()` returns a discriminated outcome
-(verified / unverified / handle-mismatch / stale-proof), no numeric
-trust score. Verification stays separate from reputation.
+Live: https://transparency.foxbook.dev
 
-Filed as a Discussion:
+The check returns one of four outcomes (verified / unverified /
+handle-mismatch / stale-proof). No numeric trust score —
+verification stays separate from reputation.
+
+Filed as a proposal:
 https://github.com/a2aproject/A2A/discussions/1803
 
-Specifically curious whether it makes sense for x-foxbook + #1734's
-evidence-format to register as two separate extension namespaces with
-a `$ref` boundary, vs one combined proposal. Worth a quick read?
+Specifically curious whether x-foxbook + #1734's evidence format
+should be two separate extension namespaces with a $ref boundary,
+or one combined proposal. Worth a quick read?
 
 — Benjamin (@cloakmaster)
 ```
@@ -126,19 +129,21 @@ a `$ref` boundary, vs one combined proposal. Worth a quick read?
 ```
 Hi Simon,
 
-Big fan of the lethal-trifecta framing. Built Foxbook — a transparency
-log for cryptographic agent-identity verification — partly motivated by
-the gap your MCP-prompt-injection writeup named.
+Big fan of the lethal-trifecta framing. Built Foxbook partly to
+close a piece of that gap — a public log + one-function check
+that verifies an agent's identity before another agent calls it.
 
-Live: https://transparency.foxbook.dev (7 leaves, Apache 2.0). An
-adversarial test caught a handle-hijack attempt with `fetchCount === 0`:
+Live: https://transparency.foxbook.dev (Apache 2.0, open source)
+
+Adversarial test — tried to claim a GitHub handle the caller
+didn't own. The check refused without fetching anything:
 https://github.com/cloakmaster/foxbook/blob/main/ops/evidence/2026-04-24-identity-guard-adversarial.md
 
 Filed upstream of A2A:
 https://github.com/a2aproject/A2A/discussions/1803
 
-If the adversarial-demo + the verification primitive don't close a real
-piece of the trifecta gap, what would?
+If the adversarial demo + the check don't close a real piece of
+the trifecta gap, what would?
 
 — Benjamin (@cloakmaster)
 ```
