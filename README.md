@@ -1,5 +1,8 @@
 # 🦊 Foxbook
 
+[![CI](https://github.com/cloakmaster/foxbook/actions/workflows/ci.yml/badge.svg)](https://github.com/cloakmaster/foxbook/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
 Verifiable agent identity for A2A and MCP.
 
 ```typescript
@@ -11,7 +14,7 @@ if (result.status !== "verified") return;
 // Verified. Safe to call.
 ```
 
-Open source. Apache 2.0. Run your own log; the protocol contract is what makes you interoperable.
+Open source. Apache 2.0. Run your own log; anyone following the same spec can verify against any deployment.
 
 [**Live demo**](#live-demo) · [**Why**](#why) · [**Status**](#status) · [**RFC**](docs/rfc-a2a-x-foxbook-extension.md) · [**Roadmap**](PROJECT-PLAN.md)
 
@@ -19,7 +22,7 @@ Open source. Apache 2.0. Run your own log; the protocol contract is what makes y
 
 ## When this fires
 
-You're building an agent. It needs to hand work off to another agent it didn't write. The other agent's card says `handle: @somebody-trustworthy`. That's just a string. Anyone can write anything there. If you call the other agent before checking, the work goes to whoever wrote the handle, not whoever owns it.
+You're building an agent. It needs to hand work off to another agent it didn't write. The other agent's *card* — the JSON manifest agents publish at /.well-known/agent-card.json per A2A — says `handle: @somebody-trustworthy`. That's just a string. Anyone can write anything there. If you call the other agent before checking, the work goes to whoever wrote the handle, not whoever owns it.
 
 `verifyAgentCard(card)` is the check before the call.
 
@@ -33,7 +36,7 @@ The log is real. One curl proves it.
 curl -s https://transparency.foxbook.dev/root | jq
 ```
 
-Returns a signed tree head. Walk `/inclusion/:i` against `/root` and you have a verifiable Merkle inclusion proof. RFC 9162-shaped, no auth, no API key.
+Returns a signed tree head. Combine /inclusion/:i with /root and verify the Merkle proof. RFC 9162 shape; no auth, no API key.
 
 An adversarial test of the identity guard, refused before any network I/O. `fetchCount === 0` at the adapter. [Read the transcript.](ops/evidence/2026-04-24-identity-guard-adversarial.md)
 
@@ -56,9 +59,13 @@ That's the whole verification surface. No trust score. No reputation field. Iden
 
 ## Why this exists
 
-I'm a solo founder. Over the last six weeks, A2A and MCP both opened discussions about trust between agents — composable evidence, reputation, identity fields on agent cards. None of them landed the piece underneath: a way to prove an agent actually owns the handle it claims.
+Agents are about to call other agents 10x more often than they do today. Each call needs to verify the handle on the receiving card. Without a verification primitive, every call is trust-by-faith — the card says it's `@somebody`, the calling agent has no way to know.
 
-So I built it. The log above is live. The adversarial test of the identity guard refused a fake claim before any network call. If it's useful, run your own log. If something breaks, file an issue.
+The primitive has to be three things: cryptographic, public, and free. Cryptographic so claims can't be forged. Public so anyone can audit without asking permission. Free so adoption isn't gated on commercial relationships.
+
+RFC 9162 (Certificate Transparency) has been the model for this in the TLS world for ten years — every certificate your browser trusts gets logged into a public, append-only Merkle tree, and Chrome refuses certificates that aren't logged. Foxbook is that pattern, applied to agent identity.
+
+A2A and MCP both opened discussions about trust between agents — composable evidence, reputation, identity-extension fields. None of them shipped the piece underneath. Foxbook ships it.
 
 ---
 
@@ -123,8 +130,8 @@ pnpm -r test
 
 Apache 2.0. See [`LICENSE`](LICENSE).
 
-The protocol is open. The **Foxbook** name has a trademark; see [`TRADEMARK.md`](TRADEMARK.md). Run your own log under your own name with our blessing; the protocol contract is what makes you interoperable.
+The protocol is open. The **Foxbook** name has a trademark; see [`TRADEMARK.md`](TRADEMARK.md). Run your own log under your own name; the spec is the standard, not the host.
 
 ---
 
-Built by [@cloakmaster](https://github.com/cloakmaster). Engineering log lives in the retros.
+Built by [@cloakmaster](https://github.com/cloakmaster).
