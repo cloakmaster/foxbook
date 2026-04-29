@@ -59,9 +59,13 @@ That's the whole verification surface. No trust score. No reputation field. Iden
 
 ## Why this exists
 
-I'm a solo founder. Over the last six weeks, A2A and MCP both opened discussions about trust between agents — composable evidence, reputation, identity fields on agent cards. None of them landed the piece underneath: a way to prove an agent actually owns the handle it claims.
+Agents are about to call other agents 10x more often than they do today. Each call needs to verify the handle on the receiving card. Without a verification primitive, every call is trust-by-faith — the card says it's `@somebody`, the calling agent has no way to know.
 
-So I built it. The log above is live. The adversarial test of the identity guard refused a fake claim before any network call. If it's useful, run your own log. If something breaks, file an issue.
+The primitive has to be three things: cryptographic, public, and free. Cryptographic so claims can't be forged. Public so anyone can audit without asking permission. Free so adoption isn't gated on commercial relationships.
+
+RFC 9162 (Certificate Transparency) has been the model for this in the TLS world for ten years — every certificate your browser trusts gets logged into a public, append-only Merkle tree, and Chrome refuses certificates that aren't logged. Foxbook is that pattern, applied to agent identity.
+
+A2A and MCP both opened discussions about trust between agents — composable evidence, reputation, identity-extension fields. None of them shipped the piece underneath. Foxbook ships it.
 
 ---
 
