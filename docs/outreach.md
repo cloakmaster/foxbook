@@ -79,35 +79,22 @@ The base framing for all 10 — adapt per recipient (DMs 1, 3, 9 below show thre
 ```
 Hi David,
 
-I built and shipped a reference implementation of the agent-verification
-primitive that MCP's identity story will need underneath any tool-poisoning
-defence — Foxbook: Ed25519 + RFC-9162-shaped Merkle transparency log +
-recovery-key revocation, Apache-2.0-licensed, JSON-Schema interop.
+Built a transparency log for verifiable agent identity — RFC-9162-shaped,
+Apache 2.0, live at https://transparency.foxbook.dev (7 leaves).
 
-The live transparency log already caught a real handle-hijack attempt — see
-ops/evidence/2026-04-24-identity-guard-adversarial.md
-[https://github.com/cloakmaster/foxbook/blob/main/ops/evidence/2026-04-24-identity-guard-adversarial.md].
-cloakmaster posted another GitHub user's verification code in their own Gist; the
-verifier refused with 409 identity-mismatch and fetchCount === 0 at the
-adapter — no Gist content was ever read.
+An adversarial test caught a real handle-hijack: the verifier refused
+with `fetchCount === 0`, no Gist content was ever read, because the
+path-segment owner check runs before any network I/O. Transcript:
+https://github.com/cloakmaster/foxbook/blob/main/ops/evidence/2026-04-24-identity-guard-adversarial.md
 
-An MCP server (`@foxbook/mcp-server`) exposing three verification tools
-ships this week:
-  • foxbook_verify_agent(handle) → {tier, revoked, did, leafIndex}
-  • foxbook_get_inclusion_proof(leaf_index) → proof + STH
-  • foxbook_check_revocation(did, ed25519_public_key_hex) → revoked?
+Filed an A2A Discussion proposing this as a primitive MCP could `$ref`
+for handle verification:
+https://github.com/a2aproject/A2A/discussions/1803
 
-The runtime-safety wrapper is `await foxbookVerifyAgentCard(card)` —
-four discriminated outcomes (verified / unverified / handle-mismatch /
-stale-proof). No numeric trust score; verification is kept strictly
-separate from reputation per our ADR 0006.
+Worth a 5-min look? Happy to hear what would block referencing this from
+MCP's identity guidance, or what you'd want to see different.
 
-Live Worker: https://foxbook-transparency.inkog-io.workers.dev
-RFC: https://github.com/cloakmaster/foxbook/blob/main/docs/rfc-a2a-x-foxbook-extension.md
-
-What blocks you from referencing this in the MCP identity guidance?
-
-— Benjamin / @cloakmaster
+— Benjamin (@cloakmaster)
 ```
 
 ## DM #2 — Holt Skinner (A2A top contributor, target #3)
@@ -115,36 +102,23 @@ What blocks you from referencing this in the MCP identity guidance?
 ```
 Hi Holt,
 
-I've been reading the active A2A trust/identity discussions (#1734
-composable trust evidence, #1752 standard identity extension, #1631
-reputation-aware discovery) and built what I think is the verification
-primitive sitting upstream of all four — Foxbook: Ed25519 + RFC-9162-shaped
-Merkle transparency log + recovery-key revocation + JSON-Schema interop,
-Apache-2.0-licensed, ~140-LOC reference SDK.
+Read through A2A #1734, #1752, #1631, and #1720 — built what I think is
+the verification primitive sitting upstream of all four. Apache 2.0
+transparency log, RFC-9162-shaped, live at
+https://transparency.foxbook.dev.
 
-Differentiation: we deliberately reject the numeric trust score in our
-verification response. `verifyAgentCard(card)` returns one of four
-discriminated outcomes (verified / unverified / handle-mismatch /
-stale-proof). The score-vs-no-score boundary is the load-bearing design
-choice — we're upstream of attestations, not yet another scheme competing
-for the same field.
+The differentiator: `verifyAgentCard()` returns a discriminated outcome
+(verified / unverified / handle-mismatch / stale-proof), no numeric
+trust score. Verification stays separate from reputation.
 
-Live evidence: the transparency log already caught a real handle-hijack
-attempt — cloakmaster posted another GitHub user's verification code in their own
-Gist; the verifier refused with 409 identity-mismatch + fetchCount === 0
-at the adapter (zero Gist content ever read). Transcript:
-ops/evidence/2026-04-24-identity-guard-adversarial.md.
-
-I've filed an A2A Discussion proposing `x-foxbook` v1 as a registered
-extension namespace, framed as verification-primitive-upstream-of-
-evidence-format rather than competing trust scheme:
+Filed as a Discussion:
 https://github.com/a2aproject/A2A/discussions/1803
 
-What blocks you (and the Google-side TSC voices) from referencing the
-adversarial-demo evidence + the verification primitive in the spec's
-identity section?
+Specifically curious whether it makes sense for x-foxbook + #1734's
+evidence-format to register as two separate extension namespaces with
+a `$ref` boundary, vs one combined proposal. Worth a quick read?
 
-— Benjamin / @cloakmaster
+— Benjamin (@cloakmaster)
 ```
 
 ## DM #3 — Simon Willison (security-analyst, target #9)
@@ -152,38 +126,21 @@ identity section?
 ```
 Hi Simon,
 
-I read your "lethal trifecta" framing + the MCP-prompt-injection writeup
-from earlier this year and built what I think is the missing primitive
-in the agent-identity layer those papers imply.
+Big fan of the lethal-trifecta framing. Built Foxbook — a transparency
+log for cryptographic agent-identity verification — partly motivated by
+the gap your MCP-prompt-injection writeup named.
 
-Foxbook is a reference implementation of cryptographic agent verification:
-Ed25519 + RFC-9162-shaped Merkle transparency log + recovery-key revocation
-+ JSON-Schema interop. Apache-2.0-licensed. ~140-LOC reference SDK. The live log
-already caught a real handle-hijack attempt — cloakmaster tried to claim
-another GitHub user's identity via the Gist verification flow; the verifier
-refused at the adapter with 409 identity-mismatch and 0 bytes of Gist
-content read. The identity check runs against the URL's path-segment
-owner before any network I/O, structurally precluding handle-spoofing.
-
-Transcript:
+Live: https://transparency.foxbook.dev (7 leaves, Apache 2.0). An
+adversarial test caught a handle-hijack attempt with `fetchCount === 0`:
 https://github.com/cloakmaster/foxbook/blob/main/ops/evidence/2026-04-24-identity-guard-adversarial.md
 
-Live transparency Worker:
-https://foxbook-transparency.inkog-io.workers.dev
+Filed upstream of A2A:
+https://github.com/a2aproject/A2A/discussions/1803
 
-Runtime-safety wrapper: `await foxbookVerifyAgentCard(card)` before any
-agent-to-agent call. Four discriminated outcomes — no numeric trust
-score, no aggregate ranking. Verification (cryptographic) is kept
-strictly separate from reputation (subjective). This matters because
-the AgentGraph + MoltBridge + Verascore composability RFC at
-a2aproject/A2A discussion #1734 builds attestation envelopes on top;
-Foxbook is one of the underneaths their gateway can compose against.
+If the adversarial-demo + the verification primitive don't close a real
+piece of the trifecta gap, what would?
 
-Worth a 5-minute look. If the adversarial-demo + the verification
-primitive don't close the gap your trifecta framing exposes, what's
-missing?
-
-— Benjamin / @cloakmaster
+— Benjamin (@cloakmaster)
 ```
 
 ---
