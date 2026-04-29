@@ -1,13 +1,21 @@
-# Identity-guard live-proof — `cloakmaster` → `samrg472` rejected at 409
+# Identity-guard live-proof — `cloakmaster` → `<target-handle-redacted>` rejected at 409
 
 **Timestamp:** 2026-04-24T07:04:34.080Z (claim start) → 2026-04-24T07:??:??Z (verify-gist response)
 **Environment:** apps/api on Neon dev, local dev loopback at http://localhost:8787
 **Claim id:** `4661f254-f258-48dc-a856-e63dcc836536`
 **Outcome:** 409 identity-mismatch, zero side effects, Merkle log untouched
 
+> **Privacy note (2026-04-28 redaction):** the original target handle in this
+> transcript was a real third-party GitHub user. Their handle was redacted
+> before public release as part of preparing the upstream A2A discussion;
+> the original is preserved in git history and is not load-bearing for the
+> evidence claim. The adversarial shape — that *some* unrelated handle was
+> attempted by `cloakmaster` and the guard refused — is what matters and
+> remains intact.
+
 ## What happened
 
-First live smoke-test run of Day 5 Gate 2 used `--asset-value samrg472` (the foundation §6.1 example handle) against a running API. Claim minted cleanly:
+First live smoke-test run of Day 5 Gate 2 used `--asset-value <target-handle-redacted>` (a foundation §6.1 example handle) against a running API. Claim minted cleanly:
 
 ```
 ✓ /claim/start → 201
@@ -28,7 +36,7 @@ The API responded:
 → /claim/verify-gist → 409
   body: {
     "status": "identity-mismatch",
-    "reason": "gist_url owner \"cloakmaster\" does not match claim asset_value \"samrg472\""
+    "reason": "gist_url owner \"cloakmaster\" does not match claim asset_value \"<target-handle-redacted>\""
   }
 ```
 
@@ -40,11 +48,12 @@ segment doesn't match the claim's `asset_value`.
 
 Without the identity guard, the attack path is trivial: `cloakmaster` reads
 the verification code from his own `/claim/start` response (which, in a
-real scenario, would be for an attempt to claim `samrg472`), pastes it
-into his own public Gist, and submits the URL. The Gist is anonymously
-readable — the adapter fetches it, finds the code, returns `match`. Merkle
-leaf gets written binding `did:foxbook:X → samrg472 asset` under
-`cloakmaster`'s keypair. `samrg472` is now impersonated on Foxbook under
+real scenario, would be for an attempt to claim `<target-handle-redacted>`),
+pastes it into his own public Gist, and submits the URL. The Gist is
+anonymously readable — the adapter fetches it, finds the code, returns
+`match`. Merkle leaf gets written binding
+`did:foxbook:X → <target-handle-redacted> asset` under `cloakmaster`'s
+keypair. `<target-handle-redacted>` is now impersonated on Foxbook under
 `cloakmaster`'s Ed25519 signing key.
 
 The guard structurally prevents this: **the claim's `asset_value` must

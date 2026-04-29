@@ -27,11 +27,11 @@ The four discriminated outcomes map to **{allowed, blocked, blocked, warning}**:
 
 This is the runtime-safety primitive every framework author already needs. The hiring-gate framing is what every Distribution Track artifact (RFC, outreach DMs, this doc, the Day-8 MCP server) anchors around.
 
-## §2 — Headline evidence: the cloakmaster vs samrg472 identity-guard demo
+## §2 — Headline evidence: the cloakmaster identity-guard adversarial demo
 
 On 2026-04-24, we tried to hijack a GitHub handle through the Foxbook claim flow. Foxbook refused with `409 identity-mismatch` — and crucially, **`fetchCount === 0` at the adapter**. The identity check ran against the URL's path username before any network I/O; the mismatch with the claim's `asset_value` terminated the flow before any Gist content was read.
 
-Full transcript at [`ops/evidence/2026-04-24-identity-guard-cloakmaster-vs-samrg472.md`](../ops/evidence/2026-04-24-identity-guard-cloakmaster-vs-samrg472.md). This is not a hypothetical attack — it's an actual real-handle-against-real-handle attempt that the live reference verifier blocked structurally.
+Full transcript at [`ops/evidence/2026-04-24-identity-guard-adversarial.md`](../ops/evidence/2026-04-24-identity-guard-adversarial.md) (third-party target handle redacted). This is not a hypothetical attack — it's an actual real-handle-against-real-handle attempt that the live reference verifier blocked structurally.
 
 Why this matters for Distribution: when an MCP / A2A / framework-author asks "why your verification layer and not the one I'm about to write," the answer is "because my live transparency log already caught a real handle-hijack attempt."
 
@@ -87,7 +87,7 @@ Submitted to Anthropic's MCP registry. Closes the Anthropic-MCP half of ADR 0006
 
 ## §7 — Week-1 demo path
 
-The week-1 demo audience is MCP / A2A / independent agent builders who claim via GitHub handles. Tier-1 (Gist via GitHub handle) is the load-bearing path. The headline artifact is the **adversarial demo** (§2) — `cloakmaster → samrg472` identity-guard refusal — captured at `ops/evidence/2026-04-24-identity-guard-cloakmaster-vs-samrg472.md`.
+The week-1 demo audience is MCP / A2A / independent agent builders who claim via GitHub handles. Tier-1 (Gist via GitHub handle) is the load-bearing path. The headline artifact is the **adversarial demo** (§2) — `cloakmaster → <target-handle-redacted>` identity-guard refusal — captured at `ops/evidence/2026-04-24-identity-guard-adversarial.md`.
 
 The scraper is explicitly DEFERRED — pre-pop scraper skeleton (`apps/scrapers/github/`) is not on the week-1 critical path. The narrative works on adversarial-demo evidence + reference SDK + RFC text alone; the scraper adds value once we have written demand for shadow-claim discovery, which we don't yet.
 
@@ -119,5 +119,5 @@ Failure mode (per ADR 0006 §2): co-option. MCP ships native identity OR Google 
 - RFC text — [`rfc-a2a-x-foxbook-extension.md`](rfc-a2a-x-foxbook-extension.md)
 - Outreach roster — [`outreach.md`](outreach.md)
 - Reference SDK — [`packages/sdk-claim/`](../packages/sdk-claim)
-- Adversarial demo — [`ops/evidence/2026-04-24-identity-guard-cloakmaster-vs-samrg472.md`](../ops/evidence/2026-04-24-identity-guard-cloakmaster-vs-samrg472.md)
+- Adversarial demo — [`ops/evidence/2026-04-24-identity-guard-adversarial.md`](../ops/evidence/2026-04-24-identity-guard-adversarial.md)
 - Live transparency log — `https://foxbook-transparency.inkog-io.workers.dev` (placeholder until canonical DNS lands)

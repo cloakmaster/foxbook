@@ -34,7 +34,39 @@ export type RepoFactory = (env: TransparencyEnv) => MerkleRepository;
 
 const IMMUTABLE_CACHE = "public, max-age=31536000, immutable";
 const SCHEMA_CACHE = "public, max-age=300";
+const LANDING_CACHE = "public, max-age=3600";
 const NO_STORE = "no-store";
+
+const LANDING_HTML = `<!doctype html>
+<meta charset="utf-8">
+<title>Foxbook Transparency Log</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:2rem auto;padding:0 1rem;line-height:1.5;color:#222}
+h1,h2{font-family:ui-monospace,Menlo,Monaco,Consolas,monospace}
+h1{font-size:1.4rem}h2{font-size:1.05rem;margin-top:2rem}
+code,pre{font-family:ui-monospace,Menlo,Monaco,Consolas,monospace;background:#f4f4f4;padding:.1em .3em;border-radius:3px}
+pre{padding:.75rem;overflow-x:auto}
+ul{padding-left:1.25rem}li{margin:.35rem 0}a{color:#0366d6}
+</style>
+<h1>🦊 Foxbook Transparency Log</h1>
+<p>RFC-9162-shaped Merkle log for verifiable agent identity (A2A / MCP).</p>
+<h2>Endpoints</h2>
+<ul>
+<li><code><a href="/root">/root</a></code> — signed tree head (latest)</li>
+<li><code>/leaf/:index</code> — leaf at index <code>:index</code></li>
+<li><code>/inclusion/:index</code> — inclusion proof for <code>:index</code></li>
+<li><code>/consistency?old=N&amp;new=M</code> — consistency proof between sizes N and M</li>
+</ul>
+<h2>Try it</h2>
+<pre>curl -s https://transparency.foxbook.dev/root | jq</pre>
+<h2>Docs</h2>
+<ul>
+<li><a href="https://github.com/cloakmaster/foxbook">Repo</a></li>
+<li><a href="https://github.com/cloakmaster/foxbook/blob/main/docs/rfc-a2a-x-foxbook-extension.md">RFC: x-foxbook v1 for A2A AgentCard</a></li>
+<li><a href="https://github.com/a2aproject/A2A/discussions/1803">A2A Discussion #1803</a></li>
+</ul>
+`;
 
 const SCHEMAS: Record<string, unknown> = {
   "/envelope/v1.json": envelopeSchema,
@@ -46,6 +78,11 @@ const SCHEMAS: Record<string, unknown> = {
 
 export function createApp(repoFactory: RepoFactory): Hono<Bindings> {
   const app = new Hono<Bindings>();
+
+  app.get("/", (c) => {
+    c.header("Cache-Control", LANDING_CACHE);
+    return c.html(LANDING_HTML);
+  });
 
   app.get("/health", (c) => c.json({ ok: true, service: "foxbook-transparency" }));
 
