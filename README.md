@@ -16,7 +16,7 @@ if (result.status !== "verified") return;
 
 Open source. Apache 2.0. Run your own log; anyone following the same spec can verify against any deployment.
 
-[**Live demo**](#live-demo) · [**Why**](#why) · [**Status**](#status) · [**RFC**](docs/rfc-a2a-x-foxbook-extension.md) · [**Roadmap**](PROJECT-PLAN.md)
+[**Live demo**](#live-demo) · [**Why**](#why) · [**Status**](#status) · [**RFC**](docs/rfc-a2a-x-foxbook-extension.md)
 
 ---
 
@@ -86,8 +86,6 @@ A2A and MCP both opened discussions about trust between agents — composable ev
 - MCP server (in progress).
 - Production WAN load test (planned).
 - Multi-vendor federated logs (the protocol contract is identical; bring your own deployment).
-
-[Full roadmap.](PROJECT-PLAN.md)
 
 ---
 

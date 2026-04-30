@@ -36,3 +36,16 @@ scripts/preflight-day-N.local.sh
 *.log
 npm-debug.log*
 yarn-debug.log*
+
+# Internal-only working docs (never published to public repo)
+CLAUDE.md
+PROJECT-PLAN.md
+LOCKED.md
+docs/foundation/
+docs/outreach.md
+docs/distribution.md
+docs/user-journey.md
+docs/pre-mortem-v1.md
+docs/process/
+docs/retros/
+port/

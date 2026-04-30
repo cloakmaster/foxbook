@@ -5,11 +5,8 @@
 //   claimVerifyGist   — POST /api/v1/claim/verify-gist, transitions to tier1
 //   claimRevoke       — POST /api/v1/claim/revoke, recovery-key-signed revocation
 //
-// Day-7 PR E: signatures + discriminated-union types only. Bodies
-// throw "not implemented"; the implementation lands in week 2 per
-// PROJECT-PLAN.md Distribution Track. The stable signatures committed
-// today are what the RFC, outreach DMs, and docs/distribution.md all
-// reference as the contract — they MUST NOT shift in week 2.
+// Signatures + discriminated-union types committed; bodies throw
+// "not implemented" — implementation in progress.
 //
 // ADR cross-refs:
 //   * ADR 0001 — service-agnostic core. This package lives in
@@ -59,13 +56,13 @@ export type ClaimStartResult = {
  * verification_code. The caller publishes the code (Gist, TXT record,
  * tweet, etc.) and then calls the matching verify function.
  *
- * @throws Error("not implemented") — Day-7 PR E ships signatures only.
- *         Week-2 implementation: fetch JSON-shaped POST + 201 →
- *         envelope parse + asset-conflict (409) → throw with
- *         discriminated error code.
+ * @throws Error("not implemented") — signatures committed; implementation in progress.
+ *         Implementation: fetch JSON-shaped POST + 201 → envelope
+ *         parse + asset-conflict (409) → throw with discriminated
+ *         error code.
  */
 export async function claimStart(_input: ClaimStartInput): Promise<ClaimStartResult> {
-  throw new Error("@foxbook/sdk-claim: claimStart not implemented (week-2 Distribution Track)");
+  throw new Error("@foxbook/sdk-claim: claimStart not implemented");
 }
 
 // ---- claimVerifyGist ----
@@ -95,14 +92,12 @@ export type ClaimVerifyGistResult =
  * signal (caller polls with backoff), `identity-mismatch` is a hard
  * reject (the Gist owner doesn't match the claim's asset_value).
  *
- * @throws Error("not implemented") — Day-7 PR E ships signatures only.
+ * @throws Error("not implemented") — signatures committed; implementation in progress.
  */
 export async function claimVerifyGist(
   _input: ClaimVerifyGistInput,
 ): Promise<ClaimVerifyGistResult> {
-  throw new Error(
-    "@foxbook/sdk-claim: claimVerifyGist not implemented (week-2 Distribution Track)",
-  );
+  throw new Error("@foxbook/sdk-claim: claimVerifyGist not implemented");
 }
 
 // ---- claimRevoke ----
@@ -129,8 +124,8 @@ export type ClaimRevokeResult =
  * payload.did + payload.revoked_key_hex against the claim row before
  * accepting the revocation.
  *
- * @throws Error("not implemented") — Day-7 PR E ships signatures only.
+ * @throws Error("not implemented") — signatures committed; implementation in progress.
  */
 export async function claimRevoke(_input: ClaimRevokeInput): Promise<ClaimRevokeResult> {
-  throw new Error("@foxbook/sdk-claim: claimRevoke not implemented (week-2 Distribution Track)");
+  throw new Error("@foxbook/sdk-claim: claimRevoke not implemented");
 }

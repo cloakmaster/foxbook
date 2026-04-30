@@ -14,12 +14,11 @@ export const claimMethod = pgEnum("claim_method", ["gist", "tweet", "email", "dn
 export const assetType = pgEnum("asset_type", ["github_handle", "x_handle", "domain"]);
 
 /**
- * Ongoing or completed claim flow per agent. The state machine is documented
- * in docs/foundation/foxbook-foundation.md.
+ * Ongoing or completed claim flow per agent.
  *
- * Day-5 additions (asset_type / asset_value / ed25519_public_key_hex /
+ * The asset-related columns (asset_type / asset_value / ed25519_public_key_hex /
  * recovery_key_fingerprint / verification_code) back the Tier-1 via Gist
- * flow. All four are nullable so the additive migration doesn't break
+ * flow. All four are nullable so additive migrations don't break
  * hypothetical pre-v0 rows; the partial unique index below enforces
  * one claim per verified asset once they're populated, preventing the
  * "Bob claims @alice" race.

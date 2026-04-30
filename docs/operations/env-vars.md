@@ -1,6 +1,6 @@
 # Environment variables
 
-Source of truth for environment variable naming and injection paths. Keep this in lockstep with `.env.example` (root). See `docs/foundation/LOCKED.md` for the "no plaintext crypto private keys" rule.
+Source of truth for environment variable naming and injection paths. Keep this in lockstep with `.env.example` (root). Crypto private keys are never stored in plaintext — recovery and signing keys are minted via offline controlled flows.
 
 ---
 

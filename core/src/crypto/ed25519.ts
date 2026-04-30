@@ -25,7 +25,7 @@ export function keypairFromSeed(seed: Uint8Array): Ed25519Keypair {
 
 /**
  * Fresh random keypair. Use for signing keys only — recovery keys are minted via
- * an offline controlled flow documented in docs/foundation/foxbook-foundation.md §6.6.
+ * an offline controlled flow.
  */
 export function generateKeypair(): Ed25519Keypair {
   return keypairFromSeed(utils.randomSecretKey());
