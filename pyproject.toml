@@ -29,6 +29,7 @@ extend-exclude = [
   "packages/types-py/src/foxbook_types/discover_response.py",
   "packages/types-py/src/foxbook_types/agent_card.py",
   "packages/types-py/src/foxbook_types/x_foxbook.py",
+  "packages/types-py/src/foxbook_types/claim_by_handle.py",
 ]
 
 [tool.ruff.lint]
