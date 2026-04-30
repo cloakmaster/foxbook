@@ -85,8 +85,8 @@ No directory lookup, no trust-the-card-blindly.
 
 Live: https://transparency.foxbook.dev
 
-Adversarial test — tried to claim a GitHub handle the caller
-didn't own. The check refused at the source, before any Gist
+Adversarial test — tried to claim someone else's GitHub
+handle. The check refused at the source, before any Gist
 fetch happened. Transcript:
 https://github.com/cloakmaster/foxbook/blob/main/ops/evidence/2026-04-24-identity-guard-adversarial.md
 
@@ -135,8 +135,8 @@ that verifies an agent's identity before another agent calls it.
 
 Live: https://transparency.foxbook.dev (Apache 2.0, open source)
 
-Adversarial test — tried to claim a GitHub handle the caller
-didn't own. The check refused without fetching anything:
+Adversarial test — tried to claim someone else's GitHub
+handle. The check refused without fetching anything:
 https://github.com/cloakmaster/foxbook/blob/main/ops/evidence/2026-04-24-identity-guard-adversarial.md
 
 Filed upstream of A2A:
