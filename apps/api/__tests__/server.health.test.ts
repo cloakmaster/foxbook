@@ -58,10 +58,7 @@ function fakeMerkleRepo(snapshot: MerkleRootSnapshot | null): MerkleRepository {
   };
 }
 
-function makeApp(opts: {
-  merkleRepo?: MerkleRepository;
-  logSigningPublicKeyHex?: string;
-} = {}) {
+function makeApp(opts: { merkleRepo?: MerkleRepository; logSigningPublicKeyHex?: string } = {}) {
   return createApp({
     discoveryRepo: emptyRepo(),
     claim: stubClaimDeps(),
