@@ -10,6 +10,8 @@ import {
   claimVerifyGistBodySchema,
 } from "./body-schema.js";
 import {
+  claimByHandle,
+  claimByHandleResponseShape,
   type ClaimDeps,
   claimRevoke,
   claimStart,
@@ -18,6 +20,9 @@ import {
   claimVerifyEndpoint,
   claimVerifyGist,
 } from "./handlers.js";
+
+const ASSET_TYPES = new Set(["github_handle", "x_handle", "domain"]);
+const DEFAULT_WORKER_BASE = "https://transparency.foxbook.dev";
 
 /**
  * Mount POST /claim/start + POST /claim/verify-gist with injected deps.
@@ -211,6 +216,45 @@ export function claimRoute(deps: ClaimDeps): Hono {
       );
     },
   );
+
+  // ---- Read by handle (Day-9 PR-A2) ----
+
+  app.get("/claim/by-handle/:asset_type/:asset_value", async (c) => {
+    const assetType = c.req.param("asset_type");
+    const assetValue = c.req.param("asset_value");
+    if (!ASSET_TYPES.has(assetType)) {
+      return c.json(
+        {
+          error: "invalid-asset-type",
+          asset_type: assetType,
+          allowed: ["github_handle", "x_handle", "domain"],
+        },
+        400,
+      );
+    }
+    if (!assetValue || assetValue.length === 0) {
+      return c.json({ error: "missing-asset-value" }, 400);
+    }
+    const result = await claimByHandle(
+      {
+        assetType: assetType as "github_handle" | "x_handle" | "domain",
+        assetValue,
+      },
+      deps,
+    );
+    if (!result.ok) {
+      // 404 + JSON shape per ADR 0007. Cache the not-claimed answer
+      // briefly so a scraper doesn't hammer the DB while the handle
+      // is unclaimed.
+      c.header("Cache-Control", "public, max-age=60, must-revalidate");
+      return c.json(
+        { error: "not-claimed", asset_type: assetType, asset_value: assetValue },
+        404,
+      );
+    }
+    c.header("Cache-Control", "public, max-age=60, must-revalidate");
+    return c.json(claimByHandleResponseShape(result, DEFAULT_WORKER_BASE), 200);
+  });
 
   return app;
 }

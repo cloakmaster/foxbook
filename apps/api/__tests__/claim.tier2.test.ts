@@ -57,6 +57,11 @@ function fakeDeps(state: FakeState, overrides: Partial<ClaimDeps> = {}) {
             completedAt: new Date("2026-04-27T08:30:00Z"),
           });
       },
+      findByAsset: async (assetType, assetValue) => {
+        const id = state.assetLookup.get(`${assetType}:${assetValue}`);
+        return id ? state.rowsById.get(id) ?? null : null;
+      },
+      findLatestLeafIndexForDid: async () => null,
     },
     gist: {
       verifyGistContainsCode: vi.fn(async () => {

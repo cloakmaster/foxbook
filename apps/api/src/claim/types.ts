@@ -91,6 +91,16 @@ export type ClaimRepository = {
   /** Day-7 PR C — Tier 2. Transitions a `tier2_pending` row to
    *  `tier2_verified`. */
   markTier2Verified: (id: string) => Promise<void>;
+  /** Day-9 PR-A2 — read by (asset_type, asset_value). Returns the
+   *  current claim row or null. Revoked claims return null since their
+   *  rows are deleted per ADR 0004 addendum-1. */
+  findByAsset: (assetType: AssetType, assetValue: string) => Promise<ClaimRow | null>;
+  /** Day-9 PR-A2 — read the latest agent-key-registration leaf_index
+   *  for an agent_did from tl_leaves. Returns null when the did has no
+   *  agent-key-registration leaf yet (e.g. claim is gist_pending and
+   *  hasn't reached tier1). Used by the by-handle endpoint to surface
+   *  the inclusion-proof URL for verified claims. */
+  findLatestLeafIndexForDid: (agentDid: string) => Promise<number | null>;
 };
 
 /** Narrow slice of gist adapter — lets tests swap in a deterministic verifier. */
@@ -257,5 +267,27 @@ export type ClaimVerifyEndpointResult =
   | { ok: false; status: "signature-invalid"; reason: string }
   | { ok: false; status: "nonce-mismatch"; sent: string; received: string }
   | { ok: false; status: "error"; reason: string; detail?: string };
+
+// ---- Read by handle (Day-9 PR-A2) ----
+
+/** Input for GET /api/v1/claim/by-handle/:asset_type/:asset_value. */
+export type ClaimByHandleInput = {
+  assetType: AssetType;
+  assetValue: string;
+};
+
+/** Discriminated result for `claimByHandle`. Matches schemas/claim-by-handle.v1.json:
+ *  - `ok: true` carries the claim row + optional leaf_index.
+ *  - `not-claimed` is the 404 path; revoked claims surface this branch since
+ *    their rows are deleted per ADR 0004 addendum-1. */
+export type ClaimByHandleResult =
+  | {
+      ok: true;
+      claim: ClaimRow;
+      /** Latest agent-key-registration leaf_index in the transparency
+       *  log. Null for claims that haven't reached tier1 yet. */
+      leafIndex: number | null;
+    }
+  | { ok: false; status: "not-claimed" };
 
 export type { MerkleAppendResult };

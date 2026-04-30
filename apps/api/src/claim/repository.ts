@@ -9,7 +9,7 @@
 
 import type { NodeDbClient } from "@foxbook/db";
 import { schema } from "@foxbook/db";
-import { eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import type { AssetType, ClaimRepository, ClaimRow, ClaimState } from "./types.js";
 
@@ -104,6 +104,43 @@ export function createClaimRepository(db: NodeDbClient): ClaimRepository {
         .update(schema.claims)
         .set({ state: "tier2_verified", completedAt: new Date() })
         .where(eq(schema.claims.id, id));
+    },
+
+    async findByAsset(assetType, assetValue) {
+      const rows = await db
+        .select()
+        .from(schema.claims)
+        .where(
+          and(
+            eq(schema.claims.assetType, assetType),
+            eq(schema.claims.assetValue, assetValue),
+          ),
+        )
+        .limit(1);
+      if (rows.length === 0) return null;
+      const row = rows[0];
+      return row ? rowToClaim(row) : null;
+    },
+
+    async findLatestLeafIndexForDid(agentDid) {
+      // Reads tl_leaves filtering on the leaf_data jsonb 'did' field +
+      // 'leaf_type' = 'agent-key-registration'. At v1 scale (single-
+      // digit leaves) the sequential scan is fine. When tree size
+      // warrants it, add a GIN index on leaf_data — additive migration,
+      // no schema change.
+      const rows = await db
+        .select({ leafIndex: schema.tlLeaves.leafIndex })
+        .from(schema.tlLeaves)
+        .where(
+          and(
+            sql`${schema.tlLeaves.leafData}->>'did' = ${agentDid}`,
+            sql`${schema.tlLeaves.leafData}->>'leaf_type' = 'agent-key-registration'`,
+          ),
+        )
+        .orderBy(desc(schema.tlLeaves.leafIndex))
+        .limit(1);
+      const row = rows[0];
+      return row ? Number(row.leafIndex) : null;
     },
   };
 }

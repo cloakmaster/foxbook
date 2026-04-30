@@ -21,6 +21,8 @@ function stubClaimDeps(): ClaimDeps {
       insertClaim: async () => ({ ok: true, id: "stub" }),
       findById: async () => null,
       markTier2Verified: async () => {},
+      findByAsset: async () => null,
+      findLatestLeafIndexForDid: async () => null,
     },
     gist: { verifyGistContainsCode: async () => ({ status: "error" }) },
     dns: {

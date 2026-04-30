@@ -86,6 +86,11 @@ function fakeDeps(state: FakeState, overrides: Partial<ClaimDeps> = {}) {
         const r = state.rowsById.get(id);
         if (r) state.rowsById.set(id, { ...r, state: "tier2_verified" });
       },
+      findByAsset: async (assetType, assetValue) => {
+        const id = state.assetLookup.get(`${assetType}:${assetValue}`);
+        return id ? state.rowsById.get(id) ?? null : null;
+      },
+      findLatestLeafIndexForDid: async () => null,
     },
     gist: { verifyGistContainsCode: vi.fn(async () => ({ status: "match" as const, body: "ok" })) },
     dns: {
