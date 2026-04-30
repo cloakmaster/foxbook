@@ -16,23 +16,16 @@
 //   // proceed with agent-to-agent call
 //
 // The four discriminated outcomes map to {allowed, blocked, blocked,
-// warning}. This is the API the RFC + outreach DMs +
-// docs/distribution.md all reference — six functions, ~130 LOC public
-// surface, no numeric trust scores anywhere in the response shape.
-//
-// **No numeric trust score**: PROJECT-PLAN.md Cross-LLM Strategic
-// Feedback rejected aggregate scoring as a sneak-path that conflates
-// verification (objective, cryptographic) with reputation
-// (subjective, deferred). Future planners MUST NOT re-propose without
-// an ADR amendment that addresses ADR 0006 §4 path-ordering.
+// warning}. Six functions, no numeric trust scores anywhere in the
+// response shape — verification (objective, cryptographic) is kept
+// separate from reputation (subjective).
 
 // ---- Common ----
 
 import type { Ed25519PublicKeyHex, FoxbookDid } from "./claim.js";
 
-/** Default transparency-log Worker base. Reference deployment until
- *  transparency.foxbook.dev DNS lands (week 2+). */
-export const DEFAULT_WORKER_BASE = "https://foxbook-transparency.inkog-io.workers.dev";
+/** Default transparency-log Worker base — the canonical reference deployment. */
+export const DEFAULT_WORKER_BASE = "https://transparency.foxbook.dev";
 
 // ---- verify (primitive) ----
 
@@ -52,10 +45,10 @@ export type VerifyResult =
  * apps/transparency. The caller can independently re-hash the leaf
  * preimage and walk the proof to verify root membership.
  *
- * @throws Error("not implemented") — Day-7 PR E ships signatures only.
+ * @throws Error("not implemented") — signatures committed; implementation in progress.
  */
 export async function verify(_input: VerifyInput): Promise<VerifyResult> {
-  throw new Error("@foxbook/sdk-claim: verify not implemented (week-2 Distribution Track)");
+  throw new Error("@foxbook/sdk-claim: verify not implemented");
 }
 
 // ---- foxbookVerify (handle-level convenience wrapper) ----
@@ -68,19 +61,16 @@ export type FoxbookVerifyOptions = {
 };
 
 /**
- * The claimed-tier discriminator. Tier-1 today is the only attestable
- * tier in the transparency log; Tier-2 / Tier-3 are app-state-only
- * pending the v1.1 tier-upgrade leaf type (PR C body's filed
- * security-model asymmetry).
+ * The claimed-tier discriminator. Tier-1 is the only attestable tier
+ * in the transparency log today; Tier-2 / Tier-3 are app-state-only
+ * pending a v1.1 tier-upgrade leaf type.
  */
 export type ClaimedTier = 1 | 2 | 3;
 
 /**
  * Result shape — discriminated by `tier` presence. Returns
- * verification status only — NOT a numeric trust score (REJECTED per
- * PROJECT-PLAN.md Cross-LLM Strategic Feedback). Aggregate
- * reputation/scoring belongs in a separate surface, gated on its own
- * ADR amendment to ADR 0006 §4.
+ * verification status only — never a numeric trust score. Aggregate
+ * reputation/scoring belongs in a separate surface above this primitive.
  */
 export type FoxbookVerifyResult =
   | { tier: ClaimedTier; revoked: boolean; did: FoxbookDid; leafIndex: number }
@@ -92,16 +82,16 @@ export type FoxbookVerifyResult =
  * its current claim tier + revocation status. Resolves
  * {handle → claim row → optional leaf_index}.
  *
- * @throws Error("not implemented") — Day-7 PR E ships signatures only.
+ * @throws Error("not implemented") — signatures committed; implementation in progress.
  */
 export async function foxbookVerify(
   _handle: string,
   _options?: FoxbookVerifyOptions,
 ): Promise<FoxbookVerifyResult> {
-  throw new Error("@foxbook/sdk-claim: foxbookVerify not implemented (week-2 Distribution Track)");
+  throw new Error("@foxbook/sdk-claim: foxbookVerify not implemented");
 }
 
-// ---- verifyAgentCard (agent-hiring-gate runtime-safety primitive) ----
+// ---- verifyAgentCard (runtime-safety primitive) ----
 
 /**
  * The minimum AgentCard shape `verifyAgentCard` reads. Mirrors A2A's
@@ -110,8 +100,8 @@ export async function foxbookVerify(
  */
 export type VerifiableAgentCard = {
   /** Handle the card claims to belong to (github_handle, x_handle, or
-   *  domain). The agent-hiring-gate handle-mismatch check binds this
-   *  to the claim row's asset_value. */
+   *  domain). The handle-mismatch check binds this to the claim row's
+   *  asset_value. */
   handle?: string;
   "x-foxbook"?: {
     did?: FoxbookDid;
@@ -126,8 +116,8 @@ export type VerifiableAgentCard = {
 
 export type VerifyAgentCardOptions = {
   /** If true, refuse `verified` unless an inclusion proof is fetched
-   *  from the transparency Worker. Defaults to true — Day-7 default
-   *  is "evidence over assertion." */
+   *  from the transparency Worker. Defaults to true — evidence over
+   *  assertion. */
   requireInclusionProof?: boolean;
   /** If set, refuse `verified` when the STH is older than this
    *  threshold (in seconds). Useful for high-stakes agent-to-agent
@@ -141,8 +131,7 @@ export type VerifyAgentCardOptions = {
 };
 
 /**
- * Four-way discriminated agent-hiring-gate outcome. Maps to the
- * caller's run-time policy as:
+ * Four-way discriminated outcome. Maps to the caller's policy gate as:
  *
  *   verified         → allowed
  *   unverified       → blocked
@@ -150,10 +139,8 @@ export type VerifyAgentCardOptions = {
  *                       transparency log does NOT attest)
  *   stale-proof      → warning (caller decides; e.g. refresh + retry)
  *
- * **No numeric trust score** in any branch. The four discriminated
- * outcomes are the entire surface; a future planner cannot smuggle
- * `{trust_score: number}` in here without an ADR amendment to ADR
- * 0006 §4.
+ * No numeric trust score in any branch. The four discriminated
+ * outcomes are the entire surface.
  */
 export type VerifyAgentCardResult =
   | { status: "verified"; tier: ClaimedTier; did: FoxbookDid; leafIndex: number }
@@ -168,17 +155,17 @@ export type VerifyAgentCardResult =
  *   const v = await verifyAgentCard(card, { requireFreshSTH: 3600 });
  *   if (v.status !== "verified") return blockOrWarn(v);
  *
- * Day-7 PR E ships the signature; the implementation in week 2 walks
- * the card → did → claim row → leaf-inclusion-proof chain and
- * discriminates the four outcomes.
+ * Signatures are committed; the implementation walks the card → did →
+ * claim row → leaf-inclusion-proof chain and discriminates the four
+ * outcomes.
  *
- * @throws Error("not implemented") — Day-7 PR E ships signatures only.
+ * @throws Error("not implemented") — signatures committed; implementation in progress.
  */
 export async function verifyAgentCard(
   _card: VerifiableAgentCard,
   _options?: VerifyAgentCardOptions,
 ): Promise<VerifyAgentCardResult> {
   throw new Error(
-    "@foxbook/sdk-claim: verifyAgentCard not implemented (week-2 Distribution Track)",
+    "@foxbook/sdk-claim: verifyAgentCard not implemented",
   );
 }

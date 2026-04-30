@@ -29,7 +29,7 @@ Five rules, all enforced by convention + PR review (no CI gate today — these a
 
 ## Enforcement
 
-Today: PR review against CODEOWNERS. `packages/db/`, `docs/foundation/`, `docs/decisions/`, and `.github/workflows/` all list `@cloakmaster` as owner, so any violation shows up at review time with one reviewer required.
+Today: PR review against CODEOWNERS. `packages/db/`, `docs/decisions/`, and `.github/workflows/` all list `@cloakmaster` as owner, so any violation shows up at review time with one reviewer required.
 
 Tomorrow (follow-up, if it ever gets gamed): a lint script that inspects migration SQL files for destructive statements and requires a marker comment confirming the PR description paragraph exists. Not building that today — discipline-by-review is cheaper and the team is one person.
 

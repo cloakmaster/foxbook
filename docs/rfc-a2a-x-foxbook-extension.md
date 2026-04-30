@@ -115,11 +115,11 @@ The `foxbook_url` is mutable (rebrand, redirect, host change). The `did:foxbook:
 
 ## 4. Reference implementation
 
-The canonical reference deployment is `foxbook.dev`. Anyone can run a parallel deployment that satisfies the same contracts; this is protocol infrastructure, not a marketplace (see [ADR 0006 — protocol-not-marketplace](decisions/0006-protocol-not-marketplace.md)).
+The canonical reference deployment is `foxbook.dev`. Anyone can run a parallel deployment that satisfies the same contracts; this is protocol infrastructure, not a marketplace.
 
 ### 4.1 Live transparency log
 
-URL: `https://foxbook-transparency.inkog-io.workers.dev` (placeholder until canonical `transparency.foxbook.dev` DNS lands; week 2 task).
+URL: `https://transparency.foxbook.dev`
 
 Endpoints:
 
@@ -157,9 +157,9 @@ Six-function public surface (`packages/sdk-claim/`):
 - `claimStart`, `claimVerifyGist`, `claimRevoke` — claim primitives.
 - `verify` — transparency-log inclusion-proof primitive.
 - `foxbookVerify(handle)` — handle-level convenience wrapper.
-- `verifyAgentCard(card, options)` — the agent-hiring-gate runtime-safety primitive (§1.1).
+- `verifyAgentCard(card, options)` — runtime-safety primitive: the check before an agent dispatches work to another agent (§1.1).
 
-Day-7 ships the contract (signatures + discriminated unions); week-2 ships the implementation. Tight surface (~130 LOC) so re-implementations in other languages have a clear target.
+Signatures + discriminated unions committed; implementation in progress. Tight surface (~130 LOC) so re-implementations in other languages have a clear target.
 
 ---
 
@@ -177,24 +177,18 @@ We're proposing this as an extension namespace, not a core-spec change. Concrete
 
 ## 6. What this RFC explicitly does not propose
 
-Per [ADR 0006 — protocol-not-marketplace](decisions/0006-protocol-not-marketplace.md):
-
 - **No marketplace UI** spec changes. `x-foxbook` is a proof layer, not a discovery surface.
 - **No paid placement** of any kind in the verification flow.
 - **No closed-source moat.** The reference implementation is open; canonicality comes from being the first credible reference, not from controlling the code.
 - **No forced onboarding.** Agents that don't ship `x-foxbook` continue to work in A2A unchanged; this RFC adds an *option* for verifiable provenance, not a requirement.
 - **No agent-side payment rails** in v1 of `x-foxbook`. Payment surfaces stay in their own schemas.
 
-Future planners MUST NOT re-propose any of the above without an ADR amendment that addresses ADR 0006 §4 path-ordering.
-
 ---
 
 ## 7. References
 
-- ADR 0006 — protocol-not-marketplace (`docs/decisions/0006-protocol-not-marketplace.md`)
 - ADR 0001 — service-agnostic core (`docs/decisions/0001-service-agnostic-core.md`)
-- ADR 0005 — canonical bytes are written once (`docs/decisions/0005-canonical-bytes.md`)
-- LOCKED.md — pinned non-negotiables (`docs/foundation/LOCKED.md`)
+- ADR 0005 — canonical bytes are written once (`docs/decisions/0005-canonical-on-both-sides.md`)
 - Live evidence — identity-guard refusal (`ops/evidence/2026-04-24-identity-guard-adversarial.md`)
 - Live evidence — first-live-revocation 467ms (`ops/bench-results/2026-04-26-first-live-revocation.txt`)
 - Schema — `schemas/x-foxbook.v1.json`

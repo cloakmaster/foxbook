@@ -91,14 +91,12 @@ class EnvelopeVersion(Enum):
 
 
 class EventType(Enum):
-    """Day-7 PR D additively introduces claim.verified + revocation.recorded for the first wired
-    firehose events. The hire.* + delegation.announced shapes (hirer/hiree/task/payment/...)
-    remain the strict envelope for hire events. Per-event-type required-field gating across
-    the new event types lands as a pre-freeze refinement (PROJECT-PLAN Day 7-9). Today the
-    firehose wire payload for claim.verified / revocation.recorded carries {event_type, did,
-    leaf_index, leaf_hash, timestamp, ...} inside the firehose_events.payload jsonb column
-    without strict required-field validation; that's a deliberate scope cut so PR D is a
-    minimal additive bump.
+    """Event type for the firehose payload. claim.verified + revocation.recorded are emitted by
+    the verification + revocation flows. The hire.* + delegation.announced shapes carry the
+    strict hirer/hiree/task/payment envelope. Per-event-type required-field gating across the
+    verification/revocation event types is a future refinement; today their wire payload
+    carries {event_type, did, leaf_index, leaf_hash, timestamp, ...} inside the
+    firehose_events.payload jsonb column without strict required-field validation.
     """
     CLAIM_VERIFIED = "claim.verified"
     DELEGATION_ANNOUNCED = "delegation.announced"
@@ -289,26 +287,22 @@ class TransparencyLogEntry:
 
 @dataclass
 class Envelope:
-    """Canonical envelope for every hire-and-report event published to foxbook.dev/live. DRAFT —
-    content freezes day 7–9 per PROJECT-PLAN.md. See foxbook-foundation.md §8.1.1 for the
-    authoritative shape. Additive changes only within v1.x; breaking changes require
-    envelope_version bump and ≥90-day deprecation (LOCKED.md).
+    """Canonical envelope for every event published on the Foxbook firehose. Additive changes
+    only within v1.x; breaking changes require envelope_version bump and ≥90-day deprecation.
     """
     envelope_version: EnvelopeVersion
-    """Draft marker. Flips to "1.0" at freeze time (day 7–9)."""
+    """Draft marker. Flips to "1.0" at freeze time."""
 
     event_id: str
     """ULID-based event identifier prefixed fbx_."""
 
     event_type: EventType
-    """Day-7 PR D additively introduces claim.verified + revocation.recorded for the first wired
-    firehose events. The hire.* + delegation.announced shapes (hirer/hiree/task/payment/...)
-    remain the strict envelope for hire events. Per-event-type required-field gating across
-    the new event types lands as a pre-freeze refinement (PROJECT-PLAN Day 7-9). Today the
-    firehose wire payload for claim.verified / revocation.recorded carries {event_type, did,
-    leaf_index, leaf_hash, timestamp, ...} inside the firehose_events.payload jsonb column
-    without strict required-field validation; that's a deliberate scope cut so PR D is a
-    minimal additive bump.
+    """Event type for the firehose payload. claim.verified + revocation.recorded are emitted by
+    the verification + revocation flows. The hire.* + delegation.announced shapes carry the
+    strict hirer/hiree/task/payment envelope. Per-event-type required-field gating across the
+    verification/revocation event types is a future refinement; today their wire payload
+    carries {event_type, did, leaf_index, leaf_hash, timestamp, ...} inside the
+    firehose_events.payload jsonb column without strict required-field validation.
     """
     hiree: Hiree
     hirer: Hiree

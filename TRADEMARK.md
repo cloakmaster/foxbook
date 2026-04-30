@@ -36,12 +36,11 @@ includes (non-exhaustive):
 
 **Why the trademark is separate from the source license:** the protocol's
 canonicality value comes partly from a single canonical reference
-deployment (the longest-audit-trail transparency log per
-[ADR 0006 §2](docs/decisions/0006-protocol-not-marketplace.md)). Multiple
-forks under the same trademark dilute that signal. Multiple forks under
-their own names + interop-with-our-protocol is exactly the protocol-
-not-marketplace future ADR 0006 wants. The license + trademark split
-preserves both: maximally permissive code, modestly protected name.
+deployment (the longest-audit-trail transparency log). Multiple forks
+under the same trademark dilute that signal. Multiple forks under
+their own names + interop-with-our-protocol is exactly what we want.
+The license + trademark split preserves both: maximally permissive
+code, modestly protected name.
 
 For trademark licensing or clarification questions, contact
 [@cloakmaster](https://github.com/cloakmaster) via GitHub.

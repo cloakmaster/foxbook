@@ -30,11 +30,11 @@ export type FirehoseEventType = FoxbookFirehoseEnvelopeV1["event_type"];
  * Postgres regardless of Drizzle's TS-side camelCase aliases, so this
  * type matches what the listener actually receives off the wire.
  *
- * `payload` carries the per-event envelope. Day-7 PR D writes a
- * lightweight shape (event_type + did + leaf_index + leaf_hash +
- * timestamp) under envelope_version "1.0-draft" — the strict-required
- * envelope.v1.json refinement for these new event types is filed for
- * the pre-freeze (PROJECT-PLAN Day 7-9).
+ * `payload` carries the per-event envelope. claim.verified +
+ * revocation.recorded events write a lightweight shape (event_type +
+ * did + leaf_index + leaf_hash + timestamp) under envelope_version
+ * "1.0-draft"; per-event-type required-field gating is a future
+ * pre-freeze refinement.
  */
 export type FirehoseRow = {
   id: string;
