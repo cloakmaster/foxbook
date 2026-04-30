@@ -1,5 +1,6 @@
 import type { EventEmitter } from "node:events";
 
+import type { MerkleRepository } from "@foxbook/db";
 import { Hono } from "hono";
 
 import type { ClaimDeps } from "./claim/handlers.js";
@@ -8,22 +9,65 @@ import { discoverRoute } from "./discover/route.js";
 import type { DiscoveryRepository } from "./discover/types.js";
 import { firehoseRoute } from "./firehose/route.js";
 
+const STARTED_AT_MS = Date.now();
+
 export type AppDeps = {
   discoveryRepo: DiscoveryRepository;
   claim: ClaimDeps;
-  /** PR D firehose. The listener owns the LISTEN/NOTIFY connection;
-   *  this emitter is its public surface. Tests inject a hand-rolled
-   *  EventEmitter and emit FirehoseRow payloads directly. */
+  /** Firehose listener emitter. Tests inject a hand-rolled EventEmitter. */
   firehoseEmitter: EventEmitter;
+  /** Merkle repo (read-only path) for /healthz leafCount. Optional —
+   *  tests omit; production main.ts wires it. */
+  merkleRepo?: MerkleRepository | undefined;
+  /** Log-signing public key (hex) for /.well-known/foxbook.json.
+   *  Optional — when undefined, the well-known surface omits the
+   *  log_signing_public_key_hex field. */
+  logSigningPublicKeyHex?: string | undefined;
 };
 
 /** Build the Hono app with injected deps. Used by main.ts and by tests. */
 export function createApp(deps: AppDeps): Hono {
   const app = new Hono();
 
+  // Legacy simple health endpoint. /healthz is the rich shape used by
+  // Fly's HTTP checks and external monitors.
   app.get("/health", (c) => c.json({ ok: true, service: "foxbook-api" }));
 
-  // /api/v1/* per foundation §7.1.
+  app.get("/healthz", async (c) => {
+    const uptime_seconds = Math.floor((Date.now() - STARTED_AT_MS) / 1000);
+    if (!deps.merkleRepo) {
+      return c.json({ status: "ok", service: "foxbook-api", leafCount: 0, uptime_seconds });
+    }
+    try {
+      const root = await deps.merkleRepo.getRoot();
+      const leafCount = root?.leafCount ?? 0;
+      return c.json({ status: "ok", service: "foxbook-api", leafCount, uptime_seconds });
+    } catch {
+      // DB hiccup → 503 + status:degraded so Fly's check fails and the
+      // machine cycles, rather than us silently reporting healthy.
+      return c.json(
+        { status: "degraded", service: "foxbook-api", leafCount: 0, uptime_seconds },
+        503,
+      );
+    }
+  });
+
+  // Service-discovery surface for future scouts. Stable shape that
+  // re-implementations can $ref. supported_tiers stays at [1] until
+  // the first end-to-end domain claim succeeds.
+  app.get("/.well-known/foxbook.json", (c) => {
+    c.header("Cache-Control", "public, max-age=300");
+    return c.json({
+      protocol_version: "1.0",
+      supported_tiers: [1],
+      transparency_log_url: "https://transparency.foxbook.dev",
+      api_base: "https://api.foxbook.dev",
+      ...(deps.logSigningPublicKeyHex && {
+        log_signing_public_key_hex: deps.logSigningPublicKeyHex,
+      }),
+    });
+  });
+
   const v1 = new Hono();
   v1.route("/", discoverRoute(deps.discoveryRepo));
   v1.route("/", claimRoute(deps.claim));
@@ -31,7 +75,7 @@ export function createApp(deps: AppDeps): Hono {
 
   // /firehose lives at the root path (NOT under /api/v1) — it's a
   // long-lived SSE stream, semantically different from the request/
-  // response /api/v1 surface. Foundation §11 firehose architecture.
+  // response /api/v1 surface.
   app.route("/", firehoseRoute({ emitter: deps.firehoseEmitter }));
 
   return app;
