@@ -22,9 +22,7 @@ import { describe, expect, it } from "vitest";
 import { canonicalJcsBytes } from "../src/crypto/jcs.js";
 import { sha256Hex } from "../src/crypto/sha256.js";
 
-const FIXTURE_PATH = fileURLToPath(
-  new URL("./fixtures/ctef-v0.3.1.json", import.meta.url),
-);
+const FIXTURE_PATH = fileURLToPath(new URL("./fixtures/ctef-v0.3.1.json", import.meta.url));
 
 type CtefVector = {
   description: string;
@@ -56,9 +54,7 @@ function checkVector(name: string, vec: CtefVector) {
   const ourSha = sha256Hex(ourBytes);
 
   // Byte-exact canonical bytes.
-  expect(ourString, `${name}: canonical bytes byte-mismatch`).toBe(
-    vec.canonical_bytes_utf8,
-  );
+  expect(ourString, `${name}: canonical bytes byte-mismatch`).toBe(vec.canonical_bytes_utf8);
   // SHA-256-exact.
   expect(ourSha, `${name}: SHA-256 mismatch`).toBe(vec.canonical_sha256);
 }
@@ -92,40 +88,33 @@ describe("CTEF v0.3.1 byte-match (canonicalJcsBytes vs published vectors)", () =
   });
 });
 
-describe.skipIf(!process.env.RUN_LIVE_TESTS)(
-  "CTEF v0.3.1 live fetch (RUN_LIVE_TESTS=1)",
-  () => {
-    it("fixture stays in sync with the live published doc", async () => {
-      const res = await fetch("https://agentgraph.co/.well-known/cte-test-vectors.json");
-      expect(res.status).toBe(200);
-      const live = (await res.json()) as CtefDoc;
+describe.skipIf(!process.env.RUN_LIVE_TESTS)("CTEF v0.3.1 live fetch (RUN_LIVE_TESTS=1)", () => {
+  it("fixture stays in sync with the live published doc", async () => {
+    const res = await fetch("https://agentgraph.co/.well-known/cte-test-vectors.json");
+    expect(res.status).toBe(200);
+    const live = (await res.json()) as CtefDoc;
 
-      // Spec identity must not drift.
-      expect(live.version).toBe("0.3.1");
+    // Spec identity must not drift.
+    expect(live.version).toBe("0.3.1");
 
-      // Per-vector hashes match the fixture (drift detector).
-      const fixture = loadFixture();
-      expect(live.envelope_vector.canonical_sha256).toBe(
-        fixture.envelope_vector.canonical_sha256,
-      );
-      expect(live.verdict_vector.canonical_sha256).toBe(
-        fixture.verdict_vector.canonical_sha256,
-      );
-      expect(live.scope_violation_vector.canonical_sha256).toBe(
-        fixture.scope_violation_vector.canonical_sha256,
-      );
-      expect(live.composition_failure_vector.canonical_sha256).toBe(
-        fixture.composition_failure_vector.canonical_sha256,
-      );
-    });
+    // Per-vector hashes match the fixture (drift detector).
+    const fixture = loadFixture();
+    expect(live.envelope_vector.canonical_sha256).toBe(fixture.envelope_vector.canonical_sha256);
+    expect(live.verdict_vector.canonical_sha256).toBe(fixture.verdict_vector.canonical_sha256);
+    expect(live.scope_violation_vector.canonical_sha256).toBe(
+      fixture.scope_violation_vector.canonical_sha256,
+    );
+    expect(live.composition_failure_vector.canonical_sha256).toBe(
+      fixture.composition_failure_vector.canonical_sha256,
+    );
+  });
 
-    it("our canonicalizer still byte-matches against live", async () => {
-      const res = await fetch("https://agentgraph.co/.well-known/cte-test-vectors.json");
-      const live = (await res.json()) as CtefDoc;
-      checkVector("envelope_vector(live)", live.envelope_vector);
-      checkVector("verdict_vector(live)", live.verdict_vector);
-      checkVector("scope_violation_vector(live)", live.scope_violation_vector);
-      checkVector("composition_failure_vector(live)", live.composition_failure_vector);
-    });
-  },
-);
+  it("our canonicalizer still byte-matches against live", async () => {
+    const res = await fetch("https://agentgraph.co/.well-known/cte-test-vectors.json");
+    const live = (await res.json()) as CtefDoc;
+    checkVector("envelope_vector(live)", live.envelope_vector);
+    checkVector("verdict_vector(live)", live.verdict_vector);
+    checkVector("scope_violation_vector(live)", live.scope_violation_vector);
+    checkVector("composition_failure_vector(live)", live.composition_failure_vector);
+  });
+});

@@ -55,7 +55,9 @@ export function canonicalJcsBytes(obj: unknown): Uint8Array {
 export function canonicalJcsString(obj: unknown): string {
   const canonical = canonicalize(obj);
   if (canonical === undefined) {
-    throw new TypeError("canonicalJcsString: input cannot be canonicalized (undefined or non-JSON)");
+    throw new TypeError(
+      "canonicalJcsString: input cannot be canonicalized (undefined or non-JSON)",
+    );
   }
   return canonical;
 }
