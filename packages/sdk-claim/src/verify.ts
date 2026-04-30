@@ -1,4 +1,4 @@
-// Verification primitives + agent-hiring-gate convenience wrappers.
+// Verification primitives + convenience wrappers.
 //
 // Three functions:
 //
@@ -6,7 +6,7 @@
 //   foxbookVerify       — handle → {tier, revoked, did, leafIndex} (or not-claimed)
 //   verifyAgentCard     — runtime-safety gate before any agent-to-agent call
 //
-// The agent-hiring-gate framing: in production code, the wrapper is
+// Production usage: insert the wrapper before any agent-to-agent call.
 //
 //   const v = await verifyAgentCard(card, opts);
 //   if (v.status !== "verified") {
@@ -165,7 +165,5 @@ export async function verifyAgentCard(
   _card: VerifiableAgentCard,
   _options?: VerifyAgentCardOptions,
 ): Promise<VerifyAgentCardResult> {
-  throw new Error(
-    "@foxbook/sdk-claim: verifyAgentCard not implemented",
-  );
+  throw new Error("@foxbook/sdk-claim: verifyAgentCard not implemented");
 }

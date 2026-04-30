@@ -97,9 +97,7 @@ export type ClaimVerifyGistResult =
 export async function claimVerifyGist(
   _input: ClaimVerifyGistInput,
 ): Promise<ClaimVerifyGistResult> {
-  throw new Error(
-    "@foxbook/sdk-claim: claimVerifyGist not implemented",
-  );
+  throw new Error("@foxbook/sdk-claim: claimVerifyGist not implemented");
 }
 
 // ---- claimRevoke ----
