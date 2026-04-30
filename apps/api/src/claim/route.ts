@@ -10,9 +10,9 @@ import {
   claimVerifyGistBodySchema,
 } from "./body-schema.js";
 import {
+  type ClaimDeps,
   claimByHandle,
   claimByHandleResponseShape,
-  type ClaimDeps,
   claimRevoke,
   claimStart,
   claimStartDomain,
@@ -247,10 +247,7 @@ export function claimRoute(deps: ClaimDeps): Hono {
       // briefly so a scraper doesn't hammer the DB while the handle
       // is unclaimed.
       c.header("Cache-Control", "public, max-age=60, must-revalidate");
-      return c.json(
-        { error: "not-claimed", asset_type: assetType, asset_value: assetValue },
-        404,
-      );
+      return c.json({ error: "not-claimed", asset_type: assetType, asset_value: assetValue }, 404);
     }
     c.header("Cache-Control", "public, max-age=60, must-revalidate");
     return c.json(claimByHandleResponseShape(result, DEFAULT_WORKER_BASE), 200);

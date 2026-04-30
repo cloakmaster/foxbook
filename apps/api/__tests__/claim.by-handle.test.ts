@@ -7,13 +7,11 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import { describe, expect, it } from "vitest";
 
-import claimByHandleSchema from "../../../schemas/claim-by-handle.v1.json" with {
-  type: "json",
-};
+import claimByHandleSchema from "../../../schemas/claim-by-handle.v1.json" with { type: "json" };
 import {
+  type ClaimDeps,
   claimByHandle,
   claimByHandleResponseShape,
-  type ClaimDeps,
 } from "../src/claim/handlers.js";
 import { claimRoute } from "../src/claim/route.js";
 import type { ClaimRow } from "../src/claim/types.js";
@@ -47,7 +45,7 @@ function fakeDeps(state: FakeState): ClaimDeps {
       markTier2Verified: async () => {},
       findByAsset: async (assetType, assetValue) => {
         const id = state.assetLookup.get(`${assetType}:${assetValue}`);
-        return id ? state.rowsById.get(id) ?? null : null;
+        return id ? (state.rowsById.get(id) ?? null) : null;
       },
       findLatestLeafIndexForDid: async (did) => state.leafIndexByDid.get(did) ?? null,
     },
@@ -75,7 +73,10 @@ function fakeDeps(state: FakeState): ClaimDeps {
   };
 }
 
-function seedClaim(state: FakeState, partial: Partial<ClaimRow> & Pick<ClaimRow, "agentDid" | "assetType" | "assetValue" | "state">): ClaimRow {
+function seedClaim(
+  state: FakeState,
+  partial: Partial<ClaimRow> & Pick<ClaimRow, "agentDid" | "assetType" | "assetValue" | "state">,
+): ClaimRow {
   const id = `claim-${state.rowsById.size + 1}`;
   const row: ClaimRow = {
     id,

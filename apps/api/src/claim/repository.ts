@@ -111,10 +111,7 @@ export function createClaimRepository(db: NodeDbClient): ClaimRepository {
         .select()
         .from(schema.claims)
         .where(
-          and(
-            eq(schema.claims.assetType, assetType),
-            eq(schema.claims.assetValue, assetValue),
-          ),
+          and(eq(schema.claims.assetType, assetType), eq(schema.claims.assetValue, assetValue)),
         )
         .limit(1);
       if (rows.length === 0) return null;

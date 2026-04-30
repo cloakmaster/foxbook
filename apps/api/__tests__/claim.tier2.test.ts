@@ -59,7 +59,7 @@ function fakeDeps(state: FakeState, overrides: Partial<ClaimDeps> = {}) {
       },
       findByAsset: async (assetType, assetValue) => {
         const id = state.assetLookup.get(`${assetType}:${assetValue}`);
-        return id ? state.rowsById.get(id) ?? null : null;
+        return id ? (state.rowsById.get(id) ?? null) : null;
       },
       findLatestLeafIndexForDid: async () => null,
     },
