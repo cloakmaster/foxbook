@@ -11,6 +11,7 @@
     "test": "vitest run",
     "lint": "biome lint .",
     "dev": "node --env-file=../../.env.local --import tsx ./src/main.ts",
+    "start": "node --import tsx ./src/main.ts",
     "smoke:tier1": "node --env-file=../../.env.local --import tsx ./scripts/smoke-test-tier1.ts",
     "smoke:revoke": "node --env-file=../../.env.local --import tsx ./scripts/smoke-test-revoke.ts"
   },
