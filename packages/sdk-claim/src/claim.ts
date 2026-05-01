@@ -46,10 +46,7 @@ function claimUrl(apiBase: string | undefined, verb: string): string {
 async function postJson(
   url: string,
   body: unknown,
-): Promise<
-  | { ok: true; response: Response; body: unknown }
-  | { ok: false; reason: string }
-> {
+): Promise<{ ok: true; response: Response; body: unknown } | { ok: false; reason: string }> {
   let response: Response;
   try {
     response = await fetch(url, {
@@ -179,9 +176,7 @@ export type ClaimVerifyGistResult =
  *  - `not-found` — claim_id unknown OR Gist URL unreachable.
  *  - `error` — bad-request / wrong-asset-type / network / non-JSON.
  */
-export async function claimVerifyGist(
-  input: ClaimVerifyGistInput,
-): Promise<ClaimVerifyGistResult> {
+export async function claimVerifyGist(input: ClaimVerifyGistInput): Promise<ClaimVerifyGistResult> {
   const result = await postJson(claimUrl(input.apiBase, "verify-gist"), {
     claim_id: input.claim_id,
     gist_url: input.gist_url,
@@ -192,10 +187,7 @@ export async function claimVerifyGist(
 
   // 200 + tier=1 success branch.
   if (response.status === 200 && b.tier === 1) {
-    if (
-      typeof b.leaf_index === "number" &&
-      typeof b.sth_jws === "string"
-    ) {
+    if (typeof b.leaf_index === "number" && typeof b.sth_jws === "string") {
       // The server doesn't currently return inclusion_proof_url
       // directly; we synthesise it from the worker base. Keep this
       // computation in claim.ts so verify.ts can be independent.
@@ -214,9 +206,12 @@ export async function claimVerifyGist(
 
   // 200 + status field — server's "transient" branches.
   if (response.status === 200 && typeof b.status === "string") {
-    if (b.status === "still-pending") return reason ? { status: "still-pending", reason } : { status: "still-pending" };
-    if (b.status === "not-found") return reason ? { status: "not-found", reason } : { status: "not-found" };
-    if (b.status === "error") return { status: "error", reason: reason ?? "server returned status:error" };
+    if (b.status === "still-pending")
+      return reason ? { status: "still-pending", reason } : { status: "still-pending" };
+    if (b.status === "not-found")
+      return reason ? { status: "not-found", reason } : { status: "not-found" };
+    if (b.status === "error")
+      return { status: "error", reason: reason ?? "server returned status:error" };
   }
 
   // 404 not-found-claim → fold into not-found.
@@ -293,15 +288,13 @@ export async function claimRevoke(input: ClaimRevokeInput): Promise<ClaimRevokeR
     // Both recovery-key-mismatch and recovery-key-signature-invalid
     // map here. Both indicate the caller's signing material doesn't
     // match what the server expects.
-    const reason = typeof b.reason === "string" ? b.reason : (typeof b.status === "string" ? b.status : undefined);
+    const reason =
+      typeof b.reason === "string" ? b.reason : typeof b.status === "string" ? b.status : undefined;
     return reason ? { status: "signature-invalid", reason } : { status: "signature-invalid" };
   }
   // 400 bad-state, 422 invalid-leaf → error.
   return {
     status: "error",
-    reason:
-      typeof b.reason === "string"
-        ? b.reason
-        : `unexpected HTTP ${response.status}`,
+    reason: typeof b.reason === "string" ? b.reason : `unexpected HTTP ${response.status}`,
   };
 }

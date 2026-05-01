@@ -6,13 +6,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  type ClaimRevokeInput,
   type ClaimStartInput,
   type ClaimVerifyGistInput,
-  type ClaimRevokeInput,
-  DEFAULT_API_BASE,
   claimRevoke,
   claimStart,
   claimVerifyGist,
+  DEFAULT_API_BASE,
 } from "../src/claim.js";
 
 // ---- fetch stubbing ----
@@ -23,7 +23,12 @@ type FetchResponse = {
 };
 
 let mockFetch: ReturnType<typeof vi.fn>;
-let lastRequest: { url: string; method: string; headers: Record<string, string>; body: unknown } | null;
+let lastRequest: {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body: unknown;
+} | null;
 
 function stubFetchSequence(...responses: FetchResponse[]): void {
   let i = 0;
@@ -202,7 +207,13 @@ describe("claimVerifyGist", () => {
   it("constructs POST /api/v1/claim/verify-gist with correct body", async () => {
     stubFetchSequence({
       status: 200,
-      body: { tier: 1, leaf_index: 7, leaf_hash: "f".repeat(64), root_after: "a".repeat(64), sth_jws: "stub.jws" },
+      body: {
+        tier: 1,
+        leaf_index: 7,
+        leaf_hash: "f".repeat(64),
+        root_after: "a".repeat(64),
+        sth_jws: "stub.jws",
+      },
     });
     await claimVerifyGist(VG_INPUT);
     expect(lastRequest?.url).toBe("https://api.foxbook.dev/api/v1/claim/verify-gist");
@@ -215,7 +226,13 @@ describe("claimVerifyGist", () => {
   it("returns tier1-verified with synthesized inclusion_proof_url on 200", async () => {
     stubFetchSequence({
       status: 200,
-      body: { tier: 1, leaf_index: 7, leaf_hash: "f".repeat(64), root_after: "a".repeat(64), sth_jws: "stub.jws" },
+      body: {
+        tier: 1,
+        leaf_index: 7,
+        leaf_hash: "f".repeat(64),
+        root_after: "a".repeat(64),
+        sth_jws: "stub.jws",
+      },
     });
     const result = await claimVerifyGist(VG_INPUT);
     expect(result).toEqual({
@@ -233,7 +250,10 @@ describe("claimVerifyGist", () => {
   });
 
   it("preserves reason on still-pending when server provides one", async () => {
-    stubFetchSequence({ status: 200, body: { status: "still-pending", reason: "code not yet visible" } });
+    stubFetchSequence({
+      status: 200,
+      body: { status: "still-pending", reason: "code not yet visible" },
+    });
     const result = await claimVerifyGist(VG_INPUT);
     expect(result).toEqual({ status: "still-pending", reason: "code not yet visible" });
   });
@@ -269,7 +289,10 @@ describe("claimVerifyGist", () => {
   });
 
   it("folds 400 bad-request into error", async () => {
-    stubFetchSequence({ status: 400, body: { status: "bad-request", reason: "claim already verified" } });
+    stubFetchSequence({
+      status: 400,
+      body: { status: "bad-request", reason: "claim already verified" },
+    });
     const result = await claimVerifyGist(VG_INPUT);
     expect(result.status).toBe("error");
     if (result.status === "error") {
