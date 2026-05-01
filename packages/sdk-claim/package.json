@@ -2,13 +2,18 @@
   "name": "@foxbook/sdk-claim",
   "version": "0.0.0",
   "private": true,
-  "description": "TypeScript reference SDK for Foxbook claim flow + verification. Six-function public surface (claimStart / claimVerifyGist / claimRevoke / verify / foxbookVerify / verifyAgentCard). Signatures + discriminated-union types committed; bodies stub throw('not implemented') — implementation in progress.",
+  "description": "TypeScript reference SDK for Foxbook claim flow + verification. Six-function public surface (claimStart / claimVerifyGist / claimRevoke / verify / foxbookVerify / verifyAgentCard).",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "echo 'no tests yet — signatures only, implementation in progress' && exit 0",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "lint": "biome lint ."
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.5",
+    "vitest": "^4.1.5"
   }
 }
