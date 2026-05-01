@@ -17,9 +17,8 @@
 // verification (objective, cryptographic) is kept separate from
 // reputation (subjective).
 
-import { merkle } from "@foxbook/core";
-
 import { DEFAULT_API_BASE, type Ed25519PublicKeyHex, type FoxbookDid } from "./claim.js";
+import { verifyInclusion } from "./merkle-internal.js";
 
 // Re-export so consumers and tests get DEFAULT_API_BASE from the same
 // surface as DEFAULT_WORKER_BASE without two import paths.
@@ -161,13 +160,7 @@ export async function verify(input: VerifyInput): Promise<VerifyResult> {
     return { valid: false, reason: e instanceof Error ? e.message : String(e) };
   }
 
-  const valid = merkle.verifyInclusion(
-    proofBytes,
-    inc.leafIndex,
-    leafBytes,
-    inc.treeSize,
-    rootInclBytes,
-  );
+  const valid = verifyInclusion(proofBytes, inc.leafIndex, leafBytes, inc.treeSize, rootInclBytes);
   if (!valid) {
     return { valid: false, reason: "merkle proof did not reconstruct to expected root" };
   }

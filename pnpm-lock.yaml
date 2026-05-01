@@ -204,9 +204,9 @@ importers:
 
   packages/sdk-claim:
     dependencies:
-      '@foxbook/core':
-        specifier: workspace:*
-        version: link:../../core
+      '@noble/hashes':
+        specifier: ^2.2.0
+        version: 2.2.0
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^4.1.5
