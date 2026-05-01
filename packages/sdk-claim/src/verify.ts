@@ -160,13 +160,7 @@ export async function verify(input: VerifyInput): Promise<VerifyResult> {
     return { valid: false, reason: e instanceof Error ? e.message : String(e) };
   }
 
-  const valid = verifyInclusion(
-    proofBytes,
-    inc.leafIndex,
-    leafBytes,
-    inc.treeSize,
-    rootInclBytes,
-  );
+  const valid = verifyInclusion(proofBytes, inc.leafIndex, leafBytes, inc.treeSize, rootInclBytes);
   if (!valid) {
     return { valid: false, reason: "merkle proof did not reconstruct to expected root" };
   }
