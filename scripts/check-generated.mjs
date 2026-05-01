@@ -28,6 +28,8 @@ const targets = [
   "packages/types-py/src/foxbook_types/x_foxbook.py",
   "packages/types-ts/src/agent-card.ts",
   "packages/types-py/src/foxbook_types/agent_card.py",
+  "packages/types-ts/src/claim-by-handle.ts",
+  "packages/types-py/src/foxbook_types/claim_by_handle.py",
 ];
 
 function snapshot() {

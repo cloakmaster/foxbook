@@ -6,6 +6,8 @@ import { jwsVerify, mintDid, sha256Hex } from "@foxbook/core";
 import { validateTlLeaf } from "@foxbook/validators";
 
 import type {
+  ClaimByHandleInput,
+  ClaimByHandleResult,
   ClaimRepository,
   ClaimRevokeInput,
   ClaimRevokeResult,
@@ -516,4 +518,66 @@ function mintNonceHex(): string {
   let s = "";
   for (let i = 0; i < bytes.length; i++) s += bytes[i]?.toString(16).padStart(2, "0");
   return s;
+}
+
+// ---- Read by handle (Day-9 PR-A2) ----
+
+const TIER_BY_STATE: Record<string, number> = {
+  unclaimed: 0,
+  gist_pending: 0,
+  tier1_verified: 1,
+  tier2_pending: 1,
+  tier2_verified: 2,
+};
+
+/**
+ * GET /api/v1/claim/by-handle/:asset_type/:asset_value handler.
+ *
+ * Read-only lookup. Returns the claim row + (when applicable) the
+ * latest agent-key-registration leaf_index in the transparency log.
+ * Revoked claims return `not-claimed` because their rows are deleted
+ * per ADR 0004 addendum-1.
+ */
+export async function claimByHandle(
+  input: ClaimByHandleInput,
+  deps: ClaimDeps,
+): Promise<ClaimByHandleResult> {
+  const claim = await deps.claimRepo.findByAsset(input.assetType, input.assetValue);
+  if (!claim) return { ok: false, status: "not-claimed" };
+
+  // tier-1+ claims have an agent-key-registration leaf in the
+  // transparency log. tier2+ claims also have one (the same one — the
+  // tier upgrade today is app-state-only per ADR 0004 addendum-1's
+  // tier-upgrade $defs filed for v1.1). Pre-tier1 states return null
+  // leafIndex.
+  const tier = TIER_BY_STATE[claim.state] ?? 0;
+  const leafIndex =
+    tier >= 1 ? await deps.claimRepo.findLatestLeafIndexForDid(claim.agentDid) : null;
+
+  return { ok: true, claim, leafIndex };
+}
+
+/** Map a ClaimByHandleResult success branch + worker base into the
+ *  schemas/claim-by-handle.v1.json shape. Pulled out so tests can
+ *  assert the shape independently of the route layer. */
+export function claimByHandleResponseShape(
+  result: Extract<ClaimByHandleResult, { ok: true }>,
+  workerBase: string,
+): Record<string, unknown> {
+  const { claim, leafIndex } = result;
+  const tier = TIER_BY_STATE[claim.state] ?? 0;
+  const body: Record<string, unknown> = {
+    asset_type: claim.assetType,
+    asset_value: claim.assetValue,
+    agent_did: claim.agentDid,
+    state: claim.state,
+    verification_tier: tier,
+    ed25519_public_key_hex: claim.ed25519PublicKeyHex,
+    revoked: false,
+  };
+  if (leafIndex !== null) {
+    body.leaf_index = leafIndex;
+    body.inclusion_proof_url = `${workerBase}/inclusion/${leafIndex}`;
+  }
+  return body;
 }

@@ -123,6 +123,12 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
+      ajv:
+        specifier: ^8.17.1
+        version: 8.18.0
+      ajv-formats:
+        specifier: ^3.0.1
+        version: 3.0.1(ajv@8.18.0)
       tsx:
         specifier: ^4.19.2
         version: 4.21.0
