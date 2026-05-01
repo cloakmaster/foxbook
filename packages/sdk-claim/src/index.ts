@@ -35,9 +35,10 @@ export {
 } from "./claim.js";
 
 export {
+  type AssetType,
   type ClaimedTier,
   DEFAULT_WORKER_BASE,
-  type FoxbookVerifyOptions,
+  type FoxbookVerifyInput,
   type FoxbookVerifyResult,
   foxbookVerify,
   type VerifiableAgentCard,

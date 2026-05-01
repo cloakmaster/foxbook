@@ -203,6 +203,10 @@ importers:
         version: 0.31.10
 
   packages/sdk-claim:
+    dependencies:
+      '@foxbook/core':
+        specifier: workspace:*
+        version: link:../../core
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^4.1.5
