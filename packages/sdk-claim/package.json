@@ -12,6 +12,9 @@
     "test:coverage": "vitest run --coverage",
     "lint": "biome lint ."
   },
+  "dependencies": {
+    "@foxbook/core": "workspace:*"
+  },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.5",
     "vitest": "^4.1.5"
