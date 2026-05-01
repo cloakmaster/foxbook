@@ -210,7 +210,10 @@ describe("verify", () => {
         ],
         [
           "https://transparency.foxbook.dev/root",
-          { status: 200, body: { rootHash: SINGLE_LEAF_HASH, leafCount: 1, publishedAt: "x", sthJws: "x" } },
+          {
+            status: 200,
+            body: { rootHash: SINGLE_LEAF_HASH, leafCount: 1, publishedAt: "x", sthJws: "x" },
+          },
         ],
       ]),
     );
@@ -257,7 +260,10 @@ describe("verify", () => {
         ],
         [
           "https://transparency.foxbook.dev/root",
-          { status: 200, body: { rootHash: SINGLE_LEAF_HASH, leafCount: 1, publishedAt: "x", sthJws: "x" } },
+          {
+            status: 200,
+            body: { rootHash: SINGLE_LEAF_HASH, leafCount: 1, publishedAt: "x", sthJws: "x" },
+          },
         ],
       ]),
     );
@@ -283,7 +289,10 @@ describe("verify", () => {
         ],
         [
           "https://transparency.foxbook.dev/root",
-          { status: 200, body: { rootHash: SINGLE_LEAF_HASH, leafCount: 1, publishedAt: "x", sthJws: "x" } },
+          {
+            status: 200,
+            body: { rootHash: SINGLE_LEAF_HASH, leafCount: 1, publishedAt: "x", sthJws: "x" },
+          },
         ],
       ]),
     );
@@ -311,7 +320,10 @@ describe("verify", () => {
         ],
         [
           "https://transparency.foxbook.dev/root",
-          { status: 200, body: { rootHash: TWO_LEAF_ROOT, leafCount: 1, publishedAt: "x", sthJws: "x" } },
+          {
+            status: 200,
+            body: { rootHash: TWO_LEAF_ROOT, leafCount: 1, publishedAt: "x", sthJws: "x" },
+          },
         ],
       ]),
     );
@@ -359,7 +371,10 @@ describe("foxbookVerify", () => {
       new Map([
         [
           "https://api.foxbook.dev/api/v1/claim/by-handle/github_handle/nobody",
-          { status: 404, body: { error: "not-claimed", asset_type: "github_handle", asset_value: "nobody" } },
+          {
+            status: 404,
+            body: { error: "not-claimed", asset_type: "github_handle", asset_value: "nobody" },
+          },
         ],
       ]),
     );
@@ -534,7 +549,8 @@ describe("verifyAgentCard", () => {
   it("returns unverified when card.handle is missing", async () => {
     const noHandle: VerifiableAgentCard = { "x-foxbook": { did: ALICE_DID } };
     const result = await verifyAgentCard(noHandle, { asset_type: "github_handle" });
-    if (result.status !== "unverified") throw new Error(`expected unverified, got ${result.status}`);
+    if (result.status !== "unverified")
+      throw new Error(`expected unverified, got ${result.status}`);
     expect(result.reason).toContain("handle missing");
   });
 
@@ -549,7 +565,8 @@ describe("verifyAgentCard", () => {
     );
     const noClaim: VerifiableAgentCard = { handle: "nobody", "x-foxbook": { did: ALICE_DID } };
     const result = await verifyAgentCard(noClaim, { asset_type: "github_handle" });
-    if (result.status !== "unverified") throw new Error(`expected unverified, got ${result.status}`);
+    if (result.status !== "unverified")
+      throw new Error(`expected unverified, got ${result.status}`);
     expect(result.reason).toContain("transparency log");
   });
 
@@ -630,7 +647,9 @@ describe("verifyAgentCard", () => {
       requireInclusionProof: false,
     });
     expect(result.status).toBe("verified");
-    expect(requestLog.map((r) => r.url)).not.toContain("https://transparency.foxbook.dev/inclusion/0");
+    expect(requestLog.map((r) => r.url)).not.toContain(
+      "https://transparency.foxbook.dev/inclusion/0",
+    );
   });
 
   it("requireFreshSTH: returns stale-proof when STH is older than threshold", async () => {
@@ -654,7 +673,8 @@ describe("verifyAgentCard", () => {
       asset_type: "github_handle",
       requireFreshSTH: 3600,
     });
-    if (result.status !== "stale-proof") throw new Error(`expected stale-proof, got ${result.status}`);
+    if (result.status !== "stale-proof")
+      throw new Error(`expected stale-proof, got ${result.status}`);
     expect(result.threshold_seconds).toBe(3600);
     expect(result.proof_age_seconds).toBeGreaterThan(3600);
   });
@@ -759,7 +779,10 @@ describe("verifyAgentCard", () => {
         ],
         [
           "https://staging-tx.foxbook.dev/root",
-          { status: 200, body: { rootHash: SINGLE_LEAF_HASH, leafCount: 1, publishedAt: "x", sthJws: "x" } },
+          {
+            status: 200,
+            body: { rootHash: SINGLE_LEAF_HASH, leafCount: 1, publishedAt: "x", sthJws: "x" },
+          },
         ],
       ]),
     );

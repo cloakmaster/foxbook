@@ -81,7 +81,9 @@ function decodeJwsPayload(token: string): Record<string, unknown> | null {
   const payloadB64 = parts[1];
   if (!payloadB64) return null;
   try {
-    const padded = payloadB64.replaceAll("-", "+").replaceAll("_", "/") + "===".slice((payloadB64.length + 3) % 4);
+    const padded =
+      payloadB64.replaceAll("-", "+").replaceAll("_", "/") +
+      "===".slice((payloadB64.length + 3) % 4);
     const raw = atob(padded);
     return JSON.parse(raw) as Record<string, unknown>;
   } catch {
