@@ -1,7 +1,7 @@
-// @foxbook/sdk-claim — TypeScript reference SDK for Foxbook claim
+// @foxbook/sdk-claim — TypeScript reference SDK for the Foxbook claim
 // flow + verification.
 //
-// Six-function public surface:
+// Six functions:
 //   * claimStart          POST /api/v1/claim/start
 //   * claimVerifyGist     POST /api/v1/claim/verify-gist (tier-1)
 //   * claimRevoke         POST /api/v1/claim/revoke
@@ -9,13 +9,15 @@
 //   * foxbookVerify       handle → {tier, revoked, did, leafIndex}
 //   * verifyAgentCard     runtime-safety gate before agent-to-agent calls
 //
-// Signatures + discriminated-union types committed. Function bodies
-// stub `throw new Error("not implemented")` while the implementation
-// is in progress.
+// All functions return discriminated unions. Network / non-JSON /
+// unexpected-HTTP paths fold into {status: "error"} (claim) or
+// {valid: false} (verify) so callers always get a typed result rather
+// than an exception.
 //
-// No numeric trust score in any return shape. The wrappers return
-// discriminated unions only — verification (objective, cryptographic)
-// is kept separate from reputation (subjective).
+// No numeric trust score in any return shape. Verification (objective,
+// cryptographic) is kept separate from reputation (subjective).
+//
+// See README.md for install + the A2A Discussion #1803 design context.
 
 export {
   type ClaimRevokeInput,
