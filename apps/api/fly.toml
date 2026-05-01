@@ -1,80 +1,97 @@
 # Fly.io config for api.foxbook.dev — apps/api Hono+Node server.
 #
 # =========================================================================
-# DEPLOY SEQUENCE (one-time setup; run from repo root):
+# DEPLOY SEQUENCE — IMPORTANT
+#
+# DO NOT use the Fly web-UI "Launch from GitHub" flow. It auto-detects
+# from the repo root, finds the Python `pyproject.toml` (uv workspace
+# root), and tries to build a Python deployable. That fails. Use the
+# local `flyctl` CLI with explicit --config + --dockerfile flags
+# pointed at this monorepo subdirectory, run from REPO ROOT.
+#
+# DO NOT add a `[build]` section here with `dockerfile = '<path>'`.
+# flyctl resolves that path relative to fly.toml's parent (apps/api/),
+# so `dockerfile = 'apps/api/Dockerfile'` becomes
+# `apps/api/apps/api/Dockerfile` — broken. Pass the dockerfile via
+# the `--dockerfile` CLI flag from repo root instead; flyctl resolves
+# CLI-flag paths relative to the working directory, AND uses the
+# working directory as the build context. Build context = repo root
+# is what our Dockerfile's `COPY . .` needs to resolve workspace deps.
+#
+# The correct sequence — all from REPO ROOT:
 #
 #   1. flyctl auth login
 #        Authenticates the local flyctl CLI against your Fly account.
 #
-#   2. cd apps/api && flyctl launch --no-deploy --copy-config
-#        Registers the foxbook-api app with Fly. --no-deploy skips the
-#        initial deploy until secrets are set (step 3). --copy-config
-#        keeps this fly.toml as authoritative rather than regenerating.
-#        Skip the prompts to add postgres/redis (we use Neon externally).
+#   2. flyctl launch --no-deploy --copy-config \
+#        --config apps/api/fly.toml \
+#        --dockerfile apps/api/Dockerfile
+#        Registers the foxbook-api app. --no-deploy skips the deploy
+#        until secrets are set. --copy-config keeps this fly.toml
+#        authoritative (flyctl will REWRITE comments on launch — be
+#        prepared to restore them post-launch). --config + --dockerfile
+#        point at our monorepo subpaths so Fly doesn't auto-detect from
+#        the repo root.
 #
-#   3. flyctl secrets set \
-#        DATABASE_URL='<neon-pooled-url>' \
-#        DATABASE_URL_DIRECT='<neon-non-pooled-url>' \
+#   3. flyctl secrets set DATABASE_URL='<pooled>' \
+#        DATABASE_URL_DIRECT='<non-pooled>' \
 #        RESEND_API_KEY='<re_…>' \
-#        FOXBOOK_LOG_SIGNING_KEY_HEX='<64-char-hex>'
-#        Sets four secrets in Fly's encrypted secret store. NEVER add
-#        these as [env] entries below — they'd land in the image, on
-#        the dashboard, and in any deploy log. The four names match
-#        what apps/api/src/main.ts reads via process.env.*.
+#        FOXBOOK_LOG_SIGNING_KEY_HEX='<64-char-hex>' \
+#        --app foxbook-api
+#        Four secrets in Fly's encrypted store. NEVER add as [env].
 #
-#   4. DNS: in Cloudflare (or whoever runs foxbook.dev), add CNAME
-#        api.foxbook.dev → <foxbook-api>.fly.dev
-#        Fly gives the .fly.dev target after the first deploy.
+#   4. flyctl ips allocate-v4 --shared --app foxbook-api
+#      flyctl ips allocate-v6 --app foxbook-api
+#        Newer Fly apps don't auto-allocate public IPs at launch.
+#        Cert validation needs them. Shared IPv4 + dedicated IPv6
+#        are both free.
 #
-#   5. flyctl certs create api.foxbook.dev
-#        Provisions the cert. Wait for cert validation (typically
-#        1-5 minutes; check with `flyctl certs show api.foxbook.dev`).
+#   5. DNS: in Cloudflare, add CNAME api → foxbook-api.fly.dev,
+#      proxy status DNS-only (gray cloud, NOT orange-proxied).
+#      Cloudflare's proxy hides the real Fly IP and breaks Fly's
+#      cert validation.
 #
-#   6. ./scripts/deploy-api.sh
-#        First production deploy. Subsequent deploys: same script, OR
-#        push a tag matching `v*-api` to trigger the GitHub Action at
+#   6. flyctl certs create api.foxbook.dev --app foxbook-api
+#      flyctl certs check api.foxbook.dev --app foxbook-api
+#        Wait until Status = Issued (typically 1-5 minutes).
+#
+#   7. ./scripts/deploy-api.sh
+#        First production deploy. Subsequent deploys: same script,
+#        OR push a tag matching `v*-api` to trigger
 #        .github/workflows/deploy-api.yml.
+#
+# Recovery from a failed web-UI launch attempt:
+#   flyctl apps destroy foxbook-api
+#   then restart from step 2 above.
 #
 # Verify after deploy:
 #   curl -sS https://api.foxbook.dev/healthz | jq
 #   curl -sS https://api.foxbook.dev/.well-known/foxbook.json | jq
 # Expected: HTTP 200 + the documented JSON shapes (see server.ts).
 #
-# Secrets MUST be in the secret store, NOT [env] below. If you ever
-# add DATABASE_URL or FOXBOOK_LOG_SIGNING_KEY_HEX to [env], that's a
-# credential leak — same rule the Worker's wrangler.toml enforces.
+# Secrets MUST be in the secret store. NEVER add DATABASE_URL or
+# FOXBOOK_LOG_SIGNING_KEY_HEX as [env] entries — that's a credential
+# leak (same rule as the Worker's wrangler.toml).
 # =========================================================================
 
-app = "foxbook-api"
-
-# Region: Fra (Frankfurt) is a reasonable default for low-latency
-# access from Europe; change to "iad" / "lhr" / wherever Benjamin's
-# Fly account latency is best. Fly account-level config can override.
-primary_region = "fra"
-
-[build]
-  dockerfile = "Dockerfile"
-
-# No [env] section by design. All runtime config flows through
-# secrets (DATABASE_URL, DATABASE_URL_DIRECT, RESEND_API_KEY,
-# FOXBOOK_LOG_SIGNING_KEY_HEX). PORT is set by Fly.
+app = 'foxbook-api'
+primary_region = 'fra'
 
 [http_service]
   internal_port = 8787
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   # Keep one machine warm so /healthz never cold-starts a check.
-  # 256MB shared-cpu-1x is the free-tier sweet spot.
   min_machines_running = 1
 
   [[http_service.checks]]
-    grace_period = "10s"
-    interval = "30s"
-    method = "GET"
-    timeout = "5s"
-    path = "/healthz"
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/healthz'
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "256mb"
+  size = 'shared-cpu-1x'
+  memory = '256mb'
