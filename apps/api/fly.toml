@@ -1,22 +1,41 @@
 # Fly.io config for api.foxbook.dev — apps/api Hono+Node server.
 #
 # =========================================================================
-# DEPLOY SEQUENCE (one-time setup; run from repo root):
+# DEPLOY SEQUENCE — IMPORTANT
+#
+# DO NOT use the Fly web-UI "Launch from GitHub" flow. It auto-detects
+# from the repo root, finds the Python `pyproject.toml` (uv workspace
+# root), and tries to build a Python deployable. That fails. Use the
+# local `flyctl` CLI with explicit --config + --dockerfile flags
+# pointed at this monorepo subdirectory.
+#
+# DO NOT `cd apps/api && flyctl launch` either. The Dockerfile's
+# `COPY . .` requires the build context to be the REPO ROOT (so pnpm
+# can resolve workspace deps). Running flyctl from `apps/api/` makes
+# the context `apps/api/` only, and `pnpm install --filter @foxbook/api...`
+# fails on missing pnpm-workspace.yaml + sibling packages.
+#
+# The correct sequence — all from REPO ROOT:
 #
 #   1. flyctl auth login
 #        Authenticates the local flyctl CLI against your Fly account.
 #
-#   2. cd apps/api && flyctl launch --no-deploy --copy-config
-#        Registers the foxbook-api app with Fly. --no-deploy skips the
-#        initial deploy until secrets are set (step 3). --copy-config
-#        keeps this fly.toml as authoritative rather than regenerating.
+#   2. flyctl launch --no-deploy --copy-config \
+#        --config apps/api/fly.toml \
+#        --dockerfile apps/api/Dockerfile
+#        Registers the foxbook-api app. --no-deploy skips the deploy
+#        until secrets are set (step 3). --copy-config keeps this
+#        fly.toml authoritative. --config + --dockerfile point at our
+#        monorepo subpaths so Fly doesn't auto-detect from the repo
+#        root (which would find pyproject.toml and try to build Python).
 #        Skip the prompts to add postgres/redis (we use Neon externally).
 #
 #   3. flyctl secrets set \
 #        DATABASE_URL='<neon-pooled-url>' \
 #        DATABASE_URL_DIRECT='<neon-non-pooled-url>' \
 #        RESEND_API_KEY='<re_…>' \
-#        FOXBOOK_LOG_SIGNING_KEY_HEX='<64-char-hex>'
+#        FOXBOOK_LOG_SIGNING_KEY_HEX='<64-char-hex>' \
+#        --app foxbook-api
 #        Sets four secrets in Fly's encrypted secret store. NEVER add
 #        these as [env] entries below — they'd land in the image, on
 #        the dashboard, and in any deploy log. The four names match
@@ -24,16 +43,22 @@
 #
 #   4. DNS: in Cloudflare (or whoever runs foxbook.dev), add CNAME
 #        api.foxbook.dev → <foxbook-api>.fly.dev
-#        Fly gives the .fly.dev target after the first deploy.
+#        Fly gives the .fly.dev target after step 2.
 #
-#   5. flyctl certs create api.foxbook.dev
+#   5. flyctl certs create api.foxbook.dev --app foxbook-api
 #        Provisions the cert. Wait for cert validation (typically
-#        1-5 minutes; check with `flyctl certs show api.foxbook.dev`).
+#        1-5 minutes; check with
+#        `flyctl certs show api.foxbook.dev --app foxbook-api`).
 #
 #   6. ./scripts/deploy-api.sh
-#        First production deploy. Subsequent deploys: same script, OR
-#        push a tag matching `v*-api` to trigger the GitHub Action at
-#        .github/workflows/deploy-api.yml.
+#        First production deploy. The script invokes flyctl deploy
+#        with the correct --config + --dockerfile flags from repo
+#        root. Subsequent deploys: same script, OR push a tag
+#        matching `v*-api` to trigger .github/workflows/deploy-api.yml.
+#
+# Recovery from a failed web-UI launch attempt:
+#   flyctl apps destroy foxbook-api  # if a half-broken app got registered
+#   then restart from step 2 above.
 #
 # Verify after deploy:
 #   curl -sS https://api.foxbook.dev/healthz | jq
