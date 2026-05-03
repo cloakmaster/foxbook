@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { validateTlLeaf } from "../src/index.js";
-import { validAgentKeyRegistrationLeaf, validRevocationLeaf } from "./fixtures.js";
+import {
+  validAgentKeyRegistrationLeaf,
+  validRevocationLeaf,
+  validSigningKeyRegistrationLeaf,
+} from "./fixtures.js";
 
 describe("validateTlLeaf — v1.0 shape (agent-key-registration)", () => {
   it("accepts a canonical agent-key-registration leaf", () => {
@@ -131,6 +135,86 @@ describe("validateTlLeaf — v1.1 shape (revocation, ADR 0004 additive bump)", (
     const r = validateTlLeaf({
       ...validRevocationLeaf,
       leaf_type: "agent-key-registration",
+    });
+    expect(r.valid).toBe(false);
+  });
+});
+
+describe("validateTlLeaf — v1.2 shape (signing-key-registration, ADR 0004 additive bump)", () => {
+  it("accepts a canonical signing-key-registration leaf", () => {
+    const r = validateTlLeaf(validSigningKeyRegistrationLeaf);
+    expect(r.valid).toBe(true);
+  });
+
+  it("rejects when prior_ed25519_public_key_hex has wrong length", () => {
+    const r = validateTlLeaf({
+      ...validSigningKeyRegistrationLeaf,
+      prior_ed25519_public_key_hex: "abc",
+    });
+    expect(r.valid).toBe(false);
+  });
+
+  it("rejects when new_ed25519_public_key_hex is missing", () => {
+    const leaf = { ...validSigningKeyRegistrationLeaf } as Record<string, unknown>;
+    delete leaf.new_ed25519_public_key_hex;
+    const r = validateTlLeaf(leaf);
+    expect(r.valid).toBe(false);
+  });
+
+  it("rejects when recovery_key_signature is not a 3-segment compact-JWS", () => {
+    const r = validateTlLeaf({
+      ...validSigningKeyRegistrationLeaf,
+      recovery_key_signature: "not-a-jws",
+    });
+    expect(r.valid).toBe(false);
+  });
+
+  it("rejects when published_at is not ISO-8601", () => {
+    const r = validateTlLeaf({
+      ...validSigningKeyRegistrationLeaf,
+      published_at: "today",
+    });
+    expect(r.valid).toBe(false);
+  });
+
+  it("rejects when did is missing", () => {
+    const leaf = { ...validSigningKeyRegistrationLeaf } as Record<string, unknown>;
+    delete leaf.did;
+    const r = validateTlLeaf(leaf);
+    expect(r.valid).toBe(false);
+  });
+
+  it("rejects additional properties (taxonomy is closed for v1)", () => {
+    const r = validateTlLeaf({
+      ...validSigningKeyRegistrationLeaf,
+      extra: "nope",
+    });
+    expect(r.valid).toBe(false);
+  });
+
+  it("rejects an agent-key-registration leaf relabelled with leaf_type=signing-key-registration (oneOf strictness)", () => {
+    // Type-confusion defence: structural fields don't match the rotation shape.
+    const r = validateTlLeaf({
+      ...validAgentKeyRegistrationLeaf,
+      leaf_type: "signing-key-registration",
+    });
+    expect(r.valid).toBe(false);
+  });
+
+  it("rejects a signing-key-registration leaf relabelled with leaf_type=agent-key-registration (inverse type-confusion)", () => {
+    const r = validateTlLeaf({
+      ...validSigningKeyRegistrationLeaf,
+      leaf_type: "agent-key-registration",
+    });
+    expect(r.valid).toBe(false);
+  });
+
+  it("rejects a signing-key-registration leaf relabelled with leaf_type=revocation (cross-rotation/revocation type-confusion)", () => {
+    // Both shapes are recovery-key-signed but have different field sets;
+    // a rotation payload mislabelled as revocation must not validate.
+    const r = validateTlLeaf({
+      ...validSigningKeyRegistrationLeaf,
+      leaf_type: "revocation",
     });
     expect(r.valid).toBe(false);
   });

@@ -2,8 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://foxbook.dev/schemas/tl-leaf/v1.json",
   "title": "Foxbook transparency-log leaf taxonomy (v1)",
-  "description": "The set of event shapes written to tl_leaves.leaf_data. Schema revisions (additive within v1.x per ADR 0004; $id never changes):\n  - v1.0 — `agent-key-registration` only.\n  - v1.1 — adds `revocation` per Day-6 PR B (ADR 0004 addendum-1: delete-on-revoke; recovery-key-signed leaf body via canonical.ts per ADR 0005).\nExplicit deferrals (must not land silently before their target):\n  - `claim-event` (shape TBD) → Day 5+, pairs with the claim flow state machine.\n  - `key-rotation` → Day 7, pairs with the recovery-key harness per foundation §6.6.\n  - `manifest-version-diff` → week 2+, after manifests_versions has callers.\n  - `tier-upgrade` → v1.1+ (filed for v1.1 to close the Tier-2 attestability asymmetry per Day-6 PR C body).\n  - Firehose `hire.settled`/`hire.failed`/`delegation.announced`/`claim.verified`/`revocation.recorded` events are NOT leaves — they live in firehose_events and reference leaves by inclusion proof.\nAll leaf shapes $ref shared primitives in x-foxbook.v1.json (did, ed25519PublicKeyHex, recoveryKeyFingerprint) rather than redefining them — prevents the \"two definitions of did\" drift bug.",
-  "oneOf": [{ "$ref": "#/$defs/agentKeyRegistration" }, { "$ref": "#/$defs/revocation" }],
+  "description": "The set of event shapes written to tl_leaves.leaf_data. Schema revisions (additive within v1.x per ADR 0004; $id never changes):\n  - v1.0 — `agent-key-registration` only.\n  - v1.1 — adds `revocation` per Day-6 PR B (ADR 0004 addendum-1: delete-on-revoke; recovery-key-signed leaf body via canonical.ts per ADR 0005).\n  - v1.2 — adds `signing-key-registration` (signing-key rotation; recovery-key-signed; same DID, new ed25519 public key). Pins the shape ahead of the rotation flow's implementation per public commitment on A2A Discussion #1803 (desiorac thread, 2026-04-30T10:53Z). The flow itself lands in a follow-up PR.\nExplicit deferrals (must not land silently before their target):\n  - `claim-event` (shape TBD) → Day 5+, pairs with the claim flow state machine.\n  - `manifest-version-diff` → week 2+, after manifests_versions has callers.\n  - `tier-upgrade` → v1.1+ (filed for v1.1 to close the Tier-2 attestability asymmetry per Day-6 PR C body).\n  - Firehose `hire.settled`/`hire.failed`/`delegation.announced`/`claim.verified`/`revocation.recorded` events are NOT leaves — they live in firehose_events and reference leaves by inclusion proof.\nAll leaf shapes $ref shared primitives in x-foxbook.v1.json (did, ed25519PublicKeyHex, recoveryKeyFingerprint) rather than redefining them — prevents the \"two definitions of did\" drift bug.",
+  "oneOf": [
+    { "$ref": "#/$defs/agentKeyRegistration" },
+    { "$ref": "#/$defs/revocation" },
+    { "$ref": "#/$defs/signingKeyRegistration" }
+  ],
   "$defs": {
     "agentKeyRegistration": {
       "type": "object",
@@ -55,6 +59,37 @@
           "enum": ["key_compromise", "owner_request", "superseded"],
           "description": "Optional; absent in the canonical signing input when omitted (canonical.ts skips undefined keys). Additive per ADR 0003 — adding new reason codes is in-place v1.x; removing values is breaking and requires a v2 schema."
         }
+      }
+    },
+    "signingKeyRegistration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "leaf_type",
+        "did",
+        "prior_ed25519_public_key_hex",
+        "new_ed25519_public_key_hex",
+        "recovery_key_signature",
+        "published_at"
+      ],
+      "description": "Signing-key rotation leaf. Registers a NEW agent signing key for an EXISTING DID, replacing prior_ed25519_public_key_hex with new_ed25519_public_key_hex. Recovery-key-signed by the recovery-key whose SHA-256 fingerprint matches the prior agent-key-registration leaf's recovery_key_fingerprint (the recovery key itself is the durable identity anchor; signing keys rotate, the recovery key does not). The verifier resolves the prior leaf via (did, prior_ed25519_public_key_hex) and validates the JWS against that leaf's recovery_key_fingerprint.",
+      "properties": {
+        "leaf_type": { "type": "string", "const": "signing-key-registration" },
+        "did": { "$ref": "https://foxbook.dev/schemas/x-foxbook/v1.json#/$defs/did" },
+        "prior_ed25519_public_key_hex": {
+          "$ref": "https://foxbook.dev/schemas/x-foxbook/v1.json#/$defs/ed25519PublicKeyHex",
+          "description": "The ed25519_public_key_hex from a prior agent-key-registration (or signing-key-registration) leaf at the same `did`. Pointer-like binding to the leaf being rotated FROM."
+        },
+        "new_ed25519_public_key_hex": {
+          "$ref": "https://foxbook.dev/schemas/x-foxbook/v1.json#/$defs/ed25519PublicKeyHex",
+          "description": "The new agent signing key being registered. After this leaf is appended + included in an STH, AgentCards signed with this key validate as `verified` for the same DID; cards still signed with prior_ed25519_public_key_hex validate as `unverified` with reason_code `superseded`."
+        },
+        "recovery_key_signature": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$",
+          "description": "Compact-JWS EdDSA signature over canonical.ts({leaf_type, did, prior_ed25519_public_key_hex, new_ed25519_public_key_hex, published_at}) — every leaf field except this signature itself. Mirrors the revocation leaf's signing input convention so the verifier walks one canonical-bytes algorithm regardless of leaf_type."
+        },
+        "published_at": { "type": "string", "format": "date-time" }
       }
     }
   }
