@@ -18,9 +18,7 @@ includes (non-exhaustive):
   similar in a way that suggests endorsement or origin.
 - Marketing a commercial verification service under the Foxbook name.
 - Using the Foxbook logo on a website that's not the canonical
-  reference deployment (a project landing page at
-  [foxbook.dev](https://foxbook.dev) — currently DNS-only;
-  landing-page content lands week-2).
+  reference deployment at [foxbook.dev](https://foxbook.dev).
 
 **What's explicitly OK without permission:**
 

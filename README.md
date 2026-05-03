@@ -71,6 +71,8 @@ A2A and MCP both opened discussions about trust between agents — composable ev
 
 ## Status
 
+**Stable / maintenance mode** ([ADR 0008](docs/decisions/0008-stable-mode-maintenance-posture.md)). Public commitments shipped; protocol surface frozen at v0.2; live deployments + brand + ops continuity preserved. PRs welcome for bug fixes and docs; review may take weeks. Security: `security@foxbook.dev`.
+
 **Live**
 
 - Public transparency log: signed tree head per append, consistency proofs.
@@ -78,14 +80,13 @@ A2A and MCP both opened discussions about trust between agents — composable ev
 - Tier-2 verification via DNS TXT and signed-nonce endpoint challenge.
 - Recovery-key signed revocation: atomic across leaf append and claim delete. Observed at 467ms wall-clock against live Postgres (single-run benchmark).
 - Firehose stream: 20ms median commit-to-receive latency (single-run benchmark).
-- 173 in-process tests, 4 gated integration tests.
+- `@foxbook/sdk-claim@0.2.0` on npm — six-function reference SDK with `verified_signing_key_hex` on the verified branch + structured `reason_code` on the unverified branch.
+- Registered as `evidence_provider` on the identity-layer slot at [`agentgraph.co/.well-known/interop-harness.json`](https://agentgraph.co/.well-known/interop-harness.json) with CTEF v0.3.1 byte-match validation (4/4 vectors).
 
-**Not yet live**
+**Not in scope under stable mode**
 
-- SDK npm publish (signatures committed; implementation in progress).
-- MCP server (in progress).
-- Production WAN load test (planned).
-- Multi-vendor federated logs (the protocol contract is identical; bring your own deployment).
+- New protocol features, new SDK functions, new endpoints, new schema shapes. Per [ADR 0008](docs/decisions/0008-stable-mode-maintenance-posture.md). Forks under different names that extend the protocol are welcome (see [TRADEMARK.md](TRADEMARK.md)).
+- Multi-vendor federated logs (the protocol contract is identical; bring your own deployment under your own name).
 
 ---
 

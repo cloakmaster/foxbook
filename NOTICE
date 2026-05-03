@@ -1,0 +1,23 @@
+Foxbook
+Copyright 2026 Benjamin Bandali
+
+This product includes software developed at the Foxbook canonical
+implementation, hosted at https://github.com/cloakmaster/foxbook
+and maintained by Benjamin Bandali (@cloakmaster).
+
+The Foxbook protocol and reference implementation are licensed
+under the Apache License, Version 2.0 (see LICENSE). The
+"Foxbook" name and logo are protected trademarks; use in
+association with derived implementations, competing services, or
+commercial offerings requires written permission. See TRADEMARK.md.
+
+Canonical deployments:
+  - https://transparency.foxbook.dev/  (Cloudflare Workers — read endpoints, RFC 9162-shaped)
+  - https://api.foxbook.dev/            (Fly.io — claim flow + by-handle lookup)
+  - https://foxbook.dev/                (Cloudflare Pages — project landing)
+
+Cross-implementation reference status:
+  - Registered as evidence_provider on the identity-layer slot at
+    https://agentgraph.co/.well-known/interop-harness.json
+  - CTEF v0.3.1 byte-match validation (4/4 vectors) at
+    ops/evidence/2026-04-30-ctef-v0.3.1-byte-match.md (commit 9e392c5)
