@@ -4,7 +4,7 @@ Foxbook is in **stable / maintenance mode** (per [ADR 0008](docs/decisions/0008-
 
 ## What's welcome
 
-- **Bug reports.** Open an issue. Include the reproduction, the expected behavior, and what you observed. Security issues: email `security@foxbook.dev` rather than opening a public issue.
+- **Bug reports.** Open an issue. Include the reproduction, the expected behavior, and what you observed. Security issues: email `hello@foxbook.dev` rather than opening a public issue.
 - **Documentation fixes** (typos, broken links, clearer explanations). Open a PR; review may take weeks but it'll land.
 - **Test additions** that exercise existing surfaces without changing them.
 - **Forks under a different name** that extend the protocol. The Apache 2.0 license is permissive by design; the trademark on the **Foxbook** name is separate (see [TRADEMARK.md](TRADEMARK.md)). Rename your fork and you're welcome.
@@ -21,7 +21,7 @@ Maintainer focus is elsewhere. PRs are reviewed in batches; expect weeks, not da
 
 ## Security
 
-Email `security@foxbook.dev` for vulnerability reports. Do not open public issues for security-sensitive findings. Coordinated disclosure preferred; specific timeline negotiable.
+Email `hello@foxbook.dev` for vulnerability reports. Do not open public issues for security-sensitive findings. Coordinated disclosure preferred; specific timeline negotiable.
 
 ## Code style
 

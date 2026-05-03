@@ -119,7 +119,7 @@ The `unverified` branch carries an optional structured `reason_code` (`handle-no
 
 - **`/root` returns 5xx**: Cloudflare Worker is occasionally redeployed. Retry after 30 seconds. If it persists, see [OPERATIONS.md](OPERATIONS.md).
 - **`/inclusion/:i` returns 404**: the leaf index doesn't exist yet (try `i = 0` or smaller; current leaf count is in `/root` response).
-- **SDK reports `inclusion proof failed`**: the served root and the reconstructed root don't match — this would be a real protocol violation and worth filing as a security issue at `security@foxbook.dev`.
+- **SDK reports `inclusion proof failed`**: the served root and the reconstructed root don't match — this would be a real protocol violation and worth filing as a security issue at `hello@foxbook.dev`.
 
 ## Going deeper
 
