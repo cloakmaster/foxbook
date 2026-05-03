@@ -48,6 +48,7 @@ export {
   type VerifyAgentCardResult,
   type VerifyInput,
   type VerifyResult,
+  type VerifyUnverifiedReasonCode,
   verify,
   verifyAgentCard,
 } from "./verify.js";

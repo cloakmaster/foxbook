@@ -197,9 +197,22 @@ export type ClaimedTier = 1 | 2 | 3;
  * Result shape. Returns verification status only — never a numeric
  * trust score. Aggregate reputation/scoring belongs in a separate
  * surface above this primitive.
+ *
+ * v0.2 — `verified_signing_key_hex` is the agent's currently-active
+ * Ed25519 signing key (lowercase hex, 64 chars) sourced from the
+ * latest agent-key-registration / signing-key-registration leaf for
+ * this DID. Surfaced on the tier-bearing branch so an enforcement
+ * gateway can verify an AgentCard's JWS signature without a second
+ * lookup against the by-handle endpoint.
  */
 export type FoxbookVerifyResult =
-  | { tier: ClaimedTier; revoked: boolean; did: FoxbookDid; leafIndex: number | null }
+  | {
+      tier: ClaimedTier;
+      revoked: boolean;
+      did: FoxbookDid;
+      leafIndex: number | null;
+      verified_signing_key_hex: Ed25519PublicKeyHex;
+    }
   | { status: "not-claimed" }
   | { status: "error"; reason: string };
 
@@ -229,7 +242,8 @@ export async function foxbookVerify(input: FoxbookVerifyInput): Promise<FoxbookV
   if (
     typeof b.agent_did !== "string" ||
     typeof b.verification_tier !== "number" ||
-    typeof b.revoked !== "boolean"
+    typeof b.revoked !== "boolean" ||
+    typeof b.ed25519_public_key_hex !== "string"
   ) {
     return { status: "error", reason: "by-handle response missing required fields" };
   }
@@ -245,6 +259,7 @@ export async function foxbookVerify(input: FoxbookVerifyInput): Promise<FoxbookV
     revoked: b.revoked,
     did: b.agent_did as FoxbookDid,
     leafIndex,
+    verified_signing_key_hex: b.ed25519_public_key_hex as Ed25519PublicKeyHex,
   };
 }
 
@@ -289,20 +304,58 @@ export type VerifyAgentCardOptions = {
 };
 
 /**
+ * Structured discriminator on `unverified` outcomes. Lets callers
+ * distinguish retry-decisionable failures (`key-not-yet-logged` —
+ * the rotation leaf hasn't appended yet, retry shortly) from
+ * hard-blocks (`handle-not-claimed`, `inclusion-proof-failed`,
+ * `card-malformed`).
+ *
+ * `key-not-yet-logged` is reserved for the rotation transition
+ * window once the rotation flow lands (tl-leaf.v1.json v1.2 +
+ * ADR 0004 addendum-3): an AgentCard signed with a new key whose
+ * signing-key-registration leaf has been written but isn't yet in
+ * the latest STH. Callers SHOULD retry after a short delay rather
+ * than permanent-block.
+ *
+ * Additive across SDK minor versions per ADR 0003 spirit — adding
+ * new reason_code values is in-place v0.x; removing values would
+ * require a major bump.
+ */
+export type VerifyUnverifiedReasonCode =
+  | "handle-not-claimed"
+  | "inclusion-proof-failed"
+  | "key-not-yet-logged"
+  | "card-malformed";
+
+/**
  * Four-way discriminated outcome. Maps to the caller's policy gate as:
  *
  *   verified         → allowed
- *   unverified       → blocked
+ *   unverified       → blocked (or retry, if reason_code = key-not-yet-logged)
  *   handle-mismatch  → blocked (the card claims a handle the
  *                       transparency log does NOT attest)
  *   stale-proof      → warning (caller decides; e.g. refresh + retry)
  *
  * No numeric trust score in any branch. The four discriminated
  * outcomes are the entire surface.
+ *
+ * v0.2 additions:
+ *  - `verified.verified_signing_key_hex`: the agent's active signing
+ *    key, propagated from foxbookVerify; lets the gateway verify the
+ *    AgentCard's JWS in one call.
+ *  - `unverified.reason_code` (optional): structured discriminator
+ *    for retry-vs-block decisioning. `reason` (free-form string)
+ *    remains for v0.1 backward compat.
  */
 export type VerifyAgentCardResult =
-  | { status: "verified"; tier: ClaimedTier; did: FoxbookDid; leafIndex: number | null }
-  | { status: "unverified"; reason: string }
+  | {
+      status: "verified";
+      tier: ClaimedTier;
+      did: FoxbookDid;
+      leafIndex: number | null;
+      verified_signing_key_hex: Ed25519PublicKeyHex;
+    }
+  | { status: "unverified"; reason: string; reason_code?: VerifyUnverifiedReasonCode }
   | { status: "handle-mismatch"; claimed_handle: string; card_handle: string }
   | {
       status: "stale-proof";
@@ -338,7 +391,7 @@ export async function verifyAgentCard(
   const cardHandle = card.handle;
   const cardDid = card["x-foxbook"]?.did;
   if (!cardHandle) {
-    return { status: "unverified", reason: "card.handle missing" };
+    return { status: "unverified", reason: "card.handle missing", reason_code: "card-malformed" };
   }
 
   const verifyOpts: { asset_type: AssetType; asset_value: string; apiBase?: string } = {
@@ -350,7 +403,11 @@ export async function verifyAgentCard(
   const lookup = await foxbookVerify(verifyOpts);
   if ("status" in lookup) {
     if (lookup.status === "not-claimed") {
-      return { status: "unverified", reason: "handle not in transparency log" };
+      return {
+        status: "unverified",
+        reason: "handle not in transparency log",
+        reason_code: "handle-not-claimed",
+      };
     }
     return { status: "unverified", reason: `lookup error: ${lookup.reason}` };
   }
@@ -371,13 +428,21 @@ export async function verifyAgentCard(
   const requireInclusionProof = options.requireInclusionProof ?? true;
   if (requireInclusionProof) {
     if (lookup.leafIndex === null) {
-      return { status: "unverified", reason: "claim has no inclusion-proof leaf yet" };
+      return {
+        status: "unverified",
+        reason: "claim has no inclusion-proof leaf yet",
+        reason_code: "inclusion-proof-failed",
+      };
     }
     const verifyInput: VerifyInput = { leaf_index: lookup.leafIndex };
     if (options.worker_base !== undefined) verifyInput.worker_base = options.worker_base;
     const inclusion = await verify(verifyInput);
     if (!inclusion.valid) {
-      return { status: "unverified", reason: `inclusion proof failed: ${inclusion.reason}` };
+      return {
+        status: "unverified",
+        reason: `inclusion proof failed: ${inclusion.reason}`,
+        reason_code: "inclusion-proof-failed",
+      };
     }
   }
 
@@ -423,5 +488,6 @@ export async function verifyAgentCard(
     tier: lookup.tier,
     did: lookup.did,
     leafIndex: lookup.leafIndex,
+    verified_signing_key_hex: lookup.verified_signing_key_hex,
   };
 }
