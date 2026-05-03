@@ -364,6 +364,36 @@ describe("foxbookVerify", () => {
     expect(result.revoked).toBe(false);
     expect(result.did).toBe("did:foxbook:01H8XS4WHV8YNGSZPQ5XK9QR6M");
     expect(result.leafIndex).toBe(7);
+    // v0.2: the active signing key is surfaced on the tier-bearing branch
+    // so a gateway can verify the AgentCard's JWS in one call.
+    expect(result.verified_signing_key_hex).toBe("f".repeat(64));
+  });
+
+  it("v0.2: returns error when by-handle response is missing ed25519_public_key_hex", async () => {
+    stubFetchByUrl(
+      new Map([
+        [
+          "https://api.foxbook.dev/api/v1/claim/by-handle/github_handle/alice",
+          {
+            status: 200,
+            body: {
+              asset_type: "github_handle",
+              asset_value: "alice",
+              agent_did: "did:foxbook:01H8XS4WHV8YNGSZPQ5XK9QR6M",
+              state: "tier1_verified",
+              verification_tier: 1,
+              // ed25519_public_key_hex omitted — required since v0.2
+              revoked: false,
+              leaf_index: 7,
+            },
+          },
+        ],
+      ]),
+    );
+    const result = await foxbookVerify({ asset_type: "github_handle", asset_value: "alice" });
+    if (!("status" in result) || result.status !== "error") {
+      throw new Error("expected error result for missing ed25519_public_key_hex");
+    }
   });
 
   it("returns not-claimed on 404", async () => {
@@ -544,6 +574,9 @@ describe("verifyAgentCard", () => {
     expect(result.tier).toBe(1);
     expect(result.did).toBe(ALICE_DID);
     expect(result.leafIndex).toBe(0);
+    // v0.2: verified branch carries the active signing key so the
+    // gateway can verify the AgentCard's JWS without a second lookup.
+    expect(result.verified_signing_key_hex).toBe("f".repeat(64));
   });
 
   it("returns unverified when card.handle is missing", async () => {
@@ -552,6 +585,9 @@ describe("verifyAgentCard", () => {
     if (result.status !== "unverified")
       throw new Error(`expected unverified, got ${result.status}`);
     expect(result.reason).toContain("handle missing");
+    // v0.2: structured reason_code lets callers branch without parsing
+    // the free-form reason string.
+    expect(result.reason_code).toBe("card-malformed");
   });
 
   it("returns unverified when by-handle returns 404", async () => {
@@ -568,6 +604,7 @@ describe("verifyAgentCard", () => {
     if (result.status !== "unverified")
       throw new Error(`expected unverified, got ${result.status}`);
     expect(result.reason).toContain("transparency log");
+    expect(result.reason_code).toBe("handle-not-claimed");
   });
 
   it("returns handle-mismatch when card.x-foxbook.did differs from log's agent_did", async () => {
@@ -617,6 +654,8 @@ describe("verifyAgentCard", () => {
     );
     const result = await verifyAgentCard(aliceCard, { asset_type: "github_handle" });
     expect(result.status).toBe("unverified");
+    if (result.status !== "unverified") throw new Error("unreachable");
+    expect(result.reason_code).toBe("inclusion-proof-failed");
   });
 
   it("requireInclusionProof=false: skips the proof fetch", async () => {

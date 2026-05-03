@@ -32,9 +32,13 @@ if (result.status !== "verified") {
 | Outcome | Meaning | Mapping |
 |---|---|---|
 | `verified` | Card's handle is in the transparency log AND inclusion proof reconstructs cleanly | allowed |
-| `unverified` | Handle not in the log OR proof failed | blocked |
+| `unverified` | Handle not in the log OR proof failed | blocked (or retry, see `reason_code`) |
 | `handle-mismatch` | Card claims a different DID than the log attests for the handle | blocked |
 | `stale-proof` | STH older than `requireFreshSTH` threshold | warning (caller decides) |
+
+The `verified` branch carries `verified_signing_key_hex` — the agent's currently active Ed25519 signing key — so an enforcement gateway can verify the AgentCard's JWS signature in one call rather than two.
+
+The `unverified` branch carries an optional structured `reason_code` (`handle-not-claimed` / `inclusion-proof-failed` / `key-not-yet-logged` / `card-malformed`) so callers can branch on retry-vs-block without parsing the free-form `reason` string. `key-not-yet-logged` is reserved for the rotation transition window — when an AgentCard's signing-key-registration leaf has been written but isn't yet in the latest STH; callers should retry shortly rather than permanent-block.
 
 No numeric trust score, no reputation field — verification is kept separate from reputation by design.
 
