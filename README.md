@@ -71,7 +71,7 @@ A2A and MCP both opened discussions about trust between agents — composable ev
 
 ## Status
 
-**Stable / maintenance mode** ([ADR 0008](docs/decisions/0008-stable-mode-maintenance-posture.md)). Public commitments shipped; protocol surface frozen at v0.2; live deployments + brand + ops continuity preserved. PRs welcome for bug fixes and docs; review may take weeks. Security: `security@foxbook.dev`.
+**Stable / maintenance mode** ([ADR 0008](docs/decisions/0008-stable-mode-maintenance-posture.md)). Public commitments shipped; protocol surface frozen at v0.2; live deployments + brand + ops continuity preserved. PRs welcome for bug fixes and docs; review may take weeks. Security: `hello@foxbook.dev`.
 
 **Live**
 
