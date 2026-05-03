@@ -1,0 +1,71 @@
+# flyctl launch added from .gitignore
+# OS
+**/.DS_Store
+
+# Node / pnpm / Turborepo
+**/node_modules
+**/.turbo
+**/dist
+**/build
+**/coverage
+**/.next
+
+# Python / uv
+**/__pycache__
+**/*.pyc
+**/.venv
+**/.ruff_cache
+**/.pytest_cache
+
+# Env / secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# IDE
+**/.vscode
+**/.idea
+
+# Claude Code local settings
+**/.claude/settings.local.json
+
+# Day-N-specific preflight extensions (per-day flags don't accumulate in repo;
+# canonical 14 flags live in scripts/preflight-day-N.sh)
+**/scripts/preflight-day-N.local.sh
+
+# Logs
+**/*.log
+**/npm-debug.log*
+**/yarn-debug.log*
+
+# Internal-only working docs (never published to public repo)
+**/CLAUDE.md
+**/PROJECT-PLAN.md
+**/LOCKED.md
+**/docs/foundation
+**/docs/outreach.md
+**/docs/distribution.md
+**/docs/user-journey.md
+**/docs/pre-mortem-v1.md
+**/docs/process
+**/docs/retros
+**/port
+
+# flyctl launch added from .husky/_/.gitignore
+.husky/_/**/*
+
+# flyctl launch added from .pytest_cache/.gitignore
+# Created by pytest automatically.
+.pytest_cache/**/*
+
+# flyctl launch added from .ruff_cache/.gitignore
+# Automatically created by ruff.
+.ruff_cache/**/*
+
+# flyctl launch added from .venv/.gitignore
+.venv/**/*
+
+# flyctl launch added from packages/sdk-py/.pytest_cache/.gitignore
+# Created by pytest automatically.
+packages/sdk-py/.pytest_cache/**/*
+fly.toml

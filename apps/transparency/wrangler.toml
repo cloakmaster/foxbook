@@ -41,11 +41,18 @@ compatibility_flags = ["nodejs_compat"]
 # No [vars] section by design. DATABASE_URL is set via
 # `wrangler secret put DATABASE_URL` — see deploy sequence above.
 
-# Uncomment once DNS + zone binding are live. Until then, `wrangler
-# deploy` will land on a workers.dev preview URL — useful for smoke
-# testing AND valid as week-1 "public transparency log exists" evidence
-# per the Day-5 completion-pass gate 4 check (curl the /inclusion/:index
-# endpoint from a fresh shell with no cookies / no auth).
-# routes = [
-#   { pattern = "transparency.foxbook.dev/*", zone_name = "foxbook.dev" }
-# ]
+# Custom Domain binding (added via Cloudflare dashboard 2026-04-28).
+# Wrangler 4 Custom-Domain syntax: bare hostname pattern, no path,
+# no /*, with `custom_domain = true`. Different shape from the older
+# zone-route pattern (`zone_name = "..."` + `pattern = ".../*"`) —
+# Custom Domains get their own TLS cert, route at the Worker layer
+# directly, and don't cost a workers.dev preview request when hit.
+#
+# Verify from any shell:
+#   curl -sS https://transparency.foxbook.dev/root | jq
+# Expected: HTTP 200 + STH JSON byte-identical to the workers.dev
+# preview URL (foxbook-transparency.inkog-io.workers.dev/root). The
+# preview URL stays operational as a fallback.
+routes = [
+  { pattern = "transparency.foxbook.dev", custom_domain = true }
+]

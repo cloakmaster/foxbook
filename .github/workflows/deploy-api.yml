@@ -1,0 +1,31 @@
+name: Deploy API
+
+# Tag-push gated deploy. No untrusted input (no github.event.* refs,
+# no PR titles, no commit messages used in run: commands). Only
+# secrets.FLY_API_TOKEN is consumed, via env binding (not interpolation).
+#
+# Tag from local with:
+#   git tag v0.1.0-api && git push origin v0.1.0-api
+#
+# The flyctl invocation matches scripts/deploy-api.sh; keep them in sync.
+
+on:
+  push:
+    tags:
+      - "v*-api"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: flyctl deploy
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-api
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy
+        run: flyctl deploy --remote-only --config apps/api/fly.toml --dockerfile apps/api/Dockerfile
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

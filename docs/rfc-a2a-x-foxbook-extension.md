@@ -41,15 +41,15 @@ Forking a transparency log is structurally low-credibility — trust history is 
 
 ---
 
-## 2. Motivating example — the cloakmaster vs samrg472 identity-guard demo
+## 2. Motivating example — the cloakmaster identity-guard adversarial demo
 
-On 2026-04-24, we attempted to hijack a GitHub handle through the Foxbook claim flow. The transcript is at [`ops/evidence/2026-04-24-identity-guard-cloakmaster-vs-samrg472.md`](../ops/evidence/2026-04-24-identity-guard-cloakmaster-vs-samrg472.md). The condensed version:
+On 2026-04-24, we attempted to hijack a GitHub handle through the Foxbook claim flow. The transcript is at [`ops/evidence/2026-04-24-identity-guard-adversarial.md`](../ops/evidence/2026-04-24-identity-guard-adversarial.md) (third-party target handle redacted). The condensed version:
 
-1. Foxbook minted a verification code for `claim_id=A` against `asset_value=samrg472`.
+1. Foxbook minted a verification code for `claim_id=A` against `asset_value=<target-handle-redacted>`.
 2. The `cloakmaster` agent (a different real GitHub handle) published a Gist containing the code.
-3. The agent posted that Gist URL — `gist.github.com/cloakmaster/...` — to `POST /api/v1/claim/verify-gist`, asking Foxbook to attest "samrg472 is verified by this signing key."
+3. The agent posted that Gist URL — `gist.github.com/cloakmaster/...` — to `POST /api/v1/claim/verify-gist`, asking Foxbook to attest "this handle is verified by this signing key."
 
-The reference verifier refused with `409 identity-mismatch`. **Crucially: `fetchCount === 0` at the adapter** — Foxbook never even fetched the Gist contents. The identity check ran against the URL's path username (`cloakmaster`) before any network I/O, and the mismatch with the claim's `asset_value` (`samrg472`) terminated the flow.
+The reference verifier refused with `409 identity-mismatch`. **Crucially: `fetchCount === 0` at the adapter** — Foxbook never even fetched the Gist contents. The identity check ran against the URL's path username (`cloakmaster`) before any network I/O, and the mismatch with the claim's `asset_value` (`<target-handle-redacted>`) terminated the flow.
 
 That guard is not a special case. It's the structural property `x-foxbook` v1 inherits: **the evidence URL's owner identity is bound to the claim's asset value before any content is read**. A scout that respects this binding cannot be tricked into attesting handle ownership the publisher does not own.
 
@@ -70,7 +70,7 @@ The full schema lives at [`schemas/x-foxbook.v1.json`](../schemas/x-foxbook.v1.j
     "verification_tier": 1,
     "verified_asset": {
       "type": "github_handle",
-      "value": "samrg472",
+      "value": "example-agent-handle",
       "verified_at": "2026-04-26T10:00:00Z",
       "method": "github_gist"
     },
@@ -115,11 +115,11 @@ The `foxbook_url` is mutable (rebrand, redirect, host change). The `did:foxbook:
 
 ## 4. Reference implementation
 
-The canonical reference deployment is `foxbook.dev`. Anyone can run a parallel deployment that satisfies the same contracts; this is protocol infrastructure, not a marketplace (see [ADR 0006 — protocol-not-marketplace](decisions/0006-protocol-not-marketplace.md)).
+The canonical reference deployment is `foxbook.dev`. Anyone can run a parallel deployment that satisfies the same contracts; this is protocol infrastructure, not a marketplace.
 
 ### 4.1 Live transparency log
 
-URL: `https://foxbook-transparency.inkog-io.workers.dev` (placeholder until canonical `transparency.foxbook.dev` DNS lands; week 2 task).
+URL: `https://transparency.foxbook.dev`
 
 Endpoints:
 
@@ -157,9 +157,9 @@ Six-function public surface (`packages/sdk-claim/`):
 - `claimStart`, `claimVerifyGist`, `claimRevoke` — claim primitives.
 - `verify` — transparency-log inclusion-proof primitive.
 - `foxbookVerify(handle)` — handle-level convenience wrapper.
-- `verifyAgentCard(card, options)` — the agent-hiring-gate runtime-safety primitive (§1.1).
+- `verifyAgentCard(card, options)` — runtime-safety primitive: the check before an agent dispatches work to another agent (§1.1).
 
-Day-7 ships the contract (signatures + discriminated unions); week-2 ships the implementation. Tight surface (~130 LOC) so re-implementations in other languages have a clear target.
+Signatures + discriminated unions committed; implementation in progress. Tight surface (~130 LOC) so re-implementations in other languages have a clear target.
 
 ---
 
@@ -177,25 +177,19 @@ We're proposing this as an extension namespace, not a core-spec change. Concrete
 
 ## 6. What this RFC explicitly does not propose
 
-Per [ADR 0006 — protocol-not-marketplace](decisions/0006-protocol-not-marketplace.md):
-
 - **No marketplace UI** spec changes. `x-foxbook` is a proof layer, not a discovery surface.
 - **No paid placement** of any kind in the verification flow.
 - **No closed-source moat.** The reference implementation is open; canonicality comes from being the first credible reference, not from controlling the code.
 - **No forced onboarding.** Agents that don't ship `x-foxbook` continue to work in A2A unchanged; this RFC adds an *option* for verifiable provenance, not a requirement.
 - **No agent-side payment rails** in v1 of `x-foxbook`. Payment surfaces stay in their own schemas.
 
-Future planners MUST NOT re-propose any of the above without an ADR amendment that addresses ADR 0006 §4 path-ordering.
-
 ---
 
 ## 7. References
 
-- ADR 0006 — protocol-not-marketplace (`docs/decisions/0006-protocol-not-marketplace.md`)
 - ADR 0001 — service-agnostic core (`docs/decisions/0001-service-agnostic-core.md`)
-- ADR 0005 — canonical bytes are written once (`docs/decisions/0005-canonical-bytes.md`)
-- LOCKED.md — pinned non-negotiables (`docs/foundation/LOCKED.md`)
-- Live evidence — identity-guard refusal (`ops/evidence/2026-04-24-identity-guard-cloakmaster-vs-samrg472.md`)
+- ADR 0005 — canonical bytes are written once (`docs/decisions/0005-canonical-on-both-sides.md`)
+- Live evidence — identity-guard refusal (`ops/evidence/2026-04-24-identity-guard-adversarial.md`)
 - Live evidence — first-live-revocation 467ms (`ops/bench-results/2026-04-26-first-live-revocation.txt`)
 - Schema — `schemas/x-foxbook.v1.json`
 - Schema — `schemas/tl-leaf.v1.json`

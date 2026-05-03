@@ -1,31 +1,23 @@
-// @foxbook/sdk-claim — TypeScript reference SDK for Foxbook claim
+// @foxbook/sdk-claim — TypeScript reference SDK for the Foxbook claim
 // flow + verification.
 //
-// Six-function public surface:
+// Six functions:
 //   * claimStart          POST /api/v1/claim/start
 //   * claimVerifyGist     POST /api/v1/claim/verify-gist (tier-1)
 //   * claimRevoke         POST /api/v1/claim/revoke
 //   * verify              transparency-log inclusion-proof primitive
 //   * foxbookVerify       handle → {tier, revoked, did, leafIndex}
-//   * verifyAgentCard     runtime-safety gate (agent-hiring-gate framing)
+//   * verifyAgentCard     runtime-safety gate before agent-to-agent calls
 //
-// Day-7 PR E ships SIGNATURES + DISCRIMINATED-UNION TYPES ONLY.
-// Function bodies stub `throw new Error("not implemented")`. The
-// implementation lands in week 2 per PROJECT-PLAN.md Distribution
-// Track.
+// All functions return discriminated unions. Network / non-JSON /
+// unexpected-HTTP paths fold into {status: "error"} (claim) or
+// {valid: false} (verify) so callers always get a typed result rather
+// than an exception.
 //
-// Why ship signatures alone now: the RFC text
-// (docs/rfc-a2a-x-foxbook-extension.md), outreach DMs
-// (docs/outreach.md), and docs/distribution.md all reference these
-// six functions as the contract. If they shift in week 2, every
-// referencing artifact becomes stale before it's even sent.
+// No numeric trust score in any return shape. Verification (objective,
+// cryptographic) is kept separate from reputation (subjective).
 //
-// **No numeric trust score** in any return shape. PROJECT-PLAN.md
-// Cross-LLM Strategic Feedback rejected aggregate scoring as a sneak-
-// path that conflates verification (objective, cryptographic) with
-// reputation (subjective, deferred). The wrappers return discriminated
-// unions only; future planners MUST NOT re-propose without an ADR
-// amendment that addresses ADR 0006 §4 path-ordering.
+// See README.md for install + the A2A Discussion #1803 design context.
 
 export {
   type ClaimRevokeInput,
@@ -45,9 +37,10 @@ export {
 } from "./claim.js";
 
 export {
+  type AssetType,
   type ClaimedTier,
   DEFAULT_WORKER_BASE,
-  type FoxbookVerifyOptions,
+  type FoxbookVerifyInput,
   type FoxbookVerifyResult,
   foxbookVerify,
   type VerifiableAgentCard,

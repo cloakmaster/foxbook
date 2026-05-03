@@ -19,7 +19,7 @@ export type Ed25519PublicKeyHex = string;
 export type RecoveryKeyFingerprint = string;
 
 /**
- * Foxbook-specific AgentCard extension fields, placed under the `x-foxbook` namespace inside an A2A AgentCard. Authoritative shape in docs/foundation/foxbook-foundation.md §6.2. Shared primitives (did, ed25519PublicKey, recoveryKeyFingerprint) are exposed via $defs so other schemas ($ref-in) don't duplicate their types.
+ * Foxbook-specific AgentCard extension fields, placed under the `x-foxbook` namespace inside an A2A AgentCard. Shared primitives (did, ed25519PublicKey, recoveryKeyFingerprint) are exposed via $defs so other schemas ($ref-in) don't duplicate their types.
  */
 export interface FoxbookAgentCardExtensionXFoxbookV1 {
   did: Did;

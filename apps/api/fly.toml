@@ -1,0 +1,97 @@
+# Fly.io config for api.foxbook.dev — apps/api Hono+Node server.
+#
+# =========================================================================
+# DEPLOY SEQUENCE — IMPORTANT
+#
+# DO NOT use the Fly web-UI "Launch from GitHub" flow. It auto-detects
+# from the repo root, finds the Python `pyproject.toml` (uv workspace
+# root), and tries to build a Python deployable. That fails. Use the
+# local `flyctl` CLI with explicit --config + --dockerfile flags
+# pointed at this monorepo subdirectory, run from REPO ROOT.
+#
+# DO NOT add a `[build]` section here with `dockerfile = '<path>'`.
+# flyctl resolves that path relative to fly.toml's parent (apps/api/),
+# so `dockerfile = 'apps/api/Dockerfile'` becomes
+# `apps/api/apps/api/Dockerfile` — broken. Pass the dockerfile via
+# the `--dockerfile` CLI flag from repo root instead; flyctl resolves
+# CLI-flag paths relative to the working directory, AND uses the
+# working directory as the build context. Build context = repo root
+# is what our Dockerfile's `COPY . .` needs to resolve workspace deps.
+#
+# The correct sequence — all from REPO ROOT:
+#
+#   1. flyctl auth login
+#        Authenticates the local flyctl CLI against your Fly account.
+#
+#   2. flyctl launch --no-deploy --copy-config \
+#        --config apps/api/fly.toml \
+#        --dockerfile apps/api/Dockerfile
+#        Registers the foxbook-api app. --no-deploy skips the deploy
+#        until secrets are set. --copy-config keeps this fly.toml
+#        authoritative (flyctl will REWRITE comments on launch — be
+#        prepared to restore them post-launch). --config + --dockerfile
+#        point at our monorepo subpaths so Fly doesn't auto-detect from
+#        the repo root.
+#
+#   3. flyctl secrets set DATABASE_URL='<pooled>' \
+#        DATABASE_URL_DIRECT='<non-pooled>' \
+#        RESEND_API_KEY='<re_…>' \
+#        FOXBOOK_LOG_SIGNING_KEY_HEX='<64-char-hex>' \
+#        --app foxbook-api
+#        Four secrets in Fly's encrypted store. NEVER add as [env].
+#
+#   4. flyctl ips allocate-v4 --shared --app foxbook-api
+#      flyctl ips allocate-v6 --app foxbook-api
+#        Newer Fly apps don't auto-allocate public IPs at launch.
+#        Cert validation needs them. Shared IPv4 + dedicated IPv6
+#        are both free.
+#
+#   5. DNS: in Cloudflare, add CNAME api → foxbook-api.fly.dev,
+#      proxy status DNS-only (gray cloud, NOT orange-proxied).
+#      Cloudflare's proxy hides the real Fly IP and breaks Fly's
+#      cert validation.
+#
+#   6. flyctl certs create api.foxbook.dev --app foxbook-api
+#      flyctl certs check api.foxbook.dev --app foxbook-api
+#        Wait until Status = Issued (typically 1-5 minutes).
+#
+#   7. ./scripts/deploy-api.sh
+#        First production deploy. Subsequent deploys: same script,
+#        OR push a tag matching `v*-api` to trigger
+#        .github/workflows/deploy-api.yml.
+#
+# Recovery from a failed web-UI launch attempt:
+#   flyctl apps destroy foxbook-api
+#   then restart from step 2 above.
+#
+# Verify after deploy:
+#   curl -sS https://api.foxbook.dev/healthz | jq
+#   curl -sS https://api.foxbook.dev/.well-known/foxbook.json | jq
+# Expected: HTTP 200 + the documented JSON shapes (see server.ts).
+#
+# Secrets MUST be in the secret store. NEVER add DATABASE_URL or
+# FOXBOOK_LOG_SIGNING_KEY_HEX as [env] entries — that's a credential
+# leak (same rule as the Worker's wrangler.toml).
+# =========================================================================
+
+app = 'foxbook-api'
+primary_region = 'fra'
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  # Keep one machine warm so /healthz never cold-starts a check.
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/healthz'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '256mb'

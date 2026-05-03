@@ -7,11 +7,7 @@
 //
 // What this measures: pure TS tree math (SHA-256 + right-edge fold +
 // per-leaf state clone). It does NOT include DB round-trips — that's
-// a separate on-staging benchmark once we have real Neon access. The
-// 50ms-at-100rps SLA in PROJECT-PLAN.md Day-4 is end-to-end; this
-// bench isolates the in-process component. If the in-process p99 ever
-// approaches 50ms, the Go-daemon signal in foundation §11.2 fires
-// immediately — don't micro-optimize TS first.
+// a separate on-staging benchmark.
 
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

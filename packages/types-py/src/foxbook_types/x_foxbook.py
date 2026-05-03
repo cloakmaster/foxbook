@@ -402,9 +402,9 @@ class VerifiedAsset:
 @dataclass
 class XFoxbook:
     """Foxbook-specific AgentCard extension fields, placed under the `x-foxbook` namespace
-    inside an A2A AgentCard. Authoritative shape in docs/foundation/foxbook-foundation.md
-    §6.2. Shared primitives (did, ed25519PublicKey, recoveryKeyFingerprint) are exposed via
-    $defs so other schemas ($ref-in) don't duplicate their types.
+    inside an A2A AgentCard. Shared primitives (did, ed25519PublicKey,
+    recoveryKeyFingerprint) are exposed via $defs so other schemas ($ref-in) don't duplicate
+    their types.
     """
     class_or_instance: ClassOrInstance
     did: str

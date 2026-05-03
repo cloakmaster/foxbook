@@ -69,6 +69,13 @@ const schemas = [
     pyOut: "packages/types-py/src/foxbook_types/agent_card.py",
     topLevelName: "AgentCard",
   },
+  {
+    id: "claim-by-handle",
+    schemaPath: "schemas/claim-by-handle.v1.json",
+    tsOut: "packages/types-ts/src/claim-by-handle.ts",
+    pyOut: "packages/types-py/src/foxbook_types/claim_by_handle.py",
+    topLevelName: "ClaimByHandle",
+  },
 ];
 
 function headerTs(schemaPath) {

@@ -1,14 +1,62 @@
 {
   "name": "@foxbook/sdk-claim",
-  "version": "0.0.0",
-  "private": true,
-  "description": "TypeScript reference SDK for Foxbook claim flow + verification. Six-function public surface (claimStart / claimVerifyGist / claimRevoke / verify / foxbookVerify / verifyAgentCard). Day-7 PR E ships signatures + discriminated-union types only; bodies stub throw('not implemented') — implementation lands week 2 per PROJECT-PLAN.md Distribution Track.",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Verifiable agent identity for Agent2Agent (A2A) and MCP. TypeScript reference SDK for the Foxbook claim flow + verification. Six functions: claimStart / claimVerifyGist / claimRevoke / verify / foxbookVerify / verifyAgentCard.",
+  "license": "Apache-2.0",
+  "author": "Benjamin Bandali <benshiib@gmail.com> (https://github.com/cloakmaster)",
+  "homepage": "https://github.com/cloakmaster/foxbook",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cloakmaster/foxbook.git",
+    "directory": "packages/sdk-claim"
+  },
+  "bugs": {
+    "url": "https://github.com/cloakmaster/foxbook/issues"
+  },
+  "keywords": [
+    "a2a",
+    "agent2agent",
+    "mcp",
+    "agent-identity",
+    "transparency-log",
+    "rfc-9162",
+    "merkle-tree",
+    "ed25519",
+    "verifiable",
+    "agent-card"
+  ],
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "echo 'no tests yet — signatures only, week-2 implementation' && exit 0",
-    "lint": "biome lint ."
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "biome lint .",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.2.0"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.5",
+    "vitest": "^4.1.5"
   }
 }

@@ -10,7 +10,7 @@
 
 Agent economy tooling is in flux. Payment rails (x402, AP2, Stripe MPP), agent frameworks (LangChain, CrewAI, LangGraph, Mastra), identity standards (W3C DID, IETF WIMSE), verification vendors (Sigstore, GitHub, DNS, Resend, X/Twitter) — each is a moving target. Foxbook will ship integrations with all of them in V1 and add more through V2/V3. If `core/` binds to any specific one, the wrong bet forces a rewrite.
 
-Benjamin's prior product, DeskDuck, encoded this constraint as an architectural rule and it saved the product from several costly pivots. Foxbook carries that rule forward — one of the two pieces of DeskDuck knowledge reused — per `docs/foundation/foxbook-foundation.md` §17 and `docs/foundation/LOCKED.md`.
+A prior product encoded this constraint as an architectural rule and it saved the product from several costly pivots. Foxbook carries that rule forward.
 
 ## Decision
 

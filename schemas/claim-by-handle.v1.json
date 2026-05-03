@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://foxbook.dev/schemas/claim-by-handle/v1.json",
+  "title": "Foxbook /api/v1/claim/by-handle response (v1)",
+  "description": "Read-only response shape for GET /api/v1/claim/by-handle/:asset_type/:asset_value. Returns the claim row + (when applicable) the latest agent-key-registration leaf index in the transparency log. Cache-Control: public, max-age=60, must-revalidate (per ADR 0007).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "asset_type",
+    "asset_value",
+    "agent_did",
+    "state",
+    "verification_tier",
+    "ed25519_public_key_hex",
+    "revoked"
+  ],
+  "properties": {
+    "asset_type": {
+      "type": "string",
+      "enum": ["github_handle", "x_handle", "domain"]
+    },
+    "asset_value": {
+      "type": "string",
+      "minLength": 1
+    },
+    "agent_did": {
+      "type": "string",
+      "pattern": "^did:foxbook:[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "state": {
+      "type": "string",
+      "enum": ["unclaimed", "gist_pending", "tier1_verified", "tier2_pending", "tier2_verified"]
+    },
+    "verification_tier": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4,
+      "description": "0 = unclaimed/pending. 1 = tier1_verified (Gist). 2 = tier2_verified (DNS or endpoint). 3+ reserved for future tiers."
+    },
+    "ed25519_public_key_hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "leaf_index": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Latest agent-key-registration leaf index in the transparency log. Present only when the claim is in tier1_verified or tier2_verified state."
+    },
+    "inclusion_proof_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Convenience: the public Worker URL for the inclusion proof at leaf_index. Present only when leaf_index is present."
+    },
+    "revoked": {
+      "type": "boolean",
+      "description": "Always false in v1 — revoked claims are deleted from the claims table per ADR 0004 addendum-1, so a 200 response from this endpoint always describes a non-revoked claim. The field is surfaced for forward compatibility with a future soft-revoke path."
+    }
+  }
+}

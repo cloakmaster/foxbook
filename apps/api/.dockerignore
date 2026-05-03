@@ -1,0 +1,50 @@
+# Mirror .gitignore for the docker build context. Fly's `flyctl deploy`
+# uploads everything in this directory's parent (the repo root) unless
+# .dockerignore excludes it. Pruning trims upload time + image size.
+
+node_modules
+**/node_modules
+.git
+.github
+.turbo
+dist
+build
+coverage
+.next
+
+# Python / uv
+__pycache__
+**/__pycache__
+*.pyc
+.venv
+.ruff_cache
+.pytest_cache
+
+# Env / secrets — Fly injects via `flyctl secrets set`, not files.
+.env
+.env.*
+
+# IDE
+.vscode
+.idea
+
+# Internal-only working docs (gitignored anyway, but defense-in-depth)
+CLAUDE.md
+PROJECT-PLAN.md
+LOCKED.md
+docs/foundation
+docs/outreach.md
+docs/distribution.md
+docs/user-journey.md
+docs/pre-mortem-v1.md
+docs/process
+docs/retros
+port
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Tests aren't needed in production image, but they're cheap; leave in
+# for now (the CMD doesn't run them and they don't get bundled).

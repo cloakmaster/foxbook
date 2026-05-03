@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://foxbook.dev/schemas/x-foxbook/v1.json",
   "title": "Foxbook AgentCard extension (x-foxbook, v1)",
-  "description": "Foxbook-specific AgentCard extension fields, placed under the `x-foxbook` namespace inside an A2A AgentCard. Authoritative shape in docs/foundation/foxbook-foundation.md §6.2. Shared primitives (did, ed25519PublicKey, recoveryKeyFingerprint) are exposed via $defs so other schemas ($ref-in) don't duplicate their types.",
+  "description": "Foxbook-specific AgentCard extension fields, placed under the `x-foxbook` namespace inside an A2A AgentCard. Shared primitives (did, ed25519PublicKey, recoveryKeyFingerprint) are exposed via $defs so other schemas ($ref-in) don't duplicate their types.",
   "type": "object",
   "additionalProperties": false,
   "required": [
