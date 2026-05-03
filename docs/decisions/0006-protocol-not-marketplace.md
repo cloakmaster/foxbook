@@ -48,7 +48,7 @@ The strategic implication: cross-impl reference cycles are the load-bearing prot
 
 ## What this ADR does NOT decide
 
-The 2026-04-26 review also discussed a **monetization-wedge framing** that proposed SR 11-7 (model risk management) / EU AI Act Article 12 / cyber-insurance compliance as the entry point for revenue if/when Foxbook moves up the stack. That framing — internally tagged "Wedge 1" — is **not ratified by this ADR**.
+The 2026-04-26 review also discussed a **monetization-wedge framing** that proposed SR 11-7 (model risk management) / EU AI Act Article 12 / cyber-insurance compliance as the entry point for revenue if/when Foxbook moves up the stack. That framing is **not ratified by this ADR**.
 
 Reason: the wedge framing was discussed during the same 2026-04-26 review but was **rejected on 2026-04-30**, four days after this ADR's date. Backdating retrofitted wedge rationale into a doc dated 2026-04-26 would falsify the decision record. The ADR mechanism only works if dated docs are honest about what was decided when.
 
@@ -85,7 +85,7 @@ Only via an ADR that supersedes 0006. Concrete scenarios that would warrant a ne
 
 In all three cases the new ADR documents the path-ordering exception rather than retracting the rule.
 
-## Verified
+## Verified (as of 2026-05-03)
 
 - README.md's "Why" section frames the primitive as cryptographic, public, and free — protocol-shape language, not marketplace-shape.
 - TRADEMARK.md's "Why the trademark is separate from the source license" section encodes the co-option-not-forking failure mode at the brand layer.
