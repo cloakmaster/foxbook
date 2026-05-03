@@ -62,3 +62,19 @@ export const validRevocationLeaf = {
   revocation_timestamp: "2026-04-26T12:00:00Z",
   reason_code: "owner_request",
 } as const;
+
+// tl-leaf v1.2: signing-key-registration (rotation) shape.
+// Same JWS-placeholder convention as revocation — production signatures
+// come from core/src/crypto/jws.ts; the schema only validates the
+// compact-JWS structural pattern. The flow that emits these leaves
+// lands in a follow-up PR; the shape ships now per the public
+// commitment on A2A Discussion #1803.
+export const validSigningKeyRegistrationLeaf = {
+  leaf_type: "signing-key-registration",
+  did: "did:foxbook:01H8XS4WHV8YNGSZPQ5XK9QR6M",
+  prior_ed25519_public_key_hex: "a".repeat(64),
+  new_ed25519_public_key_hex: "b".repeat(64),
+  recovery_key_signature:
+    "eyJhbGciOiJFZERTQSJ9.eyJsZWFmX3R5cGUiOiJzaWduaW5nLWtleS1yZWdpc3RyYXRpb24ifQ.c2lnbmF0dXJlLXBsYWNlaG9sZGVy",
+  published_at: "2026-05-03T12:00:00Z",
+} as const;
