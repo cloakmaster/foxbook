@@ -1,57 +1,44 @@
 # Environment variables
 
-Source of truth for environment variable naming and injection paths. Keep this in lockstep with `.env.example` (root). Crypto private keys are never stored in plaintext — recovery and signing keys are minted via offline controlled flows.
+Source of truth for environment variable naming and injection paths under stable mode. Keep this in lockstep with `.env.example` (root). Crypto private keys are never stored in plaintext — recovery and signing keys are minted via offline controlled flows.
+
+For the full operations runbook (deploy, key rotation, incident response, backups, monitoring), see [`docs/OPERATIONS.md`](../OPERATIONS.md).
 
 ---
 
-## Local development — `.env.local` (gitignored)
+## Production secrets
 
-Copy `.env.example` to `.env.local`. Variables are listed there with comments on required scope.
+### Fly.io — `foxbook-api` (`api.foxbook.dev`)
 
----
+Set via `flyctl secrets set <KEY>='<value>' --app foxbook-api`. Never `[env]` entries — that's a credential leak.
 
-## Vercel (prod + staging)
-
-Set via `vercel env add <KEY> <value>` or the dashboard. Never commit values.
-
-| Variable | Purpose | Notes |
+| Variable | Purpose | Source |
 |---|---|---|
-| `DATABASE_URL` | Neon Postgres connection | Injected from Neon integration. Use branch URLs for staging. |
-| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST endpoint | |
-| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST token | |
-| `CLOUDFLARE_ACCOUNT_ID` | CF account for Durable Object bindings | |
-| `FOXBOOK_SIGNING_KEY_KMS_ARN` | AWS KMS ARN (or CF Workers Secret binding name) for Foxbook's Ed25519 signing key | **NOT the key material.** Holds the reference to KMS. Renaming from `FOXBOOK_SIGNING_KEY` was deliberate: a `_KMS_ARN` variable can't accidentally receive pasted private key bytes without someone noticing. |
-| `SENTRY_DSN` | Error reporting | Public; safe to ship to client. |
-| `AXIOM_TOKEN` | Structured logs | |
+| `DATABASE_URL` | Neon Postgres pooled connection (read + write traffic) | Neon dashboard → connection details → "Pooled connection" |
+| `DATABASE_URL_DIRECT` | Neon Postgres non-pooled connection (migrations, transactions needing `pg_advisory_xact_lock`) | Neon dashboard → connection details → "Direct connection" |
+| `RESEND_API_KEY` | Resend transactional email API key | Resend dashboard → API Keys |
+| `FOXBOOK_LOG_SIGNING_KEY_HEX` | Ed25519 private key for STH signing. 64-char hex (32 bytes raw). Public counterpart served at `/.well-known/foxbook.json` | Generated offline; rotated via [`docs/OPERATIONS.md`](../OPERATIONS.md) § Key rotation |
 
----
+### Cloudflare Workers — `foxbook-transparency` (`transparency.foxbook.dev`)
 
-## Deferred until week 2+
+Set via `wrangler secret put <KEY>` from `apps/transparency/`. Never `[vars]` entries — `[vars]` get baked into the Worker bundle in plaintext.
 
-| Variable | Why deferred | Decision point |
+| Variable | Purpose | Source |
 |---|---|---|
-| Scout wallet private keys | Scout wallet key management is unresolved. Options: KMS-per-scout vs. Cloudflare Workers Secrets vs. HSM. The security architecture is a week-2 call. | **Do NOT inject plaintext `SCOUT_WALLET_PRIVATE_KEY_*` env vars in V1.** Scouts don't transact in week 1. |
-| `MEILISEARCH_HOST`, `MEILISEARCH_API_KEY` | Discovery API on Meilisearch lands week 2 | Week 2 kickoff. |
+| `DATABASE_URL` | Same Neon pooled URL as Fly. Read-only path on the Worker; the write path lives on api.foxbook.dev. | Same as Fly's `DATABASE_URL` |
 
 ---
 
-## MCP servers (project scope)
+## Local development
 
-Day 1 installed via `claude mcp add --scope project ...`. Config lives at `.mcp.json` at the repo root — project-scoped so the config travels with the repo.
+Copy `.env.example` to `.env.local` (gitignored). Variables and required scopes are listed in `.env.example`.
 
-| MCP | Install command | Auth |
-|---|---|---|
-| github | `claude mcp add --scope project github -- npx -y @modelcontextprotocol/server-github` | `GITHUB_PERSONAL_ACCESS_TOKEN` env var |
-| context7 | `claude mcp add --scope project context7 -- npx -y @upstash/context7-mcp` | Free; optional API key |
-
-**Day 2:** Neon MCP. The local npm package `@neondatabase/mcp-server-neon` is deprecated — use Neon's **remote** MCP endpoint instead (see `https://neon.com/docs/ai/neon-mcp-server`). Configure via `claude mcp add --scope project --transport sse neon <URL>` once the Neon project exists.
-
-**Week 2+:** Cloudflare MCP, Vercel MCP, Sentry MCP, Playwright MCP (Moltbook scraper).
+For local Postgres, use a Neon branch (Neon dashboard → Branches → New). Never use the production `DATABASE_URL` for local development.
 
 ---
 
-## Never install
+## What's deliberately not here
 
-- MCPs wrapping paid-tier-only APIs — V1 is free-forever.
-- Slack / Teams / Asana / Notion MCPs — not load-bearing, noise in tool surface.
-- Anthropic / OpenAI / Google model-provider MCPs — crypto, Merkle log, and discovery don't need them.
+- **Vercel / Upstash / KMS env vars** — earlier scaffolding from pre-stable-mode planning that didn't ship. Removed under stable mode to match production reality.
+- **Scout wallet keys** — scouts don't transact in v0.2; key management filed for a future ADR if/when scouts ship.
+- **MeiliSearch / discovery API** — discovery surface deferred per [ADR 0008](../decisions/0008-stable-mode-maintenance-posture.md).
