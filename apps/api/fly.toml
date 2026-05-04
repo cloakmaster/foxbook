@@ -1,5 +1,9 @@
 # Fly.io config for api.foxbook.dev — apps/api Hono+Node server.
 #
+# See docs/OPERATIONS.md for re-deploy + rollback + key-rotation +
+# incident-response runbooks. The first-time deploy sequence below is
+# the canonical record for setting up a fresh Fly.io account from zero.
+#
 # =========================================================================
 # DEPLOY SEQUENCE — IMPORTANT
 #

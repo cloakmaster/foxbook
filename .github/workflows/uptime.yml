@@ -1,0 +1,150 @@
+# Uptime monitoring for transparency.foxbook.dev / api.foxbook.dev / foxbook.dev.
+#
+# Runs every 15 minutes via cron. Pings each endpoint with a short timeout.
+# On failure: opens (or comments on) a GitHub issue tagged `uptime-incident`.
+# On recovery: closes the open incident issue automatically.
+#
+# GitHub notification settings determine when the maintainer gets paged.
+# Default: email on issue open and close.
+#
+# Silence during planned maintenance:
+#   gh workflow disable uptime.yml
+#   gh workflow enable uptime.yml
+#
+# See docs/OPERATIONS.md § "Uptime monitoring" for the full runbook.
+#
+# Security: all matrix values are passed into run: blocks via env: rather
+# than direct `${{ }}` interpolation. Matrix values are static config in
+# this workflow (no user-controllable path), but env-passing is the
+# defense-in-depth pattern in case a future maintainer adds user-derived
+# matrix entries.
+
+name: uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"  # every 15 minutes (UTC)
+  workflow_dispatch:        # manual trigger via Actions tab
+
+permissions:
+  issues: write             # to open / comment / close incident issues
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: transparency
+            url: https://transparency.foxbook.dev/root
+            expected_status: 200
+          - name: api
+            url: https://api.foxbook.dev/healthz
+            expected_status: 200
+          - name: landing
+            url: https://foxbook.dev/
+            expected_status: 200
+    steps:
+      - name: Probe endpoint
+        id: probe
+        env:
+          ENDPOINT_URL: ${{ matrix.url }}
+          EXPECTED_STATUS: ${{ matrix.expected_status }}
+          ENDPOINT_NAME: ${{ matrix.name }}
+        run: |
+          set +e
+          status=$(curl -sS -o /tmp/body -w "%{http_code}" --max-time 10 "$ENDPOINT_URL")
+          curl_exit=$?
+          set -e
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "curl_exit=$curl_exit" >> "$GITHUB_OUTPUT"
+          if [ "$curl_exit" -ne 0 ]; then
+            echo "outcome=fail" >> "$GITHUB_OUTPUT"
+            echo "reason=curl exit $curl_exit (timeout / connect / TLS)" >> "$GITHUB_OUTPUT"
+          elif [ "$status" != "$EXPECTED_STATUS" ]; then
+            echo "outcome=fail" >> "$GITHUB_OUTPUT"
+            echo "reason=HTTP $status (expected $EXPECTED_STATUS)" >> "$GITHUB_OUTPUT"
+          else
+            echo "outcome=ok" >> "$GITHUB_OUTPUT"
+            echo "reason=" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Probe result: $ENDPOINT_NAME -> $status (curl exit $curl_exit)"
+
+      - name: Open or update incident issue
+        if: steps.probe.outputs.outcome == 'fail'
+        uses: actions/github-script@v7
+        env:
+          ENDPOINT_NAME: ${{ matrix.name }}
+          ENDPOINT_URL: ${{ matrix.url }}
+          FAIL_REASON: ${{ steps.probe.outputs.reason }}
+        with:
+          script: |
+            const endpoint = process.env.ENDPOINT_NAME;
+            const url = process.env.ENDPOINT_URL;
+            const reason = process.env.FAIL_REASON;
+            const title = `uptime-incident: ${endpoint} (${url})`;
+            const now = new Date().toISOString();
+            const body = `Endpoint: ${url}\nFailure: ${reason}\nDetected at: ${now}\n\nSee \`docs/OPERATIONS.md\` § "Future-you sanity check" for triage.`;
+
+            const open = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'uptime-incident',
+              per_page: 50,
+            });
+            const existing = open.data.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Still failing at ${now}. Reason: ${reason}`,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['uptime-incident'],
+              });
+            }
+
+      - name: Close recovered incident issue
+        if: steps.probe.outputs.outcome == 'ok'
+        uses: actions/github-script@v7
+        env:
+          ENDPOINT_NAME: ${{ matrix.name }}
+          ENDPOINT_URL: ${{ matrix.url }}
+        with:
+          script: |
+            const endpoint = process.env.ENDPOINT_NAME;
+            const url = process.env.ENDPOINT_URL;
+            const title = `uptime-incident: ${endpoint} (${url})`;
+            const now = new Date().toISOString();
+
+            const open = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'uptime-incident',
+              per_page: 50,
+            });
+            const existing = open.data.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Recovered at ${now}. Auto-closing.`,
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                state: 'closed',
+              });
+            }
