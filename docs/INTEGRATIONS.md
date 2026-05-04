@@ -42,6 +42,7 @@ These aren't application-layer integrations but are load-bearing for the cross-i
 |---|---|---|
 | Harness aggregator (`evidence_provider`, `claim_type_layer: identity`) | Live | [`agentgraph.co/.well-known/interop-harness.json`](https://agentgraph.co/.well-known/interop-harness.json) |
 | CTEF v0.3.1 byte-match (4/4 vectors) | Verified 2026-04-30 | [`ops/evidence/2026-04-30-ctef-v0.3.1-byte-match.md`](../ops/evidence/2026-04-30-ctef-v0.3.1-byte-match.md) (commit 9e392c5) |
+| CTEF v0.3.2 `request_inheritance.request_hash` shares JCS (RFC 8785) canonicalization with Foxbook tl-leaf hashing — cross-layer canonicalization cohesion: identity-layer (Foxbook) and evidence-layer (CTEF) walk one canonical-bytes algorithm regardless of which layer's hash a verifier is checking. | In v0.4 punch-list | [A2A Discussion #1734](https://github.com/a2aproject/A2A/discussions/1734) |
 | AgentGraph litepaper §1.8 (substrate-and-primitive layering) | Publishes 2026-05-12 | TBD post-publish |
 
 ---
