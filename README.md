@@ -16,7 +16,18 @@ if (result.status !== "verified") return;
 
 Open source. Apache 2.0. Run your own log; anyone following the same spec can verify against any deployment.
 
-[**Live demo**](#live-demo) · [**Why**](#why) · [**Status**](#status) · [**RFC**](docs/rfc-a2a-x-foxbook-extension.md)
+[**Live demo**](#live-demo) · [**Why**](#why) · [**Status**](#status) · [**Compose with Foxbook**](#compose-with-foxbook) · [**RFC**](docs/rfc-a2a-x-foxbook-extension.md)
+
+---
+
+## Compose with Foxbook
+
+Building an evidence-layer, verdict-layer, or other identity-anchored system that wants to cite Foxbook-verified identity? Foxbook is in [stable / maintenance mode](docs/decisions/0008-stable-mode-maintenance-posture.md), but composition is welcome and tracked openly.
+
+- [`docs/COMPOSE-WITH-FOXBOOK.md`](docs/COMPOSE-WITH-FOXBOOK.md) — short guide for new integrators (typed-reference shape, engagement path, what's NOT in scope).
+- [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md) — living catalog of known integrations + their status.
+- Active spec discussion: **Composition: Foxbook ↔ Concordia ↔ Sanctuary typed-reference schema** at `<DISCUSSION_URL>`.
+- `hello@foxbook.dev` for substantive offline conversations.
 
 ---
 
