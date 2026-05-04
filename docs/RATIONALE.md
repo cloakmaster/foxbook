@@ -46,6 +46,8 @@ This is the strategic frame. Foxbook is shipped as a protocol primitive — open
 
 The failure mode for an Apache 2.0 transparency-log primitive isn't a hostile fork (forks under different names are a feature). It's co-option: a larger entity adopts the spec while blunting the open-protocol guarantees — proprietary verification logic, undocumented schema extensions, "Foxbook-compatible" managed services that customers can't audit. The defense is cross-implementation references that name the canonical impl: harness aggregator entries, byte-match validation reports, citations in other specs. Each cross-impl reference raises the cost of co-option.
 
+A forward-looking instance of this pattern: CTEF v0.3.2 §A Conformance Appendix (publish window ~2026-05-20) lists Foxbook as one of 6 reproducibility receipts spanning 8 byte-match-validated implementations + 8 independent canonicalizers — Foxbook's receipt: 4/4 byte-match via independent `canonicalize@2.1.0` (erdtman RFC 8785 reference impl); reproducibility-without-maintainer-rerun is the appendix's normative MUST. (Citation URL added once v0.3.2 publishes.)
+
 The Apache 2.0 license + Foxbook trademark split (per [TRADEMARK.md](../TRADEMARK.md)) is the brand-layer expression of this rule. Anyone can fork the code; using the **Foxbook** name in association with a derived service requires written permission. This is the same shape as Linux + Linux trademark, PostgreSQL + PostgreSQL trademark.
 
 ### HTTP cache policy + read/write split (ADR 0007)
