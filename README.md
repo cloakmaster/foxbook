@@ -26,7 +26,7 @@ Building an evidence-layer, verdict-layer, or other identity-anchored system tha
 
 - [`docs/COMPOSE-WITH-FOXBOOK.md`](docs/COMPOSE-WITH-FOXBOOK.md) — short guide for new integrators (typed-reference shape, engagement path, what's NOT in scope).
 - [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md) — living catalog of known integrations + their status.
-- Active spec discussion: **Composition: Foxbook ↔ Concordia ↔ Sanctuary typed-reference schema** at `<DISCUSSION_URL>`.
+- Active spec discussion: **Composition: Foxbook ↔ Concordia ↔ Sanctuary typed-reference schema** at https://github.com/cloakmaster/foxbook/discussions/73.
 - `hello@foxbook.dev` for substantive offline conversations.
 
 ---
@@ -91,8 +91,8 @@ A2A and MCP both opened discussions about trust between agents — composable ev
 - Tier-2 verification via DNS TXT and signed-nonce endpoint challenge.
 - Recovery-key signed revocation: atomic across leaf append and claim delete. Observed at 467ms wall-clock against live Postgres (single-run benchmark).
 - Firehose stream: 20ms median commit-to-receive latency (single-run benchmark).
-- `@foxbook/sdk-claim@0.2.0` on npm — six-function reference SDK with `verified_signing_key_hex` on the verified branch + structured `reason_code` on the unverified branch.
-- Registered as `evidence_provider` on the identity-layer slot at [`agentgraph.co/.well-known/interop-harness.json`](https://agentgraph.co/.well-known/interop-harness.json) with CTEF v0.3.1 byte-match validation (4/4 vectors).
+- `@foxbook/sdk-claim` on npm — six-function reference SDK with `verified_signing_key_hex` on the verified branch + structured `reason_code` on the unverified branch.
+- Registered as `evidence_provider` on the identity-layer slot at [`agentgraph.co/.well-known/interop-harness.json`](https://agentgraph.co/.well-known/interop-harness.json) with CTEF byte-match validation (4/4 vectors).
 
 **Not in scope under stable mode**
 

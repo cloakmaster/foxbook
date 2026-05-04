@@ -21,7 +21,7 @@ If you're integrating, see [`COMPOSE-WITH-FOXBOOK.md`](COMPOSE-WITH-FOXBOOK.md) 
 | Systems | **Concordia v0.4.0** (evidence-composition layer) + **Sanctuary Castle Architecture v1.2** (verdict-policy gateway) |
 | Integration shape | Typed-reference: a Concordia attestation envelope carries a typed reference to a Foxbook leaf as supporting evidence. Sanctuary verdict-policy anchors on the typed reference. |
 | Status | **Proposed** |
-| Schema discussion | <DISCUSSION_URL> |
+| Schema discussion | https://github.com/cloakmaster/foxbook/discussions/73 |
 | Origin | [A2A Discussion #1803, eriknewton 2026-05-04T17:39Z](https://github.com/a2aproject/A2A/discussions/1803#discussioncomment-13655678) |
 
 Three-layer stack:
@@ -30,7 +30,7 @@ Three-layer stack:
 2. **Evidence** — Concordia v0.4.0 (#1734-shape attestation envelopes)
 3. **Verdict** — Sanctuary Castle Architecture v1.2 (gateway-side policy enforcement)
 
-The typed-reference shape under discussion at <DISCUSSION_URL>. Once consensus lands, [`docs/decisions/0009-typed-reference-schema-for-composition.md`](decisions/0009-typed-reference-schema-for-composition.md) ratifies the shape on the Foxbook side.
+The typed-reference shape under discussion at https://github.com/cloakmaster/foxbook/discussions/73. Once consensus lands, [`docs/decisions/0009-typed-reference-schema-for-composition.md`](decisions/0009-typed-reference-schema-for-composition.md) ratifies the shape on the Foxbook side.
 
 ---
 
@@ -51,7 +51,7 @@ These aren't application-layer integrations but are load-bearing for the cross-i
 
 If you're integrating Foxbook into your system:
 
-1. Open a thread at the schema-discussion venue (typically `<DISCUSSION_URL>` for Concordia/Sanctuary-shape integrations, or a new Discussion in `cloakmaster/foxbook` for novel shapes).
+1. Open a thread at the schema-discussion venue (typically https://github.com/cloakmaster/foxbook/discussions/73 for Concordia/Sanctuary-shape integrations, or a new Discussion in `cloakmaster/foxbook` for novel shapes).
 2. Once your integration shape is agreed publicly, open a PR adding an entry to this file.
 3. Update Status as the integration progresses (Proposed → Spec'd → Live).
 

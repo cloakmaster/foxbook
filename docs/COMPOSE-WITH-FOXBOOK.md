@@ -17,7 +17,7 @@ The most common pattern: your envelope / receipt / attestation carries a **typed
 
 The active spec discussion for the typed-reference schema is here:
 
-**`<DISCUSSION_URL>`**
+**https://github.com/cloakmaster/foxbook/discussions/73**
 
 (Once the schema is agreed, [`docs/decisions/0009-typed-reference-schema-for-composition.md`](decisions/0009-typed-reference-schema-for-composition.md) ratifies it on the Foxbook side.)
 
@@ -41,7 +41,7 @@ If your shape doesn't fit any of the above, open a Discussion in `cloakmaster/fo
 ## How to engage
 
 1. **Read the existing context** — [README.md](../README.md), [RATIONALE.md](RATIONALE.md), [ADRs 0001–0008](decisions/), the active Discussion thread above.
-2. **Open a thread** — for typed-reference compositions, the existing thread at `<DISCUSSION_URL>`. For novel compositions, a new Discussion in `cloakmaster/foxbook`.
+2. **Open a thread** — for typed-reference compositions, the existing thread at https://github.com/cloakmaster/foxbook/discussions/73. For novel compositions, a new Discussion in `cloakmaster/foxbook`.
 3. **Substantive offline** — `hello@foxbook.dev` for spec sessions, walk-throughs, or anything that benefits from a back-and-forth that's not public.
 4. **Once agreed publicly** — open a PR adding your composition to [INTEGRATIONS.md](INTEGRATIONS.md). The catalog grows organically.
 
