@@ -78,6 +78,15 @@ curl -s https://transparency.foxbook.dev/inclusion/0 | jq
 
 The signed tree head returned by `/root` matches what `verifyAgentCard` reconstructs internally.
 
+## Compose with Foxbook
+
+If you're building an evidence-layer, verdict-layer, or other identity-anchored system that wants to cite Foxbook-verified identity, see:
+
+- [`docs/COMPOSE-WITH-FOXBOOK.md`](https://github.com/cloakmaster/foxbook/blob/main/docs/COMPOSE-WITH-FOXBOOK.md) — engagement path, typed-reference shape
+- [`docs/INTEGRATIONS.md`](https://github.com/cloakmaster/foxbook/blob/main/docs/INTEGRATIONS.md) — catalog of active compositions
+
+Foxbook is in [stable / maintenance mode](https://github.com/cloakmaster/foxbook/blob/main/docs/decisions/0008-stable-mode-maintenance-posture.md); composition is welcome.
+
 ## Design rationale
 
 The SDK was first proposed as the upstream reference for the A2A spec's identity layer. See the design context, four-discriminated-outcomes rationale, and CTEF v0.3.1 byte-match interop validation:

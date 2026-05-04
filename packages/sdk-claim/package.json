@@ -1,6 +1,6 @@
 {
   "name": "@foxbook/sdk-claim",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": false,
   "description": "Verifiable agent identity for Agent2Agent (A2A) and MCP. TypeScript reference SDK for the Foxbook claim flow + verification. Six functions: claimStart / claimVerifyGist / claimRevoke / verify / foxbookVerify / verifyAgentCard.",
   "license": "Apache-2.0",
