@@ -43,9 +43,13 @@ jobs:
           - name: api
             url: https://api.foxbook.dev/healthz
             expected_status: 200
-          - name: landing
-            url: https://foxbook.dev/
-            expected_status: 200
+          # foxbook.dev landing is shipped in Phase 5 of the stable-mode plan.
+          # Until then the apex is DNS-only with nothing bound — probing it
+          # would create false-positive incident issues. Add back when
+          # Cloudflare Pages is bound to the apex:
+          #   - name: landing
+          #     url: https://foxbook.dev/
+          #     expected_status: 200
     steps:
       - name: Probe endpoint
         id: probe
