@@ -314,10 +314,26 @@ describe("createFirehoseListener — self-test wedge defence (Day-8 obs)", () =>
 
     listener.start();
 
-    // Wait long enough for: subscribe → first heartbeat → self-test fire →
-    // tolerance window (selfTestIntervalMs * 1.5 = 30ms) elapses → next
-    // heartbeat detects missing echo → throw → reconnect → resubscribe.
-    await new Promise((r) => setTimeout(r, 250));
+    // Wait for: subscribe → first heartbeat → self-test fire → tolerance
+    // window (selfTestIntervalMs * 1.5 = 30ms) elapses → next heartbeat
+    // detects missing echo → throw → reconnect → resubscribe.
+    //
+    // Poll-until-condition rather than fixed wait — keeps the test fast
+    // on healthy runs (~100ms) while tolerating slow CI runners up to
+    // MAX_WAIT_MS. Earlier 250ms fixed wait was too tight under CI load
+    // and produced flakes in PRs #62 and #64.
+    const MAX_WAIT_MS = 2000;
+    const start = Date.now();
+    while (Date.now() - start < MAX_WAIT_MS) {
+      if (
+        logs.some((l) => l.startsWith("firehose_listener_self_test_failed")) &&
+        logs.some((l) => l.startsWith("firehose_listener_reconnect")) &&
+        invocation >= 2
+      ) {
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 25));
+    }
 
     expect(logs.some((l) => l.startsWith("firehose_listener_self_test_failed"))).toBe(true);
     expect(logs.some((l) => l.startsWith("firehose_listener_reconnect"))).toBe(true);
