@@ -2,13 +2,10 @@
   "name": "@foxbook/web",
   "version": "0.0.0",
   "private": true,
-  "description": "Next.js App Router — landing + profiles + discover UI.",
-  "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "description": "Static landing page for foxbook.dev. Deployed via Cloudflare Pages.",
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "echo 'no tests yet' && exit 0",
+    "typecheck": "echo 'static site, no typecheck' && exit 0",
+    "test": "echo 'no tests' && exit 0",
     "lint": "biome lint ."
   }
 }
