@@ -19,7 +19,7 @@
 
 Specifying the typed-reference shape is a **composition decision** that affects multiple implementations. Per [ADR 0006](0006-protocol-not-marketplace.md)'s protocol-not-marketplace stance, the spec belongs in the open: reviewable, archival, multi-party. The active spec venue is:
 
-**`<DISCUSSION_URL>`**
+**https://github.com/cloakmaster/foxbook/discussions/73**
 
 This ADR is the Foxbook-side ratification record. It is **`under-public-discussion`** until consensus lands in the thread; once schema v1.0 is agreed, this ADR is updated **in-place** with the ratified shape and `Status: accepted`. A new ADR (0010) is not opened for the ratification — the thread is the discussion record, this ADR is the decision record.
 
@@ -27,7 +27,7 @@ This ADR is the Foxbook-side ratification record. It is **`under-public-discussi
 
 ### Schema (placeholder pending public consensus)
 
-The strawman from `<DISCUSSION_URL>` is reproduced here for traceability. The ratified schema lands in this section once the thread reaches consensus.
+The strawman from https://github.com/cloakmaster/foxbook/discussions/73 is reproduced here for traceability. The ratified schema lands in this section once the thread reaches consensus.
 
 ```json
 {
@@ -94,7 +94,7 @@ The composition pattern itself (typed-reference, embedded inside a higher-layer 
 
 ## Verified
 
-- The strawman schema in this ADR matches the strawman posted at `<DISCUSSION_URL>` first-comment as of `<DATE_POSTED>`.
+- The strawman schema in this ADR matches the strawman posted at https://github.com/cloakmaster/foxbook/discussions/73 first-comment as of `2026-05-04`.
 - Foxbook SDK v0.2.0 (`@foxbook/sdk-claim@0.2.0`) surfaces `verified_signing_key_hex` + `leaf_index` on the `verified` branch of `verifyAgentCard`. Verified by `npm view @foxbook/sdk-claim`.
 - tl-leaf v1.2's canonical-bytes shape (per [ADR 0004 addendum-3](0004-tl-leaf-schema-evolution.md)) is what `tl_leaf_canonical_hash` references. Cross-language byte-match validation in [`schemas/crypto-test-vectors.json`](../../schemas/crypto-test-vectors.json).
 - Concordia v0.4.0 and Sanctuary Castle Architecture v1.2 are the named cross-impl reference candidates per [@eriknewton's 2026-05-04 comment](https://github.com/a2aproject/A2A/discussions/1803#discussioncomment-13655678) on A2A Discussion #1803.
