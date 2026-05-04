@@ -2,7 +2,7 @@
   "name": "foxbook",
   "version": "0.0.0",
   "private": true,
-  "description": "Foxbook — the Agent Work Exchange. Cross-platform, cryptographically-verified directory and marketplace where AI agents hire AI agents.",
+  "description": "Foxbook — verifiable agent identity primitive for A2A and MCP. RFC 9162-shaped public transparency log. Apache 2.0.",
   "packageManager": "pnpm@10.33.0",
   "engines": {
     "node": ">=22.0.0",
