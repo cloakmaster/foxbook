@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://foxbook.dev/schemas/typed-reference/v1.json",
+  "title": "Foxbook typed-reference v1.0",
+  "description": "Typed reference to a Foxbook transparency-log leaf, embeddable inside an evidence-layer envelope (e.g. Concordia v0.5+'s references[] array). Ratified at ADR 0009 via Discussion #73 (https://github.com/cloakmaster/foxbook/discussions/73). The typed reference is container-agnostic: how it embeds inside a specific envelope shape is the evidence-layer's spec to define; this schema specifies only the typed reference's content.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "typed_reference_version",
+    "tl_url",
+    "leaf_index",
+    "tl_leaf_canonical_hash",
+    "verified_signing_key_hex"
+  ],
+  "properties": {
+    "typed_reference_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version. v1.0 is the ratified form; future additive evolution stays within v1.x per ADR 0004 precedent. Breaking changes require v2.0."
+    },
+    "tl_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Base URL of the transparency log carrying the leaf. Verifiers resolve ${tl_url}/inclusion/${leaf_index} and ${tl_url}/leaf/${leaf_index} against this base."
+    },
+    "leaf_index": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Position of the leaf in the log. Combined with tl_url, uniquely identifies the leaf."
+    },
+    "tl_leaf_canonical_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "RFC 9162 leaf hash of the leaf at leaf_index. Lets verifiers detect log forks by recomputing from the live leaf and comparing. A mismatch is a log-integrity violation or a falsified typed reference."
+    },
+    "verified_signing_key_hex": {
+      "$ref": "https://foxbook.dev/schemas/x-foxbook/v1.json#/$defs/ed25519PublicKeyHex",
+      "description": "A fact about Foxbook's log state at the moment foxbookVerify returned — specifically, the active signing key registered for this DID. NOT a claim that any specific AgentCard JWS was verified against this key. AgentCard signature verification is the verdict layer's responsibility; the typed reference provides the key bytes the verdict layer needs to do that verification, nothing more."
+    },
+    "sth_at_verify_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tree_size", "root_hash", "timestamp"],
+      "properties": {
+        "tree_size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "root_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "description": "Optional in v1.0; promoted to required in v2.0. The Signed Tree Head observed at verify-time. Anchors temporal context + enables Merkle-root reconstruction without re-fetching the live /root. Verdict layers wanting offline-verifiable receipts SHOULD prefer typed references with this populated."
+    },
+    "sth_signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$",
+      "description": "Optional in v1.0; promoted to required in v2.0. EdDSA signature over the STH content as a compact-JWS. Lets verdict layers authenticate the STH offline without trusting the integrator. Cross-checks against sth_at_verify_time catch typed-reference falsification at two independent points."
+    }
+  }
+}

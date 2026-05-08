@@ -18,19 +18,20 @@ If you're integrating, see [`COMPOSE-WITH-FOXBOOK.md`](COMPOSE-WITH-FOXBOOK.md) 
 | Field | Value |
 |---|---|
 | Integrator | [@eriknewton](https://github.com/eriknewton) |
-| Systems | **Concordia v0.4.0** (evidence-composition layer) + **Sanctuary Castle Architecture v1.2** (verdict-policy gateway) |
-| Integration shape | Typed-reference: a Concordia attestation envelope carries a typed reference to a Foxbook leaf as supporting evidence. Sanctuary verdict-policy anchors on the typed reference. |
-| Status | **Proposed** |
-| Schema discussion | https://github.com/cloakmaster/foxbook/discussions/73 |
+| Systems | **Concordia v0.5** (evidence-composition layer; v0.5 ships the `references[]` extension) + **Sanctuary Castle Architecture v1.3+** (verdict-policy gateway; Foxbook-by-handle verifier as a Castle Layer 3 surface) |
+| Integration shape | Typed-reference v1.0 per [ADR 0009](decisions/0009-typed-reference-schema-for-composition.md): a Concordia attestation envelope carries a typed reference to a Foxbook leaf as supporting evidence inside its `references[]` array. Sanctuary verdict-policy anchors on the typed reference. |
+| Status | **Spec'd** |
+| Schema | [ADR 0009](decisions/0009-typed-reference-schema-for-composition.md) (ratified 2026-05-08); JSON Schema artifact at [`schemas/typed-reference.v1.json`](../schemas/typed-reference.v1.json) |
+| Consensus venue | [Discussion #73](https://github.com/cloakmaster/foxbook/discussions/73) (ratified by [eriknewton 2026-05-07T20:42Z](https://github.com/cloakmaster/foxbook/discussions/73#discussioncomment-16834540)) |
 | Origin | [A2A Discussion #1803, eriknewton 2026-05-04T17:39Z](https://github.com/a2aproject/A2A/discussions/1803#discussioncomment-13655678) |
 
 Three-layer stack:
 
 1. **Identity** — Foxbook (handle verification, RFC 9162 transparency log)
-2. **Evidence** — Concordia v0.4.0 (#1734-shape attestation envelopes)
-3. **Verdict** — Sanctuary Castle Architecture v1.2 (gateway-side policy enforcement)
+2. **Evidence** — Concordia v0.5 (#1734-shape attestation envelopes; carries typed-reference v1.0 inside `references[]`)
+3. **Verdict** — Sanctuary Castle Architecture v1.3+ (gateway-side policy enforcement; Foxbook-by-handle verifier as Cooperative MCP capability)
 
-The typed-reference shape under discussion at https://github.com/cloakmaster/foxbook/discussions/73. Once consensus lands, [`docs/decisions/0009-typed-reference-schema-for-composition.md`](decisions/0009-typed-reference-schema-for-composition.md) ratifies the shape on the Foxbook side.
+Status flips Spec'd → Live when Concordia v0.5 / Sanctuary v1.3+ ship the consumption surface.
 
 ---
 
@@ -44,6 +45,7 @@ These aren't application-layer integrations but are load-bearing for the cross-i
 | CTEF v0.3.1 byte-match (4/4 vectors) | Verified 2026-04-30 | [`ops/evidence/2026-04-30-ctef-v0.3.1-byte-match.md`](../ops/evidence/2026-04-30-ctef-v0.3.1-byte-match.md) (commit 9e392c5) |
 | CTEF v0.3.2 `request_inheritance.request_hash` shares JCS (RFC 8785) canonicalization with Foxbook tl-leaf hashing — cross-layer canonicalization cohesion: identity-layer (Foxbook) and evidence-layer (CTEF) walk one canonical-bytes algorithm regardless of which layer's hash a verifier is checking. | In v0.4 punch-list | [A2A Discussion #1734](https://github.com/a2aproject/A2A/discussions/1734) |
 | AgentGraph litepaper §1.8 (substrate-and-primitive layering) | Publishes 2026-05-12 | TBD post-publish |
+| Symmetric `docs/COMPOSE-WITH-SANCTUARY.md` on the Sanctuary side | Queued (per eriknewton 2026-05-07) | TBD post-publish |
 
 ---
 
