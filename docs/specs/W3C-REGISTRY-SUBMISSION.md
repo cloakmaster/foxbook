@@ -105,7 +105,7 @@ n/a — single canonical reference deployment at `transparency.foxbook.dev`; pro
 
 - Cross-language byte-match test vectors at https://github.com/cloakmaster/foxbook/blob/main/schemas/crypto-test-vectors.json
 - Merkle inclusion-proof test vectors at https://github.com/cloakmaster/foxbook/blob/main/schemas/merkle-test-vectors.json
-- Independent canonicalizer cross-validation at https://github.com/cloakmaster/foxbook/blob/main/tools/cross-validate-rfc8785/README.md
+- The published test vectors are independently reproducible by any conforming RFC 8785 implementation (e.g., `trailofbits/rfc8785.py`) — language-agnostic byte-match validation.
 
 ## DID Documents Storage
 
@@ -175,7 +175,7 @@ https://github.com/cloakmaster/foxbook/blob/main/docs/specs/did-foxbook-method.m
 ## Cross-implementation validation
 
 - Cross-language byte-match test vectors: `schemas/crypto-test-vectors.json` + `schemas/merkle-test-vectors.json`
-- Independent canonicalizer cross-validation against `trailofbits/rfc8785.py` documented in `tools/cross-validate-rfc8785/`
+- Independent canonicalizer cross-validation: the published test vectors are reproducible by any conforming RFC 8785 implementation (e.g., `trailofbits/rfc8785.py`)
 - Cited as Layer 2 identity primitive (alternative DID method) in:
   - CTEF v0.3.2 substrate-and-primitive layering figure (`agentgraph-co/agentgraph`)
   - State of Agent Security — Q2 2026 (AgentGraph), §3.8 + §4 + co-signer byline
@@ -230,7 +230,6 @@ Once the W3C PR is merged:
 ## Cross-references
 
 - The DID method specification: [`docs/specs/did-foxbook-method.md`](did-foxbook-method.md)
-- The cross-canonicalizer validation tool: [`tools/cross-validate-rfc8785/README.md`](../../tools/cross-validate-rfc8785/README.md)
 - The trademark notice: [`TRADEMARK.md`](../../TRADEMARK.md)
 - ADR 0008 (stable-mode posture): [`docs/decisions/0008-stable-mode-maintenance-posture.md`](../decisions/0008-stable-mode-maintenance-posture.md)
 - The W3C DID Specification Registries repo: https://github.com/w3c/did-spec-registries

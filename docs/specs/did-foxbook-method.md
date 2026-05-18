@@ -331,7 +331,7 @@ Inclusion proofs are not time-bounded by themselves. A verifier that requires fr
 
 ### 4.4 Canonicalization correctness
 
-All signed structures (leaf bodies, STHs, etc.) are canonicalized per RFC 8785 JCS before signing. A canonicalization bug that produces different bytes on different implementations is a critical defect — see [`SECURITY.md`](https://github.com/cloakmaster/foxbook/blob/main/SECURITY.md). The reference implementation publishes cross-language test vectors at [`schemas/crypto-test-vectors.json`](https://github.com/cloakmaster/foxbook/blob/main/schemas/crypto-test-vectors.json); the canonicalize@2.1.0 reference (erdtman) is the primary canonicalizer. Independent validation against `trailofbits/rfc8785.py` is documented in [`tools/cross-validate-rfc8785/`](https://github.com/cloakmaster/foxbook/blob/main/tools/cross-validate-rfc8785/README.md).
+All signed structures (leaf bodies, STHs, etc.) are canonicalized per RFC 8785 JCS before signing. A canonicalization bug that produces different bytes on different implementations is a critical defect — see [`SECURITY.md`](https://github.com/cloakmaster/foxbook/blob/main/SECURITY.md). The reference implementation publishes cross-language test vectors at [`schemas/crypto-test-vectors.json`](https://github.com/cloakmaster/foxbook/blob/main/schemas/crypto-test-vectors.json); the canonicalize@2.1.0 reference (erdtman) is the primary canonicalizer. The format is independently reproducible by any conforming RFC 8785 implementation (e.g., `trailofbits/rfc8785.py`); a passing run against the published cross-language vectors is the operational validation.
 
 ### 4.5 DID method confusion
 
@@ -374,7 +374,7 @@ The transparency log is append-only by cryptographic design. A revocation leaf c
 ### 6.2 Canonicalization
 
 - **canonicalize@2.1.0** (erdtman, npm) — primary canonicalizer in the reference implementation. RFC 8785 JCS.
-- Cross-validated against **trailofbits/rfc8785.py** — see [`tools/cross-validate-rfc8785/`](https://github.com/cloakmaster/foxbook/blob/main/tools/cross-validate-rfc8785/README.md).
+- Independently reproducible by any conforming RFC 8785 implementation (e.g., `trailofbits/rfc8785.py`) against the published cross-language test vectors.
 
 ### 6.3 Operational deployment
 
