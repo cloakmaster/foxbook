@@ -1,3 +1,5 @@
+import { EventEmitter } from "node:events";
+
 import { verifyDnsTxtContainsCode } from "@foxbook/adapter-dns";
 import { verifyEndpointSignedNonce } from "@foxbook/adapter-endpoint-challenge";
 import { verifyGistContainsCode } from "@foxbook/adapter-gist";
@@ -60,8 +62,31 @@ const merkle = createMerkleRepository(db, signingKey ? { signingKey } : {});
 // torn down by Postgres-side. (Future: add an explicit shutdown hook
 // when SSE clients accumulate enough that we want graceful drain —
 // today single-subscriber, not load-bearing.)
-const firehoseListener = createFirehoseListener();
-firehoseListener.start();
+//
+// Gated on FOXBOOK_FIREHOSE_ENABLED ("true" enables; anything else disables).
+// Disabled by default in production because the listener holds an open
+// postgres LISTEN/NOTIFY connection 24/7, which consumes ~720
+// compute-hours/month against Neon's free-tier 100-hour cap. With no
+// documented external consumers of the SSE firehose surface, the
+// always-on connection is pure waste. The /firehose route is still
+// served when disabled, but receives no events — subscribers connect
+// successfully and see only the SSE heartbeat ping. Re-enable by setting
+// FOXBOOK_FIREHOSE_ENABLED=true via `flyctl secrets set` when a future
+// integrator needs the firehose surface.
+const firehoseEnabled = process.env.FOXBOOK_FIREHOSE_ENABLED === "true";
+let firehoseEmitter: EventEmitter;
+if (firehoseEnabled) {
+  const firehoseListener = createFirehoseListener();
+  firehoseListener.start();
+  firehoseEmitter = firehoseListener.emitter;
+  console.log("firehose_listener_enabled — FOXBOOK_FIREHOSE_ENABLED=true");
+} else {
+  console.log(
+    "firehose_listener_disabled — set FOXBOOK_FIREHOSE_ENABLED=true to enable the postgres LISTEN/NOTIFY subscriber",
+  );
+  firehoseEmitter = new EventEmitter();
+  firehoseEmitter.setMaxListeners(0); // SSE clients can be many
+}
 
 const app = createApp({
   discoveryRepo: new DrizzleDiscoveryRepository(db),
@@ -73,7 +98,7 @@ const app = createApp({
     verificationCommitter: createVerificationCommitter(db, merkle),
     revocationCommitter: createRevocationCommitter(db, merkle),
   },
-  firehoseEmitter: firehoseListener.emitter,
+  firehoseEmitter,
   merkleRepo: merkle,
   logSigningPublicKeyHex,
 });
