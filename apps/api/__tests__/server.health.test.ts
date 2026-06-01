@@ -60,13 +60,20 @@ function fakeMerkleRepo(snapshot: MerkleRootSnapshot | null): MerkleRepository {
   };
 }
 
-function makeApp(opts: { merkleRepo?: MerkleRepository; logSigningPublicKeyHex?: string } = {}) {
+function makeApp(
+  opts: {
+    merkleRepo?: MerkleRepository;
+    logSigningPublicKeyHex?: string;
+    healthzDbTimeoutMs?: number;
+  } = {},
+) {
   return createApp({
     discoveryRepo: emptyRepo(),
     claim: stubClaimDeps(),
     firehoseEmitter: new EventEmitter(),
     merkleRepo: opts.merkleRepo,
     logSigningPublicKeyHex: opts.logSigningPublicKeyHex,
+    healthzDbTimeoutMs: opts.healthzDbTimeoutMs,
   });
 }
 
@@ -123,6 +130,31 @@ describe("GET /healthz", () => {
       },
     };
     const app = makeApp({ merkleRepo: erroringRepo });
+    const res = await app.request("/healthz");
+    expect(res.status).toBe(503);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.status).toBe("degraded");
+    expect(body.leafCount).toBe(0);
+  });
+
+  it("returns 503 + status:degraded when merkleRepo.getRoot() hangs past the timeout", async () => {
+    // Simulates a suspended/unreachable Neon compute: getRoot() never settles.
+    // Without a bounded timeout this hangs until the caller's socket times out
+    // (curl exit 28) — the exact failure mode behind the May 2026 silent outage.
+    const hangingRepo: MerkleRepository = {
+      append: async () => {
+        throw new Error("not called");
+      },
+      getRoot: () => new Promise<MerkleRootSnapshot | null>(() => {}),
+      getLeaf: async () => null,
+      getInclusionProof: async () => {
+        throw new Error("not called");
+      },
+      getConsistencyProof: async () => {
+        throw new Error("not called");
+      },
+    };
+    const app = makeApp({ merkleRepo: hangingRepo, healthzDbTimeoutMs: 50 });
     const res = await app.request("/healthz");
     expect(res.status).toBe(503);
     const body = (await res.json()) as Record<string, unknown>;
