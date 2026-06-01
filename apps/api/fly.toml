@@ -86,15 +86,21 @@ primary_region = 'fra'
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
-  # Keep one machine warm so /healthz never cold-starts a check.
+  # Keep one machine warm so the API never cold-starts.
   min_machines_running = 1
 
+  # Liveness check hits /health (no DB), NOT /healthz. /healthz queries Neon
+  # on every call; at this 30s interval on an always-warm machine that kept
+  # the Neon compute from ever idling, burning the free-tier compute-hour
+  # budget and causing the monthly mid-cycle suspension (see docs/OPERATIONS.md
+  # § "Neon compute-hour exhaustion"). /health proves the process is up; deep
+  # DB health is surfaced to external monitors via /healthz.
   [[http_service.checks]]
     interval = '30s'
     timeout = '5s'
     grace_period = '10s'
     method = 'GET'
-    path = '/healthz'
+    path = '/health'
 
 [[vm]]
   size = 'shared-cpu-1x'

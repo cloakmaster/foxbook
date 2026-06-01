@@ -11,6 +11,23 @@ import { firehoseRoute } from "./firehose/route.js";
 
 const STARTED_AT_MS = Date.now();
 
+/** Default ceiling for the /healthz DB read. Well under Fly's 5s check
+ *  timeout and external monitors' 10s, so a suspended/unreachable database
+ *  surfaces as a fast 503 instead of hanging the health check. */
+const DEFAULT_HEALTHZ_DB_TIMEOUT_MS = 3000;
+
+/** Reject if `promise` doesn't settle within `ms`. Bounds the /healthz DB
+ *  read: a suspended Neon compute leaves getRoot() pending forever, which
+ *  (unbounded) hung the health check until the caller's socket timed out —
+ *  the failure mode behind the May 2026 silent outage. */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 export type AppDeps = {
   discoveryRepo: DiscoveryRepository;
   claim: ClaimDeps;
@@ -19,6 +36,10 @@ export type AppDeps = {
   /** Merkle repo (read-only path) for /healthz leafCount. Optional —
    *  tests omit; production main.ts wires it. */
   merkleRepo?: MerkleRepository | undefined;
+  /** Max time (ms) to wait for the /healthz DB read before returning a 503.
+   *  Defaults to DEFAULT_HEALTHZ_DB_TIMEOUT_MS. Bounded so a suspended or
+   *  unreachable database fails fast instead of hanging the health check. */
+  healthzDbTimeoutMs?: number | undefined;
   /** Log-signing public key (hex) for /.well-known/foxbook.json.
    *  Optional — when undefined, the well-known surface omits the
    *  log_signing_public_key_hex field. */
@@ -39,12 +60,17 @@ export function createApp(deps: AppDeps): Hono {
       return c.json({ status: "ok", service: "foxbook-api", leafCount: 0, uptime_seconds });
     }
     try {
-      const root = await deps.merkleRepo.getRoot();
+      const root = await withTimeout(
+        deps.merkleRepo.getRoot(),
+        deps.healthzDbTimeoutMs ?? DEFAULT_HEALTHZ_DB_TIMEOUT_MS,
+        "healthz getRoot",
+      );
       const leafCount = root?.leafCount ?? 0;
       return c.json({ status: "ok", service: "foxbook-api", leafCount, uptime_seconds });
     } catch {
-      // DB hiccup → 503 + status:degraded so Fly's check fails and the
-      // machine cycles, rather than us silently reporting healthy.
+      // DB error OR a hung/suspended DB (timeout) → 503 + status:degraded.
+      // Surfaces a clear "down" signal to external monitors fast, instead of
+      // silently reporting healthy or hanging until the caller times out.
       return c.json(
         { status: "degraded", service: "foxbook-api", leafCount: 0, uptime_seconds },
         503,

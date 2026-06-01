@@ -49,6 +49,31 @@ Confirm against actual billing dashboards quarterly. Estimates below are based o
 
 ---
 
+## Neon compute-hour exhaustion (the May 2026 outage)
+
+**What happened:** From 2026-05-19 to 2026-06-01, `api.foxbook.dev/healthz` and `transparency.foxbook.dev/root` were down for ~13 days while `foxbook.dev` (static) stayed up. Both down endpoints are the DB-backed ones. The service recovered on its own at the **monthly free-tier reset** (Jun 1, 05:01 UTC) — no deploy. No data was lost (`leaf_count` held at 8, STH of 2026-05-18 intact).
+
+**Root cause:** the production Neon project is on the **free tier (192 compute-hours/month)**. Fly's liveness check ran `GET /healthz` **every 30s**, and `/healthz` queried Neon on every call. With `min_machines_running = 1`, that warm machine issued a Neon query every 30s, 24/7, so the Neon compute **never idled** (~720 compute-hours/month vs. a 192-hour cap). The budget was exhausted mid-cycle, Neon suspended the compute, and it only came back at the monthly reset. This is exactly the risk flagged in the cost table ("verify `min_machines_running` on Fly isn't issuing constant heartbeat queries to Neon").
+
+**Why it was invisible for 13 days:**
+- The `uptime` workflow reported the run as **success** even while filing incident issues. (Fixed: the run now goes **red** on a down endpoint.)
+- `/healthz` **hung** on the suspended DB (curl exit 28) instead of failing fast. (Fixed: the DB read is now bounded to 3s → fast **503 `degraded`**.)
+
+**Fixes applied in code (effective on next API deploy + on merge to main):**
+- `fly.toml`: liveness check now hits `/health` (no DB) instead of `/healthz`, so the warm machine stops waking Neon around the clock.
+- `apps/api/src/server.ts`: `/healthz` DB read is timeout-bounded.
+- `.github/workflows/uptime.yml`: a down endpoint fails the run.
+
+**Durable fix — ACTION REQUIRED (cannot be done from the repo):** the prod DB (Neon endpoint `ep-shiny-lake-alqebn33`, region `eu-central-1`) is on a **free-tier** project that lives under a Neon account **separate** from the paid **Launch** org `benshiib@gmail.com` (which currently holds **zero** projects). Pick one:
+1. **Upgrade the prod project to Launch** ($19/mo flat, no compute-hour cap) — Neon console → project → Settings → Plan. The cost table already says: do not downgrade off Launch for a transparency log.
+2. **Move/recreate the DB under the already-paid Launch account** so billing and the MCP/console you manage actually point at production.
+
+Either way, also confirm the compute's **autosuspend** is enabled (Neon console → Branches → `main` → compute) so idle time doesn't bill, and re-check the compute-hours usage graph after a week.
+
+**Is it happening again? (quick check):** `/healthz` returns `503 {"status":"degraded"}`, `/root` returns 500, and Neon console shows the compute **suspended** / compute-hours near the cap. The `uptime` workflow run will now be red and an `uptime-incident` issue will be open.
+
+---
+
 ## Re-deploy each service
 
 ### `api.foxbook.dev` (Fly.io)
