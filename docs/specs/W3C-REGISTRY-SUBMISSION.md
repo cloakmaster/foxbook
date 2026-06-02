@@ -26,7 +26,7 @@ Run through these before opening the W3C PR:
 - [ ] The reference implementation is publicly available at `https://github.com/cloakmaster/foxbook` (Apache 2.0)
 - [ ] The reference deployment is operational: `curl -s https://transparency.foxbook.dev/root | jq` returns a valid STH
 - [ ] The npm-published SDK is reachable: `npm view @foxbook/sdk-claim` shows a published version
-- [ ] At least one resolvable example DID exists in production (a `did:foxbook:` that returns a valid DID Document via `https://api.foxbook.dev/agents/<did>`). Optional but strengthens the submission.
+- [ ] At least one resolvable example DID exists in production: a claimed handle whose `GET https://api.foxbook.dev/api/v1/claim/by-handle/<asset_type>/<asset_value>` returns a `did:foxbook:` with a `leaf_index`, and whose `GET https://transparency.foxbook.dev/inclusion/<leaf_index>` verifies against `GET https://transparency.foxbook.dev/root`. (Resolution is a client-side projection over these endpoints — there is no single `GET .../<did>` resolver endpoint; see §3.2.1 of the method spec.) Optional but strengthens the submission.
 - [ ] The Foxbook trademark posture is documented at [`TRADEMARK.md`](../../TRADEMARK.md) (W3C wants to know naming control)
 
 ---
@@ -79,7 +79,7 @@ https://github.com/cloakmaster/foxbook/blob/main/docs/specs/did-foxbook-method.m
 
 `did:foxbook:<ulid>` where `<ulid>` is a 26-character ULID in Crockford's Base32 (uppercase).
 
-Format regex: `^did:foxbook:[0-7][0-9A-HJKMNP-TV-Z]{25}$`
+Format regex: `^did:foxbook:[0-9A-HJKMNP-TV-Z]{26}$` (the regex the reference implementation actually ships — see `core/src/did.ts`)
 
 ## Method Status
 
@@ -103,9 +103,9 @@ n/a — single canonical reference deployment at `transparency.foxbook.dev`; pro
 
 ## Conformance Test Suite
 
-- Cross-language byte-match test vectors at https://github.com/cloakmaster/foxbook/blob/main/schemas/crypto-test-vectors.json
+- Cross-language byte-match test vectors at https://github.com/cloakmaster/foxbook/blob/main/schemas/crypto-test-vectors.json (the `jws_round_trip` vector is the signing-path byte-match anchor, byte-identical across the TypeScript and Python implementations)
 - Merkle inclusion-proof test vectors at https://github.com/cloakmaster/foxbook/blob/main/schemas/merkle-test-vectors.json
-- The published test vectors are independently reproducible by any conforming RFC 8785 implementation (e.g., `trailofbits/rfc8785.py`) — language-agnostic byte-match validation.
+- The `did:foxbook` signing path uses an insertion-order canonical JSON encoding (`JSON.stringify` semantics with caller-fixed key order; see ADR 0005 and `core/src/crypto/canonical.ts`), **not** RFC 8785 JCS. Cross-language validation is the byte-match of the published vectors across the TypeScript and Python implementations, not reproduction by an independent JCS canonicalizer.
 
 ## DID Documents Storage
 
@@ -114,8 +114,8 @@ Off-chain — DID Documents are computed from the current state of the transpare
 ## Other Specifications Referenced
 
 - RFC 9162 (Certificate Transparency v2.0) — transparency log shape
-- RFC 8785 (JSON Canonicalization Scheme) — canonicalization
 - RFC 8032 (EdDSA) — Ed25519 signatures
+- RFC 8785 (JSON Canonicalization Scheme) — informative only; used by the implementation's separate cross-ecosystem interop canonicalizer, NOT by the `did:foxbook` signing path (which uses insertion-order canonical JSON per ADR 0005)
 - ULID specification (https://github.com/ulid/spec)
 - W3C DID Core 1.0
 - W3C Ed25519VerificationKey2020
@@ -161,7 +161,7 @@ https://github.com/cloakmaster/foxbook/blob/main/docs/specs/did-foxbook-method.m
 
 - **Method-Specific Identifier**: `did:foxbook:<ulid>` where `<ulid>` is a 26-character ULID in Crockford's Base32 (uppercase).
 - **Substrate**: Public, append-only, RFC 9162-shaped Merkle transparency log. Single canonical reference deployment at `transparency.foxbook.dev`; protocol contract is multi-deployment compatible.
-- **Cryptography**: Ed25519 signing + recovery keys (separate); JCS (RFC 8785) canonicalization.
+- **Cryptography**: Ed25519 signing + recovery keys (separate); insertion-order canonical JSON encoding for the signing path (`JSON.stringify` semantics with caller-fixed key order, per ADR 0005 — not RFC 8785 JCS).
 - **Atomic revocation**: revocation appends a leaf to the log + deletes the current claim row in a single transaction (per ADR 0004 addendum-1 in the reference implementation). Past inclusion proofs verify forever.
 - **Recovery / signing key separation**: a leaked recovery key permits denial-of-service (revoke + re-claim) but not impersonation; a leaked signing key permits impersonation only until revocation.
 
@@ -169,13 +169,12 @@ https://github.com/cloakmaster/foxbook/blob/main/docs/specs/did-foxbook-method.m
 
 - Repository: https://github.com/cloakmaster/foxbook (Apache 2.0)
 - SDK: `@foxbook/sdk-claim` on npm
-- Canonicalization: `canonicalize@2.1.0` (erdtman RFC 8785 reference impl)
+- Signing-path canonicalization: insertion-order canonical JSON (`core/src/crypto/canonical.ts`; Python mirror in `packages/sdk-py`), per ADR 0005. (The implementation also ships a separate RFC 8785 JCS canonicalizer in `core/src/crypto/jcs.ts` for cross-ecosystem interop, but it is not used to sign `did:foxbook` operations.)
 - Live deployment: https://transparency.foxbook.dev
 
 ## Cross-implementation validation
 
-- Cross-language byte-match test vectors: `schemas/crypto-test-vectors.json` + `schemas/merkle-test-vectors.json`
-- Independent canonicalizer cross-validation: the published test vectors are reproducible by any conforming RFC 8785 implementation (e.g., `trailofbits/rfc8785.py`)
+- Cross-language byte-match test vectors: `schemas/crypto-test-vectors.json` + `schemas/merkle-test-vectors.json`. The signing-path byte-match anchor is the `jws_round_trip` vector, byte-identical across the TypeScript and Python implementations (the signing path uses insertion-order canonical JSON, not RFC 8785 JCS).
 - Cited as Layer 2 identity primitive (alternative DID method) in:
   - CTEF v0.3.2 substrate-and-primitive layering figure (`agentgraph-co/agentgraph`)
   - State of Agent Security — Q2 2026 (AgentGraph), §3.8 + §4 + co-signer byline
