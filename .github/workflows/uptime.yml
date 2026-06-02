@@ -1,6 +1,20 @@
 # Uptime monitoring for transparency.foxbook.dev / api.foxbook.dev / foxbook.dev.
 #
-# Runs every 15 minutes via cron. Pings each endpoint with a short timeout.
+# Two cron schedules, to keep the production Neon project on the free tier
+# (192 compute-hours/month) without sacrificing fast outage detection:
+#   - */15 (every 15 min): the static landing (foxbook.dev) only. It touches
+#     no DB, so probing it often is free.
+#   - */30 (every 30 min): the DB-backed endpoints (api/healthz,
+#     transparency/root). Each of these wakes the Neon compute, so we probe
+#     them half as often to roughly halve the monitor-induced wakeups. The
+#     tradeoff is up to ~30 min of detection latency on those two endpoints
+#     (vs. ~15 min before). See docs/OPERATIONS.md § "Neon compute-hour
+#     exhaustion" for why minimising Neon wakeups matters on the free tier.
+# Each matrix entry declares the cron it runs on (`schedule:`); the probe step
+# is skipped on the off-schedule via `github.event.schedule`. A manual
+# workflow_dispatch (no schedule) probes everything.
+#
+# Pings each endpoint with a short timeout.
 # On failure: opens (or comments on) a GitHub issue tagged `uptime-incident`
 #   AND fails the workflow run (red X in the Actions tab), so an outage is
 #   visible there too — not only via issue notifications. A green run history
@@ -26,8 +40,9 @@ name: uptime
 
 on:
   schedule:
-    - cron: "*/15 * * * *"  # every 15 minutes (UTC)
-  workflow_dispatch:        # manual trigger via Actions tab
+    - cron: "*/15 * * * *"  # every 15 min (UTC): static landing only (no DB)
+    - cron: "*/30 * * * *"  # every 30 min (UTC): DB-backed endpoints (wake Neon)
+  workflow_dispatch:        # manual trigger via Actions tab (probes everything)
 
 permissions:
   issues: write             # to open / comment / close incident issues
@@ -39,19 +54,32 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # `schedule` keys each endpoint to the cron it should run on. The DB-
+        # backed endpoints (transparency/root, api/healthz) wake the Neon
+        # compute, so they ride the slower */30 cron to halve monitor-induced
+        # wakeups; the static landing rides */15. The probe step is skipped on
+        # the off-schedule (see its `if:`). workflow_dispatch has no schedule,
+        # so the skip condition lets everything run on a manual trigger.
         include:
           - name: transparency
             url: https://transparency.foxbook.dev/root
             expected_status: 200
+            schedule: "*/30 * * * *"
           - name: api
             url: https://api.foxbook.dev/healthz
             expected_status: 200
+            schedule: "*/30 * * * *"
           - name: landing
             url: https://foxbook.dev/
             expected_status: 200
+            schedule: "*/15 * * * *"
     steps:
+      # Skip this endpoint when a scheduled run's cron doesn't match the
+      # endpoint's assigned schedule. On workflow_dispatch, github.event.schedule
+      # is empty, so the condition is true and every endpoint is probed.
       - name: Probe endpoint
         id: probe
+        if: github.event.schedule == '' || github.event.schedule == matrix.schedule
         env:
           ENDPOINT_URL: ${{ matrix.url }}
           EXPECTED_STATUS: ${{ matrix.expected_status }}
