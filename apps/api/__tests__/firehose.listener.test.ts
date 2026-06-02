@@ -85,6 +85,27 @@ function makeMockSqlClient(behaviour: MockSqlBehaviour = {}) {
 
 const VALID_DIRECT_URL = "postgresql://user:pass@host.example/db";
 
+/**
+ * Poll `predicate` every 25ms until it returns true or MAX_WAIT_MS
+ * elapses. Mirrors the inline poll-until loop the self-test-wedge test
+ * already uses — keeps positive-assertion tests fast on healthy runs
+ * (resolve as soon as the condition holds) while tolerating slow CI
+ * runners up to MAX_WAIT_MS. Fixed `setTimeout` waits here were too
+ * tight under CI load and produced flakes in PRs #62 and #64.
+ *
+ * Returns true if the predicate became true within the window, false on
+ * timeout — callers assert on the resulting state so a timeout surfaces
+ * as a normal assertion failure with the real log surface attached.
+ */
+async function pollUntil(predicate: () => boolean, maxWaitMs = 2000): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
+    if (predicate()) return true;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  return predicate();
+}
+
 describe("createFirehoseListener — env validation (fail-loud)", () => {
   it("throws if DATABASE_URL_DIRECT is empty + no override", () => {
     const original = process.env.DATABASE_URL_DIRECT;
@@ -205,8 +226,13 @@ describe("createFirehoseListener — reconnect with sentinel log", () => {
 
     listener.start();
 
-    // Wait long enough for the failure → reconnect → success path.
-    await new Promise((r) => setTimeout(r, 80));
+    // Poll until the failure → reconnect → success path has run: the
+    // reconnect sentinel is logged AND the retry resubscribes.
+    await pollUntil(
+      () =>
+        logs.some((l) => l.startsWith("firehose_listener_reconnect")) &&
+        logs.some((l) => l.startsWith("firehose_listener_subscribed")),
+    );
 
     const reconnectLogs = logs.filter((l) => l.startsWith("firehose_listener_reconnect"));
     expect(reconnectLogs.length).toBeGreaterThanOrEqual(1);
@@ -239,12 +265,12 @@ describe("createFirehoseListener — self-test wedge defence (Day-8 obs)", () =>
 
     listener.start();
 
-    // Wait for subscribe + first heartbeat + self-test ping fire.
-    await new Promise((r) => setTimeout(r, 80));
+    // Poll for subscribe + first heartbeat + self-test ping fire. The
+    // mock records every tagged-template call (SELECT 1 heartbeats and
+    // the pg_notify self-test ping), so waiting on selectCalls is the
+    // observable signal that the heartbeat/self-test path has run.
+    await pollUntil(() => mock.selectCalls.length >= 1);
 
-    // The mock records every tagged-template call. Find a call whose
-    // first interpolated arg is the channel (the second is the
-    // payload string we serialized).
     const selfTestFireCount = mock.selectCalls.length;
     expect(selfTestFireCount).toBeGreaterThanOrEqual(1);
 
@@ -344,19 +370,43 @@ describe("createFirehoseListener — self-test wedge defence (Day-8 obs)", () =>
   });
 
   it("aliveLogEveryHeartbeats=0 disables the periodic alive sentinel", async () => {
-    const mock = makeMockSqlClient();
-    const logs: string[] = [];
-    const listener = createFirehoseListener({
-      url: VALID_DIRECT_URL,
-      clientFactory: (() => mock.sql) as never,
-      logger: (line) => logs.push(line),
-      heartbeatIntervalMs: 20,
-      selfTestIntervalMs: 0, // also disable self-test for clean log surface
-      aliveLogEveryHeartbeats: 0,
-    });
-    listener.start();
-    await new Promise((r) => setTimeout(r, 100));
-    expect(logs.some((l) => l.startsWith("firehose_listener_alive"))).toBe(false);
-    await listener.stop();
+    // Negative assertion: the alive sentinel must NEVER appear. A fixed
+    // wall-clock sleep can only ever prove "absent so far" and is the
+    // exact flake shape #62/#64 hit. Fake timers make the absence
+    // deterministic — we advance through MANY heartbeat intervals' worth
+    // of virtual time (far more than the old 100ms/5-tick budget) and
+    // assert the sentinel never fired.
+    vi.useFakeTimers();
+    try {
+      const mock = makeMockSqlClient();
+      const logs: string[] = [];
+      const listener = createFirehoseListener({
+        url: VALID_DIRECT_URL,
+        clientFactory: (() => mock.sql) as never,
+        logger: (line) => logs.push(line),
+        heartbeatIntervalMs: 20,
+        selfTestIntervalMs: 0, // also disable self-test for clean log surface
+        aliveLogEveryHeartbeats: 0,
+      });
+      listener.start();
+
+      // Drain the subscribe microtasks, then run virtual time through
+      // ~25 heartbeat ticks. advanceTimersByTimeAsync flushes the awaited
+      // SELECT-1 promises between each timer callback so the heartbeat
+      // loop actually progresses.
+      await vi.advanceTimersByTimeAsync(0);
+      expect(logs.some((l) => l.startsWith("firehose_listener_subscribed"))).toBe(true);
+      await vi.advanceTimersByTimeAsync(20 * 25);
+
+      expect(logs.some((l) => l.startsWith("firehose_listener_alive"))).toBe(false);
+
+      // stop() awaits the run loop; let its shutdown microtasks settle
+      // under fake timers so the test doesn't leak a pending loop.
+      const stopped = listener.stop();
+      await vi.runAllTimersAsync();
+      await stopped;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

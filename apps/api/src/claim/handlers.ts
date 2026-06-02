@@ -526,7 +526,11 @@ const TIER_BY_STATE: Record<string, number> = {
   unclaimed: 0,
   gist_pending: 0,
   tier1_verified: 1,
-  tier2_pending: 1,
+  // tier2_pending is an UNVERIFIED domain claim awaiting DNS/endpoint
+  // proof (claimStartDomain) — it has no completed verification, so its
+  // reported tier is 0, not 1. It is also app-state-only with no Merkle
+  // leaf, so the `tier >= 1` leaf-lookup below correctly skips it.
+  tier2_pending: 0,
   tier2_verified: 2,
 };
 

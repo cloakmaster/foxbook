@@ -133,6 +133,29 @@ describe("claimByHandle handler", () => {
     expect(result.leafIndex).toBeNull();
   });
 
+  it("returns ok+claim with leafIndex=null for tier2_pending (unverified, no leaf)", async () => {
+    // A tier2_pending row is a fresh domain claim awaiting DNS/endpoint
+    // verification (claimStartDomain). It is app-state-only with NO
+    // Merkle leaf, so leafIndex must be null and the reported tier 0.
+    const state = freshState();
+    seedClaim(state, {
+      agentDid: "did:foxbook:01H8XS4WHV8YNGSZPQ5XK9QR6M",
+      assetType: "domain",
+      assetValue: "example.com",
+      state: "tier2_pending",
+    });
+    // Even if a stray leaf were registered for the DID, a tier2_pending
+    // claim must not surface it.
+    state.leafIndexByDid.set("did:foxbook:01H8XS4WHV8YNGSZPQ5XK9QR6M", 9);
+
+    const result = await claimByHandle(
+      { assetType: "domain", assetValue: "example.com" },
+      fakeDeps(state),
+    );
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.leafIndex).toBeNull();
+  });
+
   it("returns not-claimed for unknown handle", async () => {
     const result = await claimByHandle(
       { assetType: "github_handle", assetValue: "nobody" },
@@ -167,6 +190,33 @@ describe("claimByHandle handler", () => {
     expect(body.leaf_index).toBe(7);
     expect(body.inclusion_proof_url).toBe("https://transparency.foxbook.dev/inclusion/7");
     expect(body.revoked).toBe(false);
+  });
+
+  it("response shape reports verification_tier=0 for tier2_pending (unverified)", () => {
+    // Regression: tier2_pending was previously mapped to verification_tier 1,
+    // which over-reported an unverified domain claim as Gist-verified.
+    const claim: ClaimRow = {
+      id: "claim-3",
+      agentDid: "did:foxbook:01H8XS4WHV8YNGSZPQ5XK9QR6M",
+      state: "tier2_pending",
+      assetType: "domain",
+      assetValue: "example.com",
+      ed25519PublicKeyHex: "f".repeat(64),
+      recoveryKeyFingerprint: `sha256:${"a".repeat(64)}`,
+      verificationCode: "G2ZMPHK8DJ6S540HFNX792SAVPZ2SRSH",
+      startedAt: new Date(),
+      completedAt: null,
+    };
+    const body = claimByHandleResponseShape(
+      { ok: true, claim, leafIndex: null },
+      "https://transparency.foxbook.dev",
+    );
+    const valid = validateClaimByHandle(body);
+    if (!valid) console.error(validateClaimByHandle.errors);
+    expect(valid).toBe(true);
+    expect(body.verification_tier).toBe(0);
+    expect(body.leaf_index).toBeUndefined();
+    expect(body.inclusion_proof_url).toBeUndefined();
   });
 
   it("response shape conforms to schema (gist_pending, no leaf_index)", () => {
