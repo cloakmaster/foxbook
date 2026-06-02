@@ -29,7 +29,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Biome check
-        run: pnpm biome check
+        # --error-on-warnings: fail CI on any lint warning so the count can't
+        # silently creep back up once we've driven it to zero.
+        run: pnpm biome check --error-on-warnings
 
       - name: Typecheck
         run: pnpm typecheck

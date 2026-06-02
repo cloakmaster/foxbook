@@ -19,11 +19,16 @@ const textDecoder = new TextDecoder();
 
 function base64url(bytes: Uint8Array): string {
   let s = "";
-  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]!);
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i] ?? 0);
   return btoa(s).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 }
 
-function base64urlDecode(s: string): Uint8Array {
+/**
+ * Decode a base64url string (RFC 7515 §2, no padding) to raw bytes. Exported
+ * so service code (e.g. the @foxbook/api claim handler) can reuse the exact
+ * decode used internally by {@link jwsVerify} instead of shipping a copy.
+ */
+export function base64urlDecode(s: string): Uint8Array {
   const padded = s.replaceAll("-", "+").replaceAll("_", "/") + "===".slice((s.length + 3) % 4);
   const raw = atob(padded);
   const out = new Uint8Array(raw.length);

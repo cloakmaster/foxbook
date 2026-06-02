@@ -33,7 +33,7 @@ const sampleRow = {
   assetType: "github_handle" as const,
   assetValue: "cloakmaster",
   ed25519PublicKeyHex: "f".repeat(64),
-  recoveryKeyFingerprint: "sha256:" + "a".repeat(64),
+  recoveryKeyFingerprint: `sha256:${"a".repeat(64)}`,
   verificationCode: "G2ZMPHK8DJ6S540HFNX792SAVPZ2SRSH",
 };
 

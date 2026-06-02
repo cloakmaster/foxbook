@@ -31,9 +31,7 @@ describe("validateCapability — 22 frozen v1 IDs", () => {
     // list from core-isolation.config.json and assert no capability
     // ID matches any entry. This keeps the check real without
     // embedding the strings.
-    // biome-ignore lint/correctness/noNodejsModules: test-only IO
     const { readFileSync } = require("node:fs") as typeof import("node:fs");
-    // biome-ignore lint/correctness/noNodejsModules: test-only IO
     const { fileURLToPath } = require("node:url") as typeof import("node:url");
     const configPath = fileURLToPath(
       new URL("../../../core-isolation.config.json", import.meta.url),

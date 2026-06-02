@@ -280,7 +280,6 @@ export function createFirehoseListener(opts: FirehoseListenerOptions = {}): Fire
         // throws, the connection is dead and we drop into the
         // reconnect-backoff path. Optionally fire a self-test ping
         // and verify the prior ping echoed.
-        // eslint-disable-next-line no-constant-condition
         while (!stopped) {
           await sleep(heartbeatMs);
           if (stopped) break;
