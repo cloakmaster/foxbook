@@ -87,8 +87,9 @@ export function createClaimRepository(db: NodeDbClient): ClaimRepository {
 
     async findById(id) {
       const rows = await db.select().from(schema.claims).where(eq(schema.claims.id, id)).limit(1);
-      if (rows.length === 0) return null;
-      return rowToClaim(rows[0]!);
+      const [row] = rows;
+      if (row === undefined) return null;
+      return rowToClaim(row);
     },
 
     // Day-7 PR D removed `markTier1Verified` and `insertSigningKey`:

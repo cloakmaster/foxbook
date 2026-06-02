@@ -64,11 +64,13 @@ Confirm against actual billing dashboards quarterly. Estimates below are based o
 - `apps/api/src/server.ts`: `/healthz` DB read is timeout-bounded.
 - `.github/workflows/uptime.yml`: a down endpoint fails the run.
 
-**Durable fix — ACTION REQUIRED (cannot be done from the repo):** the prod DB (Neon endpoint `ep-shiny-lake-alqebn33`, region `eu-central-1`) is on a **free-tier** project that lives under a Neon account **separate** from the paid **Launch** org `benshiib@gmail.com` (which currently holds **zero** projects). Pick one:
-1. **Upgrade the prod project to Launch** ($19/mo flat, no compute-hour cap) — Neon console → project → Settings → Plan. The cost table already says: do not downgrade off Launch for a transparency log.
-2. **Move/recreate the DB under the already-paid Launch account** so billing and the MCP/console you manage actually point at production.
+**Durable fix — ACTION REQUIRED (cannot be done from the repo):**
 
-Either way, also confirm the compute's **autosuspend** is enabled (Neon console → Branches → `main` → compute) so idle time doesn't bill, and re-check the compute-hours usage graph after a week.
+**#1, do this first — enable Neon autosuspend (scale-to-zero).** This is the *single most important free-tier survival setting*. With autosuspend **off**, the production compute runs **24/7 (~720 compute-hours/month)** regardless of the Fly `/health` fix above — it will blow the 192-hour cap every month and the outage *will* recur. With autosuspend **on**, the compute scales to zero whenever it's idle, so the cost-table fixes (fewer wakeups) actually translate into staying under the cap. Set it in the Neon console → project → branch **`main`** → **Compute** → **"Scale to zero after"** ≈ **300s** (5 min). The Fly `/health` and `uptime.yml` `*/30` changes only *reduce wakeups*; they do nothing if autosuspend is off and the compute can never idle.
+
+**How to check current usage:** Neon console → project → **Usage** (the **compute-hours** graph) shows hours consumed this billing cycle vs. the 192-hour cap. Re-check it ~a week after enabling autosuspend to confirm the burn rate is well under the cap.
+
+**Remove the cap entirely (optional):** upgrading the prod project to **Launch ($19/mo flat)** removes the compute-hour cap altogether — no monitoring of the usage graph needed. The cost table already says: do not downgrade off Launch for a transparency log. Note the prod DB (Neon endpoint `ep-shiny-lake-alqebn33`, region `eu-central-1`) is on a **free-tier** project under a Neon account **separate** from the paid **Launch** org `benshiib@gmail.com` (which currently holds **zero** projects), so to use the already-paid Launch plan you'd move/recreate the DB under that account. Staying on the free tier with autosuspend on + the usage-graph check is the chosen path; Launch is the zero-maintenance fallback.
 
 **Is it happening again? (quick check):** `/healthz` returns `503 {"status":"degraded"}`, `/root` returns 500, and Neon console shows the compute **suspended** / compute-hours near the cap. The `uptime` workflow run will now be red and an `uptime-incident` issue will be open.
 
@@ -214,7 +216,7 @@ PITR restore is for catastrophic data loss, not routine rollback. The transparen
 
 ## Uptime monitoring
 
-`.github/workflows/uptime.yml` runs every 15 minutes via cron. It pings `https://transparency.foxbook.dev/root`, `https://api.foxbook.dev/healthz`, and `https://foxbook.dev/`. On failure (non-2xx response or timeout):
+`.github/workflows/uptime.yml` pings `https://transparency.foxbook.dev/root`, `https://api.foxbook.dev/healthz`, and `https://foxbook.dev/` on two cron schedules: the static landing (`foxbook.dev`, no DB) every **15 min**, and the two DB-backed endpoints (`api/healthz`, `transparency/root`) every **30 min**. The split exists because each DB-backed probe wakes the Neon compute; probing them half as often roughly halves the monitor-induced Neon wakeups, at the cost of up to ~30 min of detection latency on those two endpoints (see § "Neon compute-hour exhaustion"). On failure (non-2xx response or timeout):
 
 - Opens a GitHub issue tagged `uptime-incident` if no open incident issue exists for that endpoint.
 - Comments on an existing incident issue with the latest failure timestamp.
@@ -234,9 +236,9 @@ gh workflow enable uptime.yml
 
 Or comment `bot: silence 1h` on an open incident issue (placeholder — the workflow doesn't read silencing comments today; if needed, extend the workflow).
 
-### Why every 15 minutes, not 5
+### Why 15 min for the landing, 30 min for the DB endpoints
 
-GitHub Actions free-tier runner-minutes are unlimited on public repos but throttled on private. The uptime check is ~5-10 sec per run; at 15-min intervals that's ~3 hours of runner time per month — well under any limit. At 5-min intervals it's 9 hours. Both are fine; 15 min is the conservative default. Bump to 5-min via the `cron:` line if false-positive pressure justifies it.
+GitHub Actions free-tier runner-minutes are unlimited on public repos but throttled on private. The uptime check is ~5-10 sec per run, so runner-minutes are never the constraint here. The binding constraint is **Neon compute-hours**: each probe of `api/healthz` or `transparency/root` wakes the Neon compute, and on the free tier (192 compute-hours/month) those wakeups add up. So the DB-backed endpoints ride the slower `*/30` cron while the static landing — which costs nothing to probe — stays on `*/15`. The tradeoff is up to ~30 min before a hard outage of `api`/`transparency` turns the run red (vs. ~15 min before). If you upgrade Neon to Launch (no compute-hour cap) you can move both DB endpoints back to `*/15` by changing their `schedule:` in the matrix. Implementation: two `cron:` entries under `on.schedule`, each matrix entry tagged with the cron it runs on, and the probe step gated via `github.event.schedule`.
 
 ---
 

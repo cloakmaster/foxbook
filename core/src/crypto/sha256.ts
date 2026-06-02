@@ -14,6 +14,6 @@ export function sha256Bytes(input: Uint8Array): Uint8Array {
 export function sha256Hex(input: Uint8Array): string {
   const out = sha256(input);
   let s = "";
-  for (let i = 0; i < out.length; i++) s += out[i]!.toString(16).padStart(2, "0");
+  for (let i = 0; i < out.length; i++) s += (out[i] ?? 0).toString(16).padStart(2, "0");
   return s;
 }
