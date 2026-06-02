@@ -1,6 +1,6 @@
 # Why Foxbook is shaped the way it is
 
-This document is the narrative summary for someone discovering Foxbook for the first time and wondering why the architectural choices look like they do. The authoritative records are the eight ADRs in [`docs/decisions/`](decisions/); this is the human-readable index over them.
+This document is the narrative summary for someone discovering Foxbook for the first time and wondering why the architectural choices look like they do. The authoritative records are the nine ADRs in [`docs/decisions/`](decisions/); this is the human-readable index over them.
 
 ## The primitive
 
@@ -52,7 +52,7 @@ The Apache 2.0 license + Foxbook trademark split (per [TRADEMARK.md](../TRADEMAR
 
 ### HTTP cache policy + read/write split (ADR 0007)
 
-Read endpoints set `Cache-Control: public, max-age=60, must-revalidate`; immutable artifacts (per-leaf, per-inclusion-proof, per-consistency-proof) use `max-age=31536000, immutable`; STH (`/root`) uses `no-store`. The read-side (Cloudflare Worker at `transparency.foxbook.dev`) and write-side (Fly.io at `api.foxbook.dev`) are permanently separate deployments — standard transparency-log infrastructure pattern. List-shaped endpoints, if they ever ship, use cursor-based pagination; never offset.
+Cache-Control is set per surface: immutable artifacts (per-leaf, per-inclusion-proof, per-consistency-proof) use `max-age=31536000, immutable`; the STH (`/root`) uses `no-store`; and the dynamic-state API read endpoint (`/api/v1/claim/by-handle`) uses `public, max-age=60, must-revalidate` — claim state can transition, so 60s is the freshness window we accept for cached reads. The read-side (Cloudflare Worker at `transparency.foxbook.dev`) and write-side (Fly.io at `api.foxbook.dev`) are permanently separate deployments — standard transparency-log infrastructure pattern. List-shaped endpoints, if they ever ship, use cursor-based pagination; never offset.
 
 The reason is operational scaling shape. Read traffic scales via edge cache without touching the write path; write traffic scales via Postgres region replication without touching the read path. Merging them later is forbidden by this ADR.
 
@@ -70,6 +70,12 @@ This is not abandonment. The substrate continues to compound: the harness aggreg
 
 Active development resumes via a future ADR that explicitly supersedes 0008 — typically triggered by external integration signal, regulatory forcing function, or a future maintainer taking over.
 
+### Typed-reference schema for composition (ADR 0009)
+
+A2A Discussion #1803 crystallized a three-layer substrate stack: Foxbook (identity) ← Concordia (evidence) ← Sanctuary (verdict). The natural integration is a typed reference: a Concordia attestation envelope carries a typed pointer to a Foxbook leaf (`tl_url`, `leaf_index`, `tl_leaf_canonical_hash`, `verified_signing_key_hex`, plus an optional STH snapshot), which Sanctuary's verdict layer anchors on. ADR 0009 ratifies the v1.0 schema for that reference.
+
+This composition uses Foxbook's *existing* read surface — no protocol change, no new endpoint, no new schema shape on the Foxbook side — so it composes cleanly with ADR 0008's feature freeze. The shape was specified in the open (schema discussion at [Discussion #73](https://github.com/cloakmaster/foxbook/discussions/73)) per ADR 0006's protocol-not-marketplace stance, reaching cross-party consensus on 2026-05-08; the ADR is the Foxbook-side decision record.
+
 ## What's deliberately not here
 
 - **No marketplace shape** (per ADR 0006). No per-call billing, no account hierarchies, no closed-source verification logic.
@@ -80,7 +86,7 @@ Active development resumes via a future ADR that explicitly supersedes 0008 — 
 ## Where to go next
 
 - [`docs/VERIFY-IN-60-SECONDS.md`](VERIFY-IN-60-SECONDS.md) — verify a live agent card from a fresh shell.
-- [`docs/decisions/`](decisions/) — full ADRs 0001–0008.
+- [`docs/decisions/`](decisions/) — full ADRs 0001–0009.
 - [`docs/rfc-a2a-x-foxbook-extension.md`](rfc-a2a-x-foxbook-extension.md) — the spec in RFC form.
 - `https://transparency.foxbook.dev/` — the live transparency log read endpoints.
 - `https://agentgraph.co/.well-known/interop-harness.json` — cross-impl harness registration.
