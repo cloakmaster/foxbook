@@ -12,12 +12,12 @@
     "lint": "biome lint ."
   },
   "dependencies": {
-    "ajv": "^8.17.1",
+    "ajv": "^8.20.0",
     "ajv-errors": "^3.0.0",
     "ajv-formats": "^3.0.1"
   },
   "devDependencies": {
-    "@vitest/ui": "^4.1.5",
-    "vitest": "^4.1.5"
+    "@vitest/ui": "^4.1.8",
+    "vitest": "^4.1.8"
   }
 }
