@@ -147,7 +147,7 @@ The reference implementation's TypeScript SDK provides a higher-level wrapper:
 ```typescript
 import { verifyAgentCard } from "@foxbook/sdk-claim";
 
-const result = await verifyAgentCard(card, { requireFreshSTH: 3600 });
+const result = await verifyAgentCard(card, { asset_type: "github_handle", requireFreshSTH: 3600 });
 switch (result.status) {
   case "verified":         /* DID Document available in result */
   case "unverified":       /* claim not in log, or revoked */

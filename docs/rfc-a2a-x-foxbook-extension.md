@@ -23,7 +23,7 @@ Every agent-to-agent call is an authorization decision. Today most callers skip 
 ```typescript
 import { verifyAgentCard } from "@foxbook/sdk-claim";
 
-const v = await verifyAgentCard(card, { requireFreshSTH: 3600 });
+const v = await verifyAgentCard(card, { asset_type: "github_handle", requireFreshSTH: 3600 });
 switch (v.status) {
   case "verified":         break;             // proceed
   case "unverified":       return refuse(v);  // hard block

@@ -1,7 +1,11 @@
 # ADR 0007 — HTTP cache-control policy + read/write deployment split
 
-**Status:** Accepted
+**Number:** 0007
 **Date:** 2026-04-30
+**Status:** accepted
+**Supersedes:** —
+**Superseded by:** —
+**Related:** ADR 0001 (service-agnostic core), ADR 0002 (forward-only migrations), ADR 0004 (tl-leaf schema evolution), ADR 0005 (canonical bytes once)
 
 ## Context
 

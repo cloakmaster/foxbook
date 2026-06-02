@@ -18,6 +18,7 @@ Set via `flyctl secrets set <KEY>='<value>' --app foxbook-api`. Never `[env]` en
 | `DATABASE_URL_DIRECT` | Neon Postgres non-pooled connection (migrations, transactions needing `pg_advisory_xact_lock`) | Neon dashboard → connection details → "Direct connection" |
 | `RESEND_API_KEY` | Resend transactional email API key | Resend dashboard → API Keys |
 | `FOXBOOK_LOG_SIGNING_KEY_HEX` | Ed25519 private key for STH signing. 64-char hex (32 bytes raw). Public counterpart served at `/.well-known/foxbook.json` | Generated offline; rotated via [`docs/OPERATIONS.md`](../OPERATIONS.md) § Key rotation |
+| `FOXBOOK_FIREHOSE_ENABLED` | Feature flag (not a secret) gating the SSE `/firehose` Postgres `LISTEN/NOTIFY` subscriber. `"true"` enables; anything else (or unset) disables. **Disabled by default** since [#84](https://github.com/cloakmaster/foxbook/pull/84) — the always-on listener holds an open connection 24/7 and consumed Neon free-tier compute hours with no documented external consumers. The `/firehose` route is still served when disabled (subscribers see only the SSE heartbeat). | Set to `true` only when an integrator needs the firehose surface |
 
 ### Cloudflare Workers — `foxbook-transparency` (`transparency.foxbook.dev`)
 

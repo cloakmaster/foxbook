@@ -9,7 +9,7 @@ Verifiable agent identity for A2A and MCP.
 import { verifyAgentCard } from "@foxbook/sdk-claim";
 
 // Before your agent calls another agent, check its card.
-const result = await verifyAgentCard(otherAgent.card);
+const result = await verifyAgentCard(otherAgent.card, { asset_type: "github_handle" });
 if (result.status !== "verified") return;
 // Verified. Safe to call.
 ```
@@ -90,9 +90,12 @@ A2A and MCP both opened discussions about trust between agents — composable ev
 - Tier-1 verification via GitHub Gist, with an identity guard at the URL-owner level.
 - Tier-2 verification via DNS TXT and signed-nonce endpoint challenge.
 - Recovery-key signed revocation: atomic across leaf append and claim delete. Observed at 467ms wall-clock against live Postgres (single-run benchmark).
-- Firehose stream: 20ms median commit-to-receive latency (single-run benchmark).
 - `@foxbook/sdk-claim` on npm — six-function reference SDK with `verified_signing_key_hex` on the verified branch + structured `reason_code` on the unverified branch.
 - Registered as `evidence_provider` on the identity-layer slot at [`agentgraph.co/.well-known/interop-harness.json`](https://agentgraph.co/.well-known/interop-harness.json) with CTEF byte-match validation (4/4 vectors).
+
+**Off by default**
+
+- SSE firehose (`/firehose`): disabled by default since [#84](https://github.com/cloakmaster/foxbook/pull/84) — the always-on Postgres `LISTEN/NOTIFY` subscriber consumed Neon free-tier compute hours with no documented external consumers. Opt in by setting `FOXBOOK_FIREHOSE_ENABLED=true` (see [`docs/operations/env-vars.md`](docs/operations/env-vars.md)). Single-run benchmark when enabled: 20ms median commit-to-receive latency.
 
 **Not in scope under stable mode**
 

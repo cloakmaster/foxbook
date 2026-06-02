@@ -51,7 +51,7 @@ Per [ADR 0006](decisions/0006-protocol-not-marketplace.md) §4, named cross-impl
 
 See [`docs/INTEGRATIONS.md`](INTEGRATIONS.md). Current entries:
 
-- **Concordia v0.4.0 + Sanctuary Castle v1.2** (eriknewton) — typed-reference composition. Status: Proposed; schema discussion at [https://github.com/cloakmaster/foxbook/discussions/73](https://github.com/cloakmaster/foxbook/discussions). ADR 0009 ratifies the agreed shape on the Foxbook side once consensus lands.
+- **Concordia v0.4.0 + Sanctuary Castle v1.2** (eriknewton) — typed-reference composition. Status: Proposed; schema discussion at [https://github.com/cloakmaster/foxbook/discussions/73](https://github.com/cloakmaster/foxbook/discussions/73). ADR 0009 ratifies the agreed shape on the Foxbook side once consensus lands.
 
 ---
 
