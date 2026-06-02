@@ -22,8 +22,15 @@
 // wrong alg, bad signature, unavailable Web Crypto) returns a closed
 // (failed) result — never a silent pass.
 
+// Producers return `Uint8Array<ArrayBuffer>` (not the looser `<ArrayBufferLike>`)
+// so the bytes satisfy `BufferSource` at the crypto.subtle.importKey / verify
+// call sites. TS 5.7+'s generic `Uint8Array<TArrayBuffer>` + @types/node 25
+// narrowed `BufferSource` to reject a `SharedArrayBuffer`-backed view; a
+// `new Uint8Array(len)` is always plain-`ArrayBuffer`-backed, so this annotation
+// is accurate without an `as` cast.
+
 /** hex → Uint8Array. Throws on bad-shape input (odd length / non-hex). */
-function hexToBytes(hex: string): Uint8Array {
+function hexToBytes(hex: string): Uint8Array<ArrayBuffer> {
   if (hex.length % 2 !== 0) throw new Error(`hex string must have even length, got ${hex.length}`);
   const out = new Uint8Array(hex.length / 2);
   for (let i = 0; i < out.length; i++) {
@@ -38,7 +45,7 @@ const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
 /** base64url (no padding) → Uint8Array. Throws on non-base64 input. */
-function base64urlDecode(s: string): Uint8Array {
+function base64urlDecode(s: string): Uint8Array<ArrayBuffer> {
   const padded = s.replaceAll("-", "+").replaceAll("_", "/") + "===".slice((s.length + 3) % 4);
   const raw = atob(padded);
   const out = new Uint8Array(raw.length);
@@ -71,7 +78,7 @@ export type SthVerifyResult =
  */
 export async function verifySthJws(token: string, publicKeyHex: string): Promise<SthVerifyResult> {
   // --- public key ---
-  let publicKeyBytes: Uint8Array;
+  let publicKeyBytes: Uint8Array<ArrayBuffer>;
   try {
     publicKeyBytes = hexToBytes(publicKeyHex);
   } catch (e) {
@@ -93,7 +100,7 @@ export async function verifySthJws(token: string, publicKeyHex: string): Promise
 
   let header: Record<string, unknown>;
   let payload: Record<string, unknown>;
-  let sig: Uint8Array;
+  let sig: Uint8Array<ArrayBuffer>;
   try {
     header = JSON.parse(textDecoder.decode(base64urlDecode(headerB64))) as Record<string, unknown>;
     payload = JSON.parse(textDecoder.decode(base64urlDecode(payloadB64))) as Record<
@@ -152,9 +159,9 @@ export async function verifySthJws(token: string, publicKeyHex: string): Promise
 
 /** Verify an Ed25519 detached signature via Web Crypto (crypto.subtle). */
 async function verifyEd25519(
-  message: Uint8Array,
-  signature: Uint8Array,
-  publicKey: Uint8Array,
+  message: Uint8Array<ArrayBuffer>,
+  signature: Uint8Array<ArrayBuffer>,
+  publicKey: Uint8Array<ArrayBuffer>,
 ): Promise<boolean> {
   const subtle = globalThis.crypto?.subtle;
   if (!subtle) throw new Error("crypto.subtle is not available in this runtime");

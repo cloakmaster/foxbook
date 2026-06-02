@@ -26,13 +26,13 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.0",
-    "@types/node": "^22.10.0",
+    "@types/node": "^25.9.1",
     "husky": "^9.1.7",
     "json-schema-to-typescript": "^15.0.3",
     "lint-staged": "^15.2.10",
     "quicktype-core": "^23.0.170",
     "turbo": "^2.9.16",
-    "typescript": "^5.7.2"
+    "typescript": "^6.0.3"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,md}": [
