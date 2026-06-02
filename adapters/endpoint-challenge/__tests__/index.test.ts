@@ -21,6 +21,13 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+// All non-SSRF tests resolve the endpoint host to a public IP so the
+// SSRF pre-flight passes and we exercise the JWS round-trip. SSRF
+// tests below override this with private/loopback/metadata targets.
+async function publicResolver(_host: string): Promise<string[]> {
+  return ["93.184.216.34"];
+}
+
 describe("verifyEndpointSignedNonce — happy path", () => {
   it("match: Ed25519 round-trip with matching nonce", async () => {
     const keypair = generateKeypair();
@@ -38,7 +45,7 @@ describe("verifyEndpointSignedNonce — happy path", () => {
       ENDPOINT_URL,
       nonce,
       hexFromBytes(keypair.publicKey),
-      { fetch: fetchImpl },
+      { fetch: fetchImpl, resolveHostname: publicResolver },
     );
 
     expect(result).toEqual({ status: "match" });
@@ -64,7 +71,7 @@ describe("verifyEndpointSignedNonce — failure paths", () => {
       ENDPOINT_URL,
       nonce,
       hexFromBytes(realKeypair.publicKey),
-      { fetch: fetchImpl },
+      { fetch: fetchImpl, resolveHostname: publicResolver },
     );
 
     expect(result.status).toBe("signature-invalid");
@@ -88,7 +95,7 @@ describe("verifyEndpointSignedNonce — failure paths", () => {
       ENDPOINT_URL,
       sentNonce,
       hexFromBytes(keypair.publicKey),
-      { fetch: fetchImpl },
+      { fetch: fetchImpl, resolveHostname: publicResolver },
     );
 
     expect(result.status).toBe("nonce-mismatch");
@@ -107,7 +114,7 @@ describe("verifyEndpointSignedNonce — failure paths", () => {
       ENDPOINT_URL,
       "00".repeat(32),
       hexFromBytes(keypair.publicKey),
-      { fetch: fetchImpl },
+      { fetch: fetchImpl, resolveHostname: publicResolver },
     );
     expect(result.status).toBe("error");
     if (result.status === "error") {
@@ -124,7 +131,7 @@ describe("verifyEndpointSignedNonce — failure paths", () => {
       ENDPOINT_URL,
       "00".repeat(32),
       hexFromBytes(keypair.publicKey),
-      { fetch: fetchImpl },
+      { fetch: fetchImpl, resolveHostname: publicResolver },
     );
     expect(result.status).toBe("error");
     if (result.status === "error") {
@@ -148,7 +155,7 @@ describe("verifyEndpointSignedNonce — failure paths", () => {
       ENDPOINT_URL,
       "00".repeat(32),
       hexFromBytes(keypair.publicKey),
-      { fetch: fetchImpl, timeoutMs: 20 },
+      { fetch: fetchImpl, timeoutMs: 20, resolveHostname: publicResolver },
     );
     expect(result.status).toBe("error");
     if (result.status === "error") {
@@ -166,5 +173,102 @@ describe("verifyEndpointSignedNonce — failure paths", () => {
       expect(result.reason).toBe("decode_error");
     }
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe("verifyEndpointSignedNonce — SSRF guard (no fetch before vetting)", () => {
+  const keypair = generateKeypair();
+  const pubHex = hexFromBytes(keypair.publicKey);
+  const NONCE = "00".repeat(32);
+
+  it("rejects a non-https endpoint without fetching or resolving", async () => {
+    const fetchImpl = vi.fn();
+    const resolveSpy = vi.fn(async () => ["93.184.216.34"]);
+    const result = await verifyEndpointSignedNonce("http://acme.example/x", NONCE, pubHex, {
+      fetch: fetchImpl as unknown as typeof globalThis.fetch,
+      resolveHostname: resolveSpy,
+    });
+    expect(result.status).toBe("error");
+    if (result.status === "error") expect(result.reason).toBe("blocked_scheme");
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(resolveSpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects an endpoint that resolves to the cloud-metadata IP before fetching", async () => {
+    const fetchImpl = vi.fn();
+    const result = await verifyEndpointSignedNonce("https://rebind.evil/x", NONCE, pubHex, {
+      fetch: fetchImpl as unknown as typeof globalThis.fetch,
+      resolveHostname: async () => ["169.254.169.254"],
+    });
+    expect(result.status).toBe("error");
+    if (result.status === "error") expect(result.reason).toBe("blocked_host");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("rejects an endpoint that resolves to loopback before fetching", async () => {
+    const fetchImpl = vi.fn();
+    const result = await verifyEndpointSignedNonce("https://localhost.evil/x", NONCE, pubHex, {
+      fetch: fetchImpl as unknown as typeof globalThis.fetch,
+      resolveHostname: async () => ["127.0.0.1"],
+    });
+    expect(result.status).toBe("error");
+    if (result.status === "error") expect(result.reason).toBe("blocked_host");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("rejects an https URL pointed straight at a private IP literal", async () => {
+    const fetchImpl = vi.fn();
+    const result = await verifyEndpointSignedNonce("https://10.0.0.7/x", NONCE, pubHex, {
+      fetch: fetchImpl as unknown as typeof globalThis.fetch,
+      resolveHostname: async () => {
+        throw new Error("literal IP must not be resolved");
+      },
+    });
+    expect(result.status).toBe("error");
+    if (result.status === "error") expect(result.reason).toBe("blocked_host");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("blocks a redirect (3xx) that points at a private host", async () => {
+    const fetchImpl: typeof globalThis.fetch = (async () =>
+      new Response(null, {
+        status: 302,
+        headers: { Location: "https://169.254.169.254/latest/meta-data/" },
+      })) as unknown as typeof globalThis.fetch;
+    const result = await verifyEndpointSignedNonce(ENDPOINT_URL, NONCE, pubHex, {
+      fetch: fetchImpl,
+      resolveHostname: publicResolver,
+    });
+    expect(result.status).toBe("error");
+    if (result.status === "error") expect(result.reason).toBe("blocked_redirect");
+  });
+
+  it("requests with redirect:'manual' so fetch never auto-follows", async () => {
+    let seenInit: RequestInit | undefined;
+    const nonce = "11".repeat(32);
+    const fetchImpl: typeof globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+      seenInit = init;
+      const jws = jwsSign({ alg: "EdDSA", typ: "JWT" }, { nonce }, keypair.privateKey);
+      return jsonResponse({ jws });
+    }) as unknown as typeof globalThis.fetch;
+    const result = await verifyEndpointSignedNonce(ENDPOINT_URL, nonce, pubHex, {
+      fetch: fetchImpl,
+      resolveHostname: publicResolver,
+    });
+    expect(result).toEqual({ status: "match" });
+    expect(seenInit?.redirect).toBe("manual");
+  });
+
+  it("still completes the round-trip for a normal public https endpoint", async () => {
+    const nonce = "22".repeat(32);
+    const fetchImpl: typeof globalThis.fetch = (async () => {
+      const jws = jwsSign({ alg: "EdDSA", typ: "JWT" }, { nonce }, keypair.privateKey);
+      return jsonResponse({ jws });
+    }) as unknown as typeof globalThis.fetch;
+    const result = await verifyEndpointSignedNonce(ENDPOINT_URL, nonce, pubHex, {
+      fetch: fetchImpl,
+      resolveHostname: publicResolver,
+    });
+    expect(result).toEqual({ status: "match" });
   });
 });

@@ -20,18 +20,47 @@ import {
   claimVerifyEndpoint,
   claimVerifyGist,
 } from "./handlers.js";
+import {
+  createTokenBucketLimiter,
+  DEFAULT_CLAIM_RATE_LIMIT,
+  rateLimitMiddleware,
+  type TokenBucketLimiter,
+} from "./rate-limit.js";
 
 const ASSET_TYPES = new Set(["github_handle", "x_handle", "domain"]);
 const DEFAULT_WORKER_BASE = "https://transparency.foxbook.dev";
+
+export type ClaimRouteOptions = {
+  /** Per-IP rate limiter for the mutating POST routes. Defaults to an
+   *  in-memory token bucket (DEFAULT_CLAIM_RATE_LIMIT). Tests inject a
+   *  tiny-capacity bucket to assert the 429 path. */
+  rateLimiter?: TokenBucketLimiter;
+};
 
 /**
  * Mount POST /claim/start + POST /claim/verify-gist with injected deps.
  * Keeping deps outside this module is what lets tests drive the route
  * against a fake claim repo / fake gist / fake merkle appender —
  * same seam as /discover.
+ *
+ * All mutating POST routes sit behind a per-IP rate limit
+ * (rate-limit.ts) — the Tier-2 endpoint-challenge flow makes the server
+ * issue an outbound fetch the caller controls, so the unauthenticated
+ * claim surface is an amplification vector without it.
  */
-export function claimRoute(deps: ClaimDeps): Hono {
+export function claimRoute(deps: ClaimDeps, options: ClaimRouteOptions = {}): Hono {
   const app = new Hono();
+
+  const limiter = options.rateLimiter ?? createTokenBucketLimiter(DEFAULT_CLAIM_RATE_LIMIT);
+  // Gate every mutating claim POST. The read-only GET /claim/by-handle
+  // is intentionally excluded — it's cacheable and not an egress vector.
+  const rl = rateLimitMiddleware(limiter);
+  app.post("/claim/start", rl);
+  app.post("/claim/verify-gist", rl);
+  app.post("/claim/revoke", rl);
+  app.post("/claim/start-domain", rl);
+  app.post("/claim/verify-dns", rl);
+  app.post("/claim/verify-endpoint", rl);
 
   app.post("/claim/start", zValidator("json", claimStartBodySchema), async (c) => {
     const body = c.req.valid("json");
