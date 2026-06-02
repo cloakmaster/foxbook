@@ -219,11 +219,30 @@ describe("Merkle — consistency proofs (PROOF from RFC 9162 §2.1.4.2)", () => 
     }
   });
 
-  it("m=0: proof is empty, verify accepts any old_root (vacuous)", () => {
+  it("m=0: proof is empty, old_root must be the empty-tree root", () => {
     const newLeaves = [bytes("0"), bytes("1"), bytes("2")];
     const newRoot = mth(newLeaves);
     expect(consistencyProof(newLeaves, 0)).toHaveLength(0);
     expect(verifyConsistency([], 0, 3, EMPTY_TREE_ROOT, newRoot)).toBe(true);
+  });
+
+  it("m=0: rejects a non-empty old_root (no longer vacuously accepting)", () => {
+    // Regression: the m===0 branch used to accept ANY old_root because
+    // an empty old tree is trivially a prefix and we never checked the
+    // asserted old_root. A forged old_root for a zero-leaf tree should
+    // be rejected — only EMPTY_TREE_ROOT is the valid root of D[0].
+    const newLeaves = [bytes("0"), bytes("1"), bytes("2")];
+    const newRoot = mth(newLeaves);
+    // A plausible-looking but wrong old_root (e.g. the root of a 1-leaf
+    // tree) must NOT verify against m=0.
+    const wrongOldRoot = mth([bytes("0")]);
+    expect(verifyConsistency([], 0, 3, wrongOldRoot, newRoot)).toBe(false);
+    // A bit-flipped empty root is likewise rejected.
+    const flipped = new Uint8Array(EMPTY_TREE_ROOT);
+    flipped[0] ^= 0x01;
+    expect(verifyConsistency([], 0, 3, flipped, newRoot)).toBe(false);
+    // And a non-empty proof at m=0 is still rejected.
+    expect(verifyConsistency([wrongOldRoot], 0, 3, EMPTY_TREE_ROOT, newRoot)).toBe(false);
   });
 
   it("m=n: proof is empty, roots must match", () => {

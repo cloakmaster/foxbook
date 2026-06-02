@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+# Pre-push enforcement. Runs the unit test suite before any push so a
+# red branch never leaves the machine. pre-commit already covers
+# format/lint/typecheck/isolation/generated-drift; this hook adds the
+# test gate that was previously CI-only.
+#
+# `turbo run test` is content-hashed and cached, so a push with no code
+# changes since the last green run is near-instant. The DB-integration
+# suites self-skip without DATABASE_URL, so this stays a fast unit pass.
+# To bypass in an emergency (e.g. pushing a WIP spike branch): git push
+# --no-verify.
+
+set -e
+
+echo "→ unit tests (turbo run test)"
+pnpm test
+
+echo "✓ pre-push tests passed"

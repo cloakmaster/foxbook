@@ -223,10 +223,11 @@ export function verifyConsistency(
   if (m < 0 || n < 0) return false;
   if (m > n) return false;
   if (m === 0) {
-    // Empty old tree is trivially a prefix; proof must be empty and
-    // old_root should be the empty-tree root, but we don't enforce
-    // old_root here (callers who care check it).
-    return proof.length === 0;
+    // Empty old tree is trivially a prefix; the proof must be empty AND
+    // the asserted old_root must be the root of D[0] (the empty-tree
+    // root). Earlier this branch accepted ANY old_root vacuously, which
+    // let a caller "prove" consistency against a forged zero-leaf root.
+    return proof.length === 0 && bytesEqual(oldRoot, EMPTY_TREE_ROOT);
   }
   if (m === n) {
     return proof.length === 0 && bytesEqual(oldRoot, newRoot);
