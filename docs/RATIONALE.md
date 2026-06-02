@@ -52,7 +52,7 @@ The Apache 2.0 license + Foxbook trademark split (per [TRADEMARK.md](../TRADEMAR
 
 ### HTTP cache policy + read/write split (ADR 0007)
 
-Cache-Control is set per surface: immutable artifacts (per-leaf, per-inclusion-proof, per-consistency-proof) use `max-age=31536000, immutable`; the STH (`/root`) uses `no-store`; and dynamic-state API read endpoints (`/api/v1/claim/by-handle`, `/api/v1/discover`) use `public, max-age=60, must-revalidate` — claim state can transition, so 60s is the freshness window we accept for cached reads. The read-side (Cloudflare Worker at `transparency.foxbook.dev`) and write-side (Fly.io at `api.foxbook.dev`) are permanently separate deployments — standard transparency-log infrastructure pattern. List-shaped endpoints, if they ever ship, use cursor-based pagination; never offset.
+Cache-Control is set per surface: immutable artifacts (per-leaf, per-inclusion-proof, per-consistency-proof) use `max-age=31536000, immutable`; the STH (`/root`) uses `no-store`; and the dynamic-state API read endpoint (`/api/v1/claim/by-handle`) uses `public, max-age=60, must-revalidate` — claim state can transition, so 60s is the freshness window we accept for cached reads. The read-side (Cloudflare Worker at `transparency.foxbook.dev`) and write-side (Fly.io at `api.foxbook.dev`) are permanently separate deployments — standard transparency-log infrastructure pattern. List-shaped endpoints, if they ever ship, use cursor-based pagination; never offset.
 
 The reason is operational scaling shape. Read traffic scales via edge cache without touching the write path; write traffic scales via Postgres region replication without touching the read path. Merging them later is forbidden by this ADR.
 
