@@ -94,3 +94,66 @@ jobs:
       - name: Test
         working-directory: apps/log-daemon-go
         run: go test ./... -v
+
+  integration:
+    name: integration (postgres / db migrations / tx-atomicity)
+    runs-on: ubuntu-24.04
+
+    # Real Postgres so the DB transaction-atomicity integration tests
+    # (apps/api/__tests__/*.tx*.test.ts) actually run instead of being
+    # skipped. These suites are gated behind RUN_INTEGRATION_TESTS=1 +
+    # DATABASE_URL; without a service container nothing exercises Postgres
+    # and the atomic-tx guarantees go unverified (audit High finding).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: foxbook
+          POSTGRES_PASSWORD: foxbook
+          POSTGRES_DB: foxbook
+        ports:
+          - 5432:5432
+        # Wait until Postgres accepts connections before any step runs.
+        options: >-
+          --health-cmd "pg_isready -U foxbook -d foxbook"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Point the migration runner and createNodeClient() at the service
+      # container. Host-published port (127.0.0.1:5432) is reachable from
+      # the job because services map to localhost on the runner.
+      DATABASE_URL: postgresql://foxbook:foxbook@127.0.0.1:5432/foxbook
+      # Un-skip the integration suites (describe.skipIf(!SHOULD_RUN)).
+      RUN_INTEGRATION_TESTS: "1"
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run DB migrations
+        # Use the project's real migration mechanism (scripts/migrate.mjs:
+        # drizzle-orm/postgres-js/migrator over migrations/*.sql). Invoke it
+        # directly with DATABASE_URL already in the env — do NOT go through
+        # the package's db:migrate script, which loads ../../.env.local that
+        # does not (and must not) exist in CI.
+        run: node packages/db/scripts/migrate.mjs
+
+      - name: Integration / tx-atomicity tests
+        # createNodeClient() reads DATABASE_URL from process.env, and the
+        # suites un-skip on RUN_INTEGRATION_TESTS=1 (both set in job env).
+        # This runs the full @foxbook/api vitest suite, which now includes
+        # the previously-skipped apps/api/__tests__/*.tx*.test.ts files.
+        run: pnpm --filter @foxbook/api test
