@@ -49,7 +49,7 @@ No numeric trust score, no reputation field — verification is kept separate fr
 | `claimStart(input)` | `POST /api/v1/claim/start` — mint did + verification code |
 | `claimVerifyGist(input)` | `POST /api/v1/claim/verify-gist` — transition to tier 1 via GitHub Gist |
 | `claimRevoke(input)` | `POST /api/v1/claim/revoke` — recovery-key signed revocation |
-| `verify(input)` | RFC 9162 inclusion-proof primitive against the transparency Worker |
+| `verify(input)` | RFC 9162 inclusion-proof primitive — verifies the log's signed tree head (STH) JWS against the Ed25519 key from `/.well-known/foxbook.json`, then pins the proof to the *signed* root (fail-closed) |
 | `foxbookVerify(input)` | Handle → `{tier, revoked, did, leafIndex}` (or `not-claimed`) |
 | `verifyAgentCard(card, options)` | Runtime-safety gate; chains `foxbookVerify` + handle-mismatch + `verify` + freshness |
 
