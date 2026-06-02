@@ -4,8 +4,8 @@
 **Maintainer**: Benjamin Bandali ([@cloakmaster](https://github.com/cloakmaster)).
 **Reference implementation**: [`cloakmaster/foxbook`](https://github.com/cloakmaster/foxbook), Apache 2.0.
 **Canonical deployment**: [`https://transparency.foxbook.dev`](https://transparency.foxbook.dev).
-**Date**: 2026-05-15.
-**Editor's notes**: this specification documents the existing operational behaviour of the `did:foxbook` method as implemented in the reference deployment as of v0.2.1 of the SDK. It is a description of shipped functionality, not a proposal for new functionality.
+**Date**: 2026-06-02.
+**Editor's notes**: this specification documents the existing operational behaviour of the `did:foxbook` method as implemented in the reference deployment as of v0.2.1 of the SDK. It is a description of shipped functionality, not a proposal for new functionality. This revision reconciles the draft to the shipped code (resolution as a client-side projection over the real endpoints; insertion-order canonical JSON rather than RFC 8785 JCS in the signing path; the rotation and revocation leaf shapes per `schemas/tl-leaf.v1.json`; the consistency-proof query form; and the MSI regex per `core/src/did.ts`). No new endpoints or functionality are introduced — the repository is in stable-maintenance freeze per ADR 0008.
 
 ---
 
@@ -22,7 +22,7 @@ This specification follows the [DID Core 1.0](https://www.w3.org/TR/did-core/) a
 1. **Cryptographic verifiability** without requiring trust in the operator of the transparency log: every claim about a `did:foxbook:` identifier is backed by a Merkle inclusion proof against a signed tree head that anyone can independently verify.
 2. **Atomic revocation** with audit-history preservation: revocation of a `did:foxbook:` identifier appends a revocation leaf to the log while deleting the current claim row, in a single database transaction (see [ADR 0004 addendum-1](https://github.com/cloakmaster/foxbook/blob/main/docs/decisions/0004-tl-leaf-schema-evolution.md)). Past inclusion proofs continue to verify forever.
 3. **Recovery-key/signing-key separation**: a leaked signing key allows impersonation only until revocation; a leaked *recovery* key allows denial-of-service (revoke + re-claim by attacker) but not impersonation, because new keys can only be registered through the recovery-key-signed pathway.
-4. **Cross-implementation byte-match**: the JCS canonicalization ([RFC 8785](https://www.rfc-editor.org/rfc/rfc8785)) of all signed structures produces byte-identical output across language implementations. Test vectors at [`schemas/crypto-test-vectors.json`](https://github.com/cloakmaster/foxbook/blob/main/schemas/crypto-test-vectors.json).
+4. **Cross-implementation byte-match**: the canonicalization of all signed structures produces byte-identical output across language implementations. The signing path uses an insertion-order canonical JSON encoding (`JSON.stringify` semantics with caller-fixed key order — see §4.4 and [ADR 0005](https://github.com/cloakmaster/foxbook/blob/main/docs/decisions/0005-canonical-on-both-sides.md)), not RFC 8785 JCS. The continuous byte-match proof is the `jws_round_trip` vector in [`schemas/crypto-test-vectors.json`](https://github.com/cloakmaster/foxbook/blob/main/schemas/crypto-test-vectors.json), which is byte-identical across the TypeScript and Python implementations.
 5. **Federation-capable** even while operationally single-instance: nothing in the protocol contract prevents independent operators from running parallel transparency logs against the same DID method spec. The current deployment is one log; the spec is multi-log compatible.
 
 ### 1.2 Out of scope
@@ -48,23 +48,29 @@ The `<msi>` portion is a 26-character [ULID](https://github.com/ulid/spec) (Univ
 ```abnf
 did-foxbook       = "did:foxbook:" foxbook-specific-idstring
 foxbook-specific-idstring = ulid
-ulid              = ulid-timestamp ulid-randomness
-ulid-timestamp    = 10*10(crockford-base32-char-restricted-leading) crockford-base32-char *9
-ulid-randomness   = 16*16(crockford-base32-char)
+ulid              = 26*26(crockford-base32-char)
 crockford-base32-char = %x30-39 / %x41-48 / %x4A-4B / %x4D-4E / %x50-54 / %x56-5A
                         ; 0-9, A-H, J-K, M-N, P-T, V-Z
                         ; excludes I, L, O, U per Crockford's Base32 spec
-crockford-base32-char-restricted-leading = %x30-37
-                        ; 0-7 — restricts the high 3 bits of the timestamp
-                        ; (per ULID spec, max valid timestamp is year 10889)
 ```
+
+> **Note on the leading character**: the ULID specification reserves the high 3
+> bits of the 48-bit timestamp, so a strictly-conforming ULID's first Crockford
+> character is in the range `0`–`7`. The reference implementation does **not**
+> enforce that narrower range: `core/src/did.ts`, `apps/api/src/claim/body-schema.ts`,
+> and the shared `$defs/did` primitive in `schemas/x-foxbook.v1.json` all accept
+> any of the 26 valid Crockford characters in every position (the ULIDs minted by
+> the implementation's generator always satisfy the narrower range, but the
+> validator does not require it). This specification describes the validator the
+> implementation actually ships; verifiers MUST NOT reject an otherwise
+> well-formed MSI solely because its first character is in `8`–`Z`.
 
 #### 2.1.2 Regular expression
 
-A conforming verifier MAY use the following PCRE-compatible regex to validate an MSI:
+A conforming verifier MAY use the following PCRE-compatible regex to validate an MSI. This is byte-for-byte the regex the reference implementation ships (`core/src/did.ts`, `apps/api/src/claim/body-schema.ts`, and the `$defs/did` primitive in `schemas/x-foxbook.v1.json`):
 
 ```
-^did:foxbook:[0-7][0-9A-HJKMNP-TV-Z]{25}$
+^did:foxbook:[0-9A-HJKMNP-TV-Z]{26}$
 ```
 
 #### 2.1.3 Test vectors
@@ -132,17 +138,43 @@ The leaf body is signed by the **signing key**. The leaf is then included in the
 
 Resolution of a `did:foxbook:` identifier returns a [DID Document](https://www.w3.org/TR/did-core/#did-documents) representing the current operational state.
 
-#### 3.2.1 Resolution endpoint
+#### 3.2.1 Resolution as a client-side projection
 
-The canonical resolution endpoint is:
+The reference deployment does **not** expose a single dereferenceable
+`GET .../<did>` resolver that returns a ready-made DID Document. Instead, a DID
+Document is a **client-side projection** assembled by the resolver from the
+real, narrow, RFC 9162-shaped endpoints that the deployment ships. The
+projection is what makes the method verifiable without trusting the operator:
+the resolver reconstructs the DID Document from public log evidence and checks
+the inclusion proof itself.
 
-```
-GET https://api.foxbook.dev/agents/<did>
-```
+The endpoints a resolver composes are:
 
-Where `<did>` is the full `did:foxbook:<ULID>` (URL-encoded).
+| Purpose | Endpoint | Host |
+|---|---|---|
+| Look up the current claim + signing key + latest leaf index for a handle | `GET /api/v1/claim/by-handle/<asset_type>/<asset_value>` | `api.foxbook.dev` |
+| Fetch the leaf body at an index | `GET /leaf/<leafIndex>` | `transparency.foxbook.dev` |
+| Fetch an inclusion proof for a leaf | `GET /inclusion/<leafIndex>` | `transparency.foxbook.dev` |
+| Fetch the latest signed tree head (STH) | `GET /root` | `transparency.foxbook.dev` |
+| Fetch the log-signing public key + service discovery surface | `GET /.well-known/foxbook.json` | `api.foxbook.dev` |
 
-The reference implementation's TypeScript SDK provides a higher-level wrapper:
+The `by-handle` endpoint returns the bound `agent_did`, the active
+`ed25519_public_key_hex`, the `verification_tier`, and — for tier-1+ claims —
+the `leaf_index` of the current `agent-key-registration` leaf plus a convenience
+`inclusion_proof_url` (`<transparency-host>/inclusion/<leaf_index>`). Its shape
+is pinned at [`schemas/claim-by-handle.v1.json`](https://github.com/cloakmaster/foxbook/blob/main/schemas/claim-by-handle.v1.json).
+Resolution by handle is the path the deployment supports today; a resolver that
+already holds a `leaf_index` can also walk the log directly via `/leaf/<index>`
+and `/inclusion/<index>` without going through `by-handle`.
+
+The log-signing public key used to verify every STH signature is published as
+`log_signing_public_key_hex` in `https://api.foxbook.dev/.well-known/foxbook.json`
+(the deployment does **not** expose a `/.well-known/jwks.json`). A resolver
+fetches it once and verifies the STH returned by `/root` (and the STH the
+inclusion proof is checked against) under that key.
+
+The reference implementation's TypeScript SDK provides a higher-level wrapper
+that performs this projection and the inclusion-proof verification end to end:
 
 ```typescript
 import { verifyAgentCard } from "@foxbook/sdk-claim";
@@ -221,7 +253,7 @@ The resolver SHOULD return DID resolution metadata as follows:
 }
 ```
 
-The `foxbook` extension under `didDocumentMetadata` exposes the transparency-log evidence: which leaf is the current key registration for this DID, and which signed tree head was current at verification time. Consumers MAY independently verify the inclusion proof at `https://transparency.foxbook.dev/inclusion/<leafIndex>`.
+The `foxbook` extension under `didDocumentMetadata` exposes the transparency-log evidence: which leaf is the current key registration for this DID, and which signed tree head was current at verification time. This metadata is a resolver-side projection (see §3.2.1) — the deployment does not return it from a single resolver endpoint; the resolver assembles it from `/api/v1/claim/by-handle/...`, `/leaf/<leafIndex>`, `/inclusion/<leafIndex>`, and `/root`. Consumers MAY independently verify the inclusion proof at `https://transparency.foxbook.dev/inclusion/<leafIndex>`.
 
 If the DID has been revoked, the resolver SHALL set `didDocumentMetadata.deactivated = true` and return an empty `verificationMethod` array. The historical key information remains available in the transparency log (queryable by leaf index) for audit purposes.
 
@@ -231,8 +263,8 @@ Any resolver SHOULD verify (and any independent verifier MAY verify) the inclusi
 
 1. Fetch the inclusion proof: `GET https://transparency.foxbook.dev/inclusion/<leafIndex>`
 2. Reconstruct the root hash from `tl_leaf_canonical_hash` + the proof's hash path
-3. Verify that the reconstructed root matches `sth_at_verify_time.sth_signature`'s claimed root
-4. Verify the STH signature against the published STH-signing public key at `https://transparency.foxbook.dev/.well-known/jwks.json`
+3. Verify that the reconstructed root matches the `root_hash` carried in the signed tree head from `GET https://transparency.foxbook.dev/root`
+4. Verify the STH signature (a compact-JWS EdDSA token) against the published log-signing public key at `log_signing_public_key_hex` in `https://api.foxbook.dev/.well-known/foxbook.json`. The signed payload is the insertion-order canonical JSON `{ log_id, tree_size, root_hash, timestamp, version }` (see §4.4); the deployment does **not** publish a `/.well-known/jwks.json`.
 
 A conforming resolver SHOULD reject any DID resolution where inclusion proof verification fails.
 
@@ -241,20 +273,31 @@ A conforming resolver SHOULD reject any DID resolution where inclusion proof ver
 A `did:foxbook:` identifier MAY rotate its signing key. The rotation operation:
 
 1. The DID controller generates a new Ed25519 signing keypair.
-2. The controller constructs a `signing-key-registration` leaf:
+2. The controller constructs a `signing-key-registration` leaf. The shape mirrors [`schemas/tl-leaf.v1.json`](https://github.com/cloakmaster/foxbook/blob/main/schemas/tl-leaf.v1.json) `$defs/signingKeyRegistration` exactly:
 
 ```json
 {
   "leaf_type": "signing-key-registration",
   "did": "did:foxbook:<ULID>",
-  "new_ed25519_public_key_hex": "<64-char hex>",
-  "previous_leaf_index": <integer — index of the prior registration>,
+  "prior_ed25519_public_key_hex": "<64-char hex — the key being rotated FROM>",
+  "new_ed25519_public_key_hex": "<64-char hex — the new signing key>",
+  "recovery_key_signature": "<compact-JWS EdDSA>",
   "published_at": "<RFC 3339 timestamp>"
 }
 ```
 
-3. The leaf body is signed by the **recovery key** (not the old or new signing key — the recovery key authorizes the rotation).
-4. The leaf is appended to the log and covered by the next STH.
+The rotation is bound to the prior registration by `prior_ed25519_public_key_hex`
+(a pointer-like binding to the leaf being rotated **from**) rather than by a leaf
+index: the verifier resolves the prior leaf via `(did, prior_ed25519_public_key_hex)`
+and validates the JWS against that leaf's `recovery_key_fingerprint`. The
+`recovery_key_signature` is a compact-JWS EdDSA signature over the insertion-order
+canonical JSON of every leaf field except the signature itself —
+`{ leaf_type, did, prior_ed25519_public_key_hex, new_ed25519_public_key_hex, published_at }`
+(§4.4). This mirrors the revocation leaf's signing-input convention so a verifier
+walks one canonical-bytes algorithm regardless of `leaf_type`.
+
+3. The leaf body is signed by the **recovery key** (not the old or new signing key — the recovery key authorizes the rotation). The recovery key whose SHA-256 fingerprint matches the prior registration's `recovery_key_fingerprint` is the durable identity anchor; signing keys rotate, the recovery key does not.
+4. The leaf is appended to the log and covered by the next STH. After this leaf is included in an STH, AgentCards signed with `new_ed25519_public_key_hex` validate as `verified` for the same DID; cards still signed with `prior_ed25519_public_key_hex` validate as `unverified` with reason code `superseded`.
 
 After rotation, resolution of the DID returns the *new* signing key in the DID Document. The old key remains in the transparency log (forever) as audit history. Old signatures made under the old key continue to verify against the historical leaf, but the DID Document no longer authorizes the old key for future signatures.
 
@@ -264,16 +307,28 @@ Per [ADR 0004 addendum-3](https://github.com/cloakmaster/foxbook/blob/main/docs/
 
 A `did:foxbook:` identifier MAY be revoked. The revocation operation:
 
-1. The DID controller (or recovery-key holder) constructs a `revocation` leaf:
+1. The DID controller (or recovery-key holder) constructs a `revocation` leaf. The shape mirrors [`schemas/tl-leaf.v1.json`](https://github.com/cloakmaster/foxbook/blob/main/schemas/tl-leaf.v1.json) `$defs/revocation` exactly:
 
 ```json
 {
   "leaf_type": "revocation",
   "did": "did:foxbook:<ULID>",
-  "reason_code": "voluntary | compromise | recovery-key-action",
-  "published_at": "<RFC 3339 timestamp>"
+  "revoked_key_hex": "<64-char hex — the ed25519_public_key_hex from the prior registration>",
+  "recovery_key_signature": "<compact-JWS EdDSA>",
+  "revocation_timestamp": "<RFC 3339 timestamp>",
+  "reason_code": "key_compromise | owner_request | superseded"
 }
 ```
+
+The `revoked_key_hex` is a pointer-like binding to the `ed25519_public_key_hex`
+of a prior `agent-key-registration` leaf at the same `did`. `reason_code` is
+optional (one of `key_compromise`, `owner_request`, `superseded`) and is absent
+from the canonical signing input when omitted (the insertion-order canonical
+encoding skips `undefined` keys). The `recovery_key_signature` is a compact-JWS
+EdDSA signature over the insertion-order canonical JSON of every leaf field
+except the signature itself — `{ leaf_type, did, revoked_key_hex, revocation_timestamp, reason_code? }`
+(§4.4) — signed by the recovery key whose SHA-256 matches the prior
+registration's `recovery_key_fingerprint`.
 
 2. The leaf body is signed by the **recovery key**.
 3. The reference implementation appends the revocation leaf to the transparency log **and** deletes the current claim row from the by-handle database in a single atomic transaction (per [ADR 0004 addendum-1](https://github.com/cloakmaster/foxbook/blob/main/docs/decisions/0004-tl-leaf-schema-evolution.md)).
@@ -320,7 +375,7 @@ The current method does not specify multi-signature recovery (M-of-N recovery ke
 The current reference deployment runs a single transparency log operated by the maintainer. A malicious or compromised log operator could in principle:
 
 1. **Refuse to register** legitimate claims (denial-of-service to specific actors). Mitigation: any operator can run a parallel log; the protocol is open.
-2. **Sign a tree head whose root does not match the actual leaves** (cryptographic dishonesty). Mitigation: gossip protocols (consistency proofs between STHs) allow third parties to detect log-fork misbehavior. Foxbook's STH endpoints support consistency-proof queries: `GET /consistency/<from>/<to>`. A monitor that requests consistency proofs between every STH it sees can detect any STH that fails consistency.
+2. **Sign a tree head whose root does not match the actual leaves** (cryptographic dishonesty). Mitigation: gossip protocols (consistency proofs between STHs) allow third parties to detect log-fork misbehavior. Foxbook's transparency endpoint supports consistency-proof queries: `GET https://transparency.foxbook.dev/consistency?old=<N>&new=<M>` (two non-negative integer tree sizes with `old <= new`, passed as query parameters — not path segments). A monitor that requests consistency proofs between every STH it sees can detect any STH that fails consistency.
 3. **Withhold inclusion proofs** for specific leaves. Mitigation: the leaf bytes are public; the proof is recomputable by any third party with a full log copy. The threat is "log operator stops serving" rather than "log operator can cryptographically lie."
 
 The trust assumption is **transparency-log-honest-or-detected**, the same assumption underpinning Certificate Transparency (RFC 9162), Sigsum, and Sigstore. Foxbook inherits the same threat model.
@@ -331,7 +386,34 @@ Inclusion proofs are not time-bounded by themselves. A verifier that requires fr
 
 ### 4.4 Canonicalization correctness
 
-All signed structures (leaf bodies, STHs, etc.) are canonicalized per RFC 8785 JCS before signing. A canonicalization bug that produces different bytes on different implementations is a critical defect — see [`SECURITY.md`](https://github.com/cloakmaster/foxbook/blob/main/SECURITY.md). The reference implementation publishes cross-language test vectors at [`schemas/crypto-test-vectors.json`](https://github.com/cloakmaster/foxbook/blob/main/schemas/crypto-test-vectors.json); the canonicalize@2.1.0 reference (erdtman) is the primary canonicalizer. The format is independently reproducible by any conforming RFC 8785 implementation (e.g., `trailofbits/rfc8785.py`); a passing run against the published cross-language vectors is the operational validation.
+All signed structures in the `did:foxbook` signing path — leaf bodies (the
+`recovery_key_signature` input), signed tree heads, and JWS protected
+payloads — are canonicalized with an **insertion-order canonical JSON**
+encoding, **not** RFC 8785 JCS. The encoding is `JSON.stringify` semantics
+(no whitespace, UTF-8, keys emitted in object insertion order) on the
+TypeScript side (`core/src/crypto/canonical.ts`) and the byte-equivalent
+`json.dumps(obj, separators=(",", ":"), ensure_ascii=False)` on the Python
+side, where the caller fixes the key order. Determinism therefore comes from
+**caller-controlled key ordering**, not from a sorting canonicalizer: the
+signing-input field order is fixed and load-bearing for every leaf type
+(see §3.3, §3.4) and for the STH payload `{ log_id, tree_size, root_hash, timestamp, version }`
+(`packages/db/src/merkle-repository.ts`). This is the contract ratified in
+[ADR 0005](https://github.com/cloakmaster/foxbook/blob/main/docs/decisions/0005-canonical-on-both-sides.md).
+
+A canonicalization bug that produces different bytes on different
+implementations is a critical defect — see [`SECURITY.md`](https://github.com/cloakmaster/foxbook/blob/main/SECURITY.md).
+The continuous cross-language byte-match proof is the `jws_round_trip` vector in
+[`schemas/crypto-test-vectors.json`](https://github.com/cloakmaster/foxbook/blob/main/schemas/crypto-test-vectors.json),
+which is byte-identical across the TypeScript and Python implementations; any
+divergence on either side fails CI.
+
+> **RFC 8785 in the codebase**: the reference implementation also ships an
+> RFC 8785 JCS canonicalizer (`core/src/crypto/jcs.ts`, wrapping erdtman's
+> `canonicalize`). That module is **not** part of the `did:foxbook` signing
+> path — it exists for canonicalizing arbitrary, caller-unordered JSON (e.g.
+> external attestation bodies and CTEF cross-ecosystem byte-match interop) and
+> is not used to sign leaves, STHs, or JWS payloads. The two canonicalizers are
+> deliberately distinct; do not conflate them.
 
 ### 4.5 DID method confusion
 
@@ -373,8 +455,9 @@ The transparency log is append-only by cryptographic design. A revocation leaf c
 
 ### 6.2 Canonicalization
 
-- **canonicalize@2.1.0** (erdtman, npm) — primary canonicalizer in the reference implementation. RFC 8785 JCS.
-- Independently reproducible by any conforming RFC 8785 implementation (e.g., `trailofbits/rfc8785.py`) against the published cross-language test vectors.
+- **Signing path** (leaf bodies, STHs, JWS payloads): insertion-order canonical JSON — `JSON.stringify` semantics with caller-fixed key order (`core/src/crypto/canonical.ts`; Python mirror in `packages/sdk-py`). This is the canonicalization that produces the bytes signed for every `did:foxbook` operation. See §4.4 and [ADR 0005](https://github.com/cloakmaster/foxbook/blob/main/docs/decisions/0005-canonical-on-both-sides.md).
+- **Cross-language byte-match proof**: the `jws_round_trip` vector in [`schemas/crypto-test-vectors.json`](https://github.com/cloakmaster/foxbook/blob/main/schemas/crypto-test-vectors.json) — byte-identical across the TypeScript and Python implementations.
+- **Separate RFC 8785 JCS canonicalizer** (`core/src/crypto/jcs.ts`, wrapping erdtman's `canonicalize`): present in the codebase for arbitrary caller-unordered JSON and cross-ecosystem (CTEF) byte-match interop, but **not** used in the `did:foxbook` signing path. Do not conflate it with the signing-path canonicalizer above.
 
 ### 6.3 Operational deployment
 
@@ -401,8 +484,8 @@ The transparency log is append-only by cryptographic design. A revocation leaf c
 `did:foxbook` conforms to the [W3C DID Core 1.0](https://www.w3.org/TR/did-core/) abstract data model. Specifically:
 
 - §3.1 (DID syntax) — `did:foxbook:<ULID>` is method-name + method-specific-id, per the generic DID ABNF.
-- §5.1.1 (DID Document) — the resolution endpoint produces a JSON document with `@context`, `id`, `verificationMethod`, `authentication`, `assertionMethod` per the DID Core data model.
-- §7 (DID resolution) — the canonical resolver at `https://api.foxbook.dev/agents/<did>` implements the DID resolution algorithm, returning a DID Document + DID resolution metadata + DID document metadata.
+- §5.1.1 (DID Document) — resolution produces a JSON document with `@context`, `id`, `verificationMethod`, `authentication`, `assertionMethod` per the DID Core data model. The deployment does not return this document from a single resolver endpoint; it is a client-side projection (§3.2.1) assembled from the transparency-log endpoints and verified by inclusion proof.
+- §7 (DID resolution) — a conforming resolver implements the DID resolution algorithm as the client-side projection in §3.2.1, composing `/api/v1/claim/by-handle/...`, `/leaf/<index>`, `/inclusion/<index>`, `/root`, and `/.well-known/foxbook.json` to produce a DID Document + DID resolution metadata + DID document metadata. There is no single dereferenceable `GET .../<did>` resolver endpoint in the reference deployment.
 
 ### 7.2 Composition
 
@@ -410,7 +493,7 @@ The transparency log is append-only by cryptographic design. A revocation leaf c
 
 ### 7.3 Substrate citations
 
-`did:foxbook` is cited as a Layer 2 identity primitive (alternative DID method) in the CTEF v0.3.2 substrate-and-primitive layering figure ([`agentgraph-co/agentgraph/docs/standards/v0.3.2-layering-figure.md`](https://github.com/agentgraph-co/agentgraph/blob/main/docs/standards/v0.3.2-layering-figure.md)) and in the State of Agent Security — Q2 2026 report (AgentGraph, 2026-05-12, [agentgraph.co/state-of-agent-security-2026](https://agentgraph.co/state-of-agent-security-2026)) §3.8 + §4. The byte-match anchor in both citations is `canonicalize@2.1.0` (erdtman RFC 8785 reference impl).
+`did:foxbook` is cited as a Layer 2 identity primitive (alternative DID method) in the CTEF v0.3.2 substrate-and-primitive layering figure ([`agentgraph-co/agentgraph/docs/standards/v0.3.2-layering-figure.md`](https://github.com/agentgraph-co/agentgraph/blob/main/docs/standards/v0.3.2-layering-figure.md)) and in the State of Agent Security — Q2 2026 report (AgentGraph, 2026-05-12, [agentgraph.co/state-of-agent-security-2026](https://agentgraph.co/state-of-agent-security-2026)) §3.8 + §4. The cross-ecosystem (CTEF) byte-match interop is validated with the implementation's separate RFC 8785 JCS canonicalizer (erdtman's `canonicalize`, `core/src/crypto/jcs.ts`); note that this is the interop canonicalizer, **not** the `did:foxbook` signing-path canonicalizer, which is the insertion-order encoding described in §4.4.
 
 ---
 
@@ -435,13 +518,13 @@ Per [ADR 0008 (stable-mode posture)](https://github.com/cloakmaster/foxbook/blob
 - [W3C DID Core 1.0](https://www.w3.org/TR/did-core/) — REC, July 2022.
 - [W3C DID Specification Registries](https://www.w3.org/TR/did-spec-registries/) — Editor's Draft (continuously updated).
 - [RFC 8032](https://www.rfc-editor.org/rfc/rfc8032) — Edwards-Curve Digital Signature Algorithm (EdDSA), January 2017.
-- [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) — JSON Canonicalization Scheme (JCS), June 2020.
 - [RFC 9162](https://www.rfc-editor.org/rfc/rfc9162) — Certificate Transparency Version 2.0, December 2021.
 - [ULID Specification](https://github.com/ulid/spec) — Universally Unique Lexicographically Sortable Identifier.
 
 ### 9.2 Informative
 
 - [Ed25519VerificationKey2020](https://w3c-ccg.github.io/lds-ed25519-2020/) — W3C CCG.
+- [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) — JSON Canonicalization Scheme (JCS), June 2020. Informative only: the `did:foxbook` signing path uses an insertion-order canonical JSON encoding (§4.4, ADR 0005), not JCS. RFC 8785 is referenced for the reference implementation's separate cross-ecosystem interop canonicalizer (`core/src/crypto/jcs.ts`).
 - [Sigsum](https://www.sigsum.org/) — comparable transparency-log primitive (different semantics).
 - [Certificate Transparency](https://certificate.transparency.dev/) — the original RFC 9162 deployment context.
 - Foxbook ADRs ([`docs/decisions/`](https://github.com/cloakmaster/foxbook/blob/main/docs/decisions/)):
