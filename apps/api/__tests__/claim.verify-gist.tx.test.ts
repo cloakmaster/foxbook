@@ -57,10 +57,24 @@ describe.skipIf(!SHOULD_RUN)(
     const RECOVERY = keypairFromSeed(new Uint8Array(32).fill(0x42));
     const LOG_SIGNING = generateKeypair();
 
+    // Each test uses a DISTINCT agentDid so the success path's committed
+    // claim.verified firehose row (which afterEach intentionally leaves in
+    // place as an additive log) can't collide with another test's
+    // "no firehose row for this did" assertion. Suffix the canonical base
+    // did so the values stay obviously test-owned and easy to clean up.
+    const DID_BASE = "did:foxbook:01H8XS4WHV8YNGSZPQ5XK9QR6N";
+    const didFor = (suffix: string) => `${DID_BASE}-${suffix}`;
+    // Track every did the suite touches so afterEach can purge its
+    // firehose rows — makes the suite idempotent against a re-used DB,
+    // not just a pristine one.
+    const usedDids = new Set<string>();
+
     function freshClaim(suffix: string): ClaimRow {
+      const agentDid = didFor(suffix);
+      usedDids.add(agentDid);
       return {
         id: fixtureClaimId,
-        agentDid: "did:foxbook:01H8XS4WHV8YNGSZPQ5XK9QR6N",
+        agentDid,
         state: "gist_pending",
         assetType: "github_handle",
         assetValue: `verify-gist-tx-test-${suffix}`,
@@ -80,9 +94,18 @@ describe.skipIf(!SHOULD_RUN)(
     afterEach(async () => {
       // Delete-on-revoke parity: clean up the fixture claim so re-runs
       // don't trip the partial-unique index. Cascades through ON DELETE
-      // SET NULL on keys + verifications. firehose_events rows from
-      // success paths are left in place (additive log).
+      // SET NULL on keys + verifications.
       await db.delete(schema.claims).where(eq(schema.claims.id, fixtureClaimId));
+      // The success path commits a claim.verified firehose row that
+      // afterEach for claims does NOT cascade (additive log). Purge the
+      // rows this suite created so a re-run against the same DB starts
+      // from the same baseline a pristine DB would — otherwise the
+      // success row leaks into the next run's assertions.
+      for (const did of usedDids) {
+        await db
+          .delete(schema.firehoseEvents)
+          .where(sql`${schema.firehoseEvents.payload}->>'did' = ${did}`);
+      }
     });
 
     it("commits all four writes inside one transaction on success", async () => {
