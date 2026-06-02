@@ -4,7 +4,7 @@
 // schemas/crypto-test-vectors.json's Merkle vectors so the proof
 // reconstruction has a real cryptographic hook (not just stubs).
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   DEFAULT_API_BASE,
@@ -14,6 +14,85 @@ import {
   verify,
   verifyAgentCard,
 } from "../src/verify.js";
+
+// ---- STH signing (throwaway in-test Ed25519 key) ----
+//
+// verify()/verifyAgentCard() now require a signature-verified STH: they
+// fetch the log's public key from /.well-known/foxbook.json and verify
+// the /root sthJws against it, then pin the inclusion proof to the
+// SIGNED root_hash. So fixtures must serve a real signed STH + a
+// matching public key. We mint a throwaway Ed25519 keypair once and
+// sign STHs whose root_hash equals the fixture's Merkle root.
+
+const WELL_KNOWN_URL = "https://api.foxbook.dev/.well-known/foxbook.json";
+
+let LOG_PUBLIC_KEY_HEX: string;
+let logPrivateKey: CryptoKey;
+let WRONG_PUBLIC_KEY_HEX: string;
+
+function bytesToHex(bytes: Uint8Array): string {
+  let s = "";
+  for (const b of bytes) s += b.toString(16).padStart(2, "0");
+  return s;
+}
+
+function b64url(bytes: Uint8Array): string {
+  let s = "";
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+}
+
+/** Sign an STH byte-identically to the server (core/src/crypto/jws.ts +
+ *  packages/db merkle-repository signTreeHead): header {alg:"EdDSA",
+ *  typ:"JWT"}, JSON.stringify payload in load-bearing key order. */
+async function signSth(args: {
+  rootHash: string;
+  treeSize: number;
+  timestamp?: string;
+}): Promise<string> {
+  const enc = new TextEncoder();
+  const header = { alg: "EdDSA", typ: "JWT" };
+  const payload = {
+    log_id: "foxbook-v1",
+    tree_size: args.treeSize,
+    root_hash: args.rootHash,
+    timestamp: args.timestamp ?? "2026-05-01T08:00:00.000Z",
+    version: "1.0-draft",
+  };
+  const signingInput = `${b64url(enc.encode(JSON.stringify(header)))}.${b64url(enc.encode(JSON.stringify(payload)))}`;
+  const sig = new Uint8Array(
+    await crypto.subtle.sign({ name: "Ed25519" }, logPrivateKey, enc.encode(signingInput)),
+  );
+  return `${signingInput}.${b64url(sig)}`;
+}
+
+function wellKnownStub(publicKeyHex: string = LOG_PUBLIC_KEY_HEX): [string, FetchResponse] {
+  return [
+    WELL_KNOWN_URL,
+    {
+      status: 200,
+      body: {
+        protocol_version: "1.0",
+        supported_tiers: [1],
+        transparency_log_url: "https://transparency.foxbook.dev",
+        api_base: "https://api.foxbook.dev",
+        log_signing_public_key_hex: publicKeyHex,
+      },
+    },
+  ];
+}
+
+beforeAll(async () => {
+  const kp = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
+  logPrivateKey = kp.privateKey;
+  LOG_PUBLIC_KEY_HEX = bytesToHex(
+    new Uint8Array(await crypto.subtle.exportKey("raw", kp.publicKey)),
+  );
+  const wrong = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
+  WRONG_PUBLIC_KEY_HEX = bytesToHex(
+    new Uint8Array(await crypto.subtle.exportKey("raw", wrong.publicKey)),
+  );
+});
 
 // ---- fetch stubbing ----
 
@@ -94,7 +173,7 @@ describe("constants", () => {
 // ---- verify (Merkle primitive) ----
 
 describe("verify", () => {
-  it("fetches /inclusion + /root in parallel from DEFAULT_WORKER_BASE", async () => {
+  it("fetches /inclusion + /root + /.well-known in parallel from defaults", async () => {
     stubFetchByUrl(
       new Map([
         [
@@ -118,10 +197,11 @@ describe("verify", () => {
               rootHash: SINGLE_LEAF_HASH,
               leafCount: 1,
               publishedAt: "2026-04-30T10:00:00Z",
-              sthJws: "stub.jws.signature",
+              sthJws: await signSth({ rootHash: SINGLE_LEAF_HASH, treeSize: 1 }),
             },
           },
         ],
+        wellKnownStub(),
       ]),
     );
 
@@ -131,6 +211,7 @@ describe("verify", () => {
     expect(result.root_hex).toBe(SINGLE_LEAF_HASH);
     expect(result.leaf_hash).toBe(SINGLE_LEAF_HASH);
     expect(requestLog.map((r) => r.url).sort()).toEqual([
+      "https://api.foxbook.dev/.well-known/foxbook.json",
       "https://transparency.foxbook.dev/inclusion/0",
       "https://transparency.foxbook.dev/root",
     ]);
@@ -156,13 +237,63 @@ describe("verify", () => {
           "https://staging.foxbook.dev/root",
           {
             status: 200,
-            body: { rootHash: SINGLE_LEAF_HASH, leafCount: 1, publishedAt: "now", sthJws: "x" },
+            body: {
+              rootHash: SINGLE_LEAF_HASH,
+              leafCount: 1,
+              publishedAt: "now",
+              sthJws: await signSth({ rootHash: SINGLE_LEAF_HASH, treeSize: 1 }),
+            },
           },
         ],
+        wellKnownStub(),
       ]),
     );
     const result = await verify({ leaf_index: 3, worker_base: "https://staging.foxbook.dev/" });
     expect(result.valid).toBe(true);
+  });
+
+  it("respects api_base override for the well-known key fetch", async () => {
+    stubFetchByUrl(
+      new Map<string, FetchResponse>([
+        [
+          "https://transparency.foxbook.dev/inclusion/0",
+          {
+            status: 200,
+            body: {
+              leafHash: SINGLE_LEAF_HASH,
+              leafIndex: 0,
+              treeSize: 1,
+              proofHex: [],
+              rootHex: SINGLE_LEAF_HASH,
+            },
+          },
+        ],
+        [
+          "https://transparency.foxbook.dev/root",
+          {
+            status: 200,
+            body: {
+              rootHash: SINGLE_LEAF_HASH,
+              leafCount: 1,
+              publishedAt: "now",
+              sthJws: await signSth({ rootHash: SINGLE_LEAF_HASH, treeSize: 1 }),
+            },
+          },
+        ],
+        [
+          "https://staging-api.foxbook.dev/.well-known/foxbook.json",
+          {
+            status: 200,
+            body: { log_signing_public_key_hex: LOG_PUBLIC_KEY_HEX },
+          },
+        ],
+      ]),
+    );
+    const result = await verify({ leaf_index: 0, api_base: "https://staging-api.foxbook.dev/" });
+    expect(result.valid).toBe(true);
+    expect(requestLog.map((r) => r.url)).toContain(
+      "https://staging-api.foxbook.dev/.well-known/foxbook.json",
+    );
   });
 
   it("verifies a real 2-leaf inclusion proof for index 0", async () => {
@@ -190,10 +321,11 @@ describe("verify", () => {
               rootHash: TWO_LEAF_ROOT,
               leafCount: 2,
               publishedAt: "now",
-              sthJws: "x",
+              sthJws: await signSth({ rootHash: TWO_LEAF_ROOT, treeSize: 2 }),
             },
           },
         ],
+        wellKnownStub(),
       ]),
     );
     const result = await verify({ leaf_index: 0 });
@@ -212,9 +344,15 @@ describe("verify", () => {
           "https://transparency.foxbook.dev/root",
           {
             status: 200,
-            body: { rootHash: SINGLE_LEAF_HASH, leafCount: 1, publishedAt: "x", sthJws: "x" },
+            body: {
+              rootHash: SINGLE_LEAF_HASH,
+              leafCount: 1,
+              publishedAt: "x",
+              sthJws: await signSth({ rootHash: SINGLE_LEAF_HASH, treeSize: 1 }),
+            },
           },
         ],
+        wellKnownStub(),
       ]),
     );
     const result = await verify({ leaf_index: 99 });
@@ -239,6 +377,7 @@ describe("verify", () => {
           },
         ],
         ["https://transparency.foxbook.dev/root", { status: 500, body: { error: "internal" } }],
+        wellKnownStub(),
       ]),
     );
     const result = await verify({ leaf_index: 0 });
@@ -262,9 +401,15 @@ describe("verify", () => {
           "https://transparency.foxbook.dev/root",
           {
             status: 200,
-            body: { rootHash: SINGLE_LEAF_HASH, leafCount: 1, publishedAt: "x", sthJws: "x" },
+            body: {
+              rootHash: SINGLE_LEAF_HASH,
+              leafCount: 1,
+              publishedAt: "x",
+              sthJws: await signSth({ rootHash: SINGLE_LEAF_HASH, treeSize: 1 }),
+            },
           },
         ],
+        wellKnownStub(),
       ]),
     );
     const result = await verify({ leaf_index: 0 });
@@ -291,18 +436,26 @@ describe("verify", () => {
           "https://transparency.foxbook.dev/root",
           {
             status: 200,
-            body: { rootHash: SINGLE_LEAF_HASH, leafCount: 1, publishedAt: "x", sthJws: "x" },
+            body: {
+              rootHash: SINGLE_LEAF_HASH,
+              leafCount: 1,
+              publishedAt: "x",
+              sthJws: await signSth({ rootHash: SINGLE_LEAF_HASH, treeSize: 1 }),
+            },
           },
         ],
+        wellKnownStub(),
       ]),
     );
     const result = await verify({ leaf_index: 0 });
     expect(result.valid).toBe(false);
   });
 
-  it("returns valid=false when proof reconstruction doesn't match served root", async () => {
-    // Force a deliberate mismatch: leaf says root is X but proof
-    // reconstructs to Y.
+  it("returns valid=false when proof reconstruction doesn't match the SIGNED root", async () => {
+    // The proof reconstructs to SINGLE_LEAF_HASH (single-leaf tree),
+    // but the STH is signed over a different root. Even though the
+    // server-supplied inc.rootHex matches the (forged) STH, the proof
+    // can't reconstruct to it → fail closed.
     stubFetchByUrl(
       new Map([
         [
@@ -314,7 +467,7 @@ describe("verify", () => {
               leafIndex: 0,
               treeSize: 1,
               proofHex: [],
-              rootHex: TWO_LEAF_ROOT, // wrong: single-leaf tree's root IS the leaf hash
+              rootHex: TWO_LEAF_ROOT, // server lies; ignored now
             },
           },
         ],
@@ -322,14 +475,213 @@ describe("verify", () => {
           "https://transparency.foxbook.dev/root",
           {
             status: 200,
-            body: { rootHash: TWO_LEAF_ROOT, leafCount: 1, publishedAt: "x", sthJws: "x" },
+            body: {
+              rootHash: TWO_LEAF_ROOT,
+              leafCount: 1,
+              publishedAt: "x",
+              sthJws: await signSth({ rootHash: TWO_LEAF_ROOT, treeSize: 1 }),
+            },
+          },
+        ],
+        wellKnownStub(),
+      ]),
+    );
+    const result = await verify({ leaf_index: 0 });
+    if (result.valid) throw new Error("expected invalid");
+    expect(result.reason).toContain("merkle proof");
+  });
+
+  // ---- STH signature fail-closed paths (the #1 security fix) ----
+
+  it("fails closed when /.well-known omits log_signing_public_key_hex", async () => {
+    stubFetchByUrl(
+      new Map<string, FetchResponse>([
+        [
+          "https://transparency.foxbook.dev/inclusion/0",
+          {
+            status: 200,
+            body: {
+              leafHash: SINGLE_LEAF_HASH,
+              leafIndex: 0,
+              treeSize: 1,
+              proofHex: [],
+              rootHex: SINGLE_LEAF_HASH,
+            },
+          },
+        ],
+        [
+          "https://transparency.foxbook.dev/root",
+          {
+            status: 200,
+            body: {
+              rootHash: SINGLE_LEAF_HASH,
+              leafCount: 1,
+              publishedAt: "x",
+              sthJws: await signSth({ rootHash: SINGLE_LEAF_HASH, treeSize: 1 }),
+            },
+          },
+        ],
+        [
+          WELL_KNOWN_URL,
+          {
+            status: 200,
+            body: { protocol_version: "1.0", supported_tiers: [1] }, // no key
           },
         ],
       ]),
     );
     const result = await verify({ leaf_index: 0 });
     if (result.valid) throw new Error("expected invalid");
-    expect(result.reason).toContain("merkle proof");
+    expect(result.reason).toContain("public key");
+  });
+
+  it("fails closed when /.well-known is unreachable", async () => {
+    stubFetchByUrl(
+      new Map<string, FetchResponse>([
+        [
+          "https://transparency.foxbook.dev/inclusion/0",
+          {
+            status: 200,
+            body: {
+              leafHash: SINGLE_LEAF_HASH,
+              leafIndex: 0,
+              treeSize: 1,
+              proofHex: [],
+              rootHex: SINGLE_LEAF_HASH,
+            },
+          },
+        ],
+        [
+          "https://transparency.foxbook.dev/root",
+          {
+            status: 200,
+            body: {
+              rootHash: SINGLE_LEAF_HASH,
+              leafCount: 1,
+              publishedAt: "x",
+              sthJws: await signSth({ rootHash: SINGLE_LEAF_HASH, treeSize: 1 }),
+            },
+          },
+        ],
+        [WELL_KNOWN_URL, { status: 503, body: { error: "down" } }],
+      ]),
+    );
+    const result = await verify({ leaf_index: 0 });
+    expect(result.valid).toBe(false);
+  });
+
+  it("fails closed when the STH is signed by the WRONG key", async () => {
+    // STH root matches the proof, but it was signed by a key the
+    // well-known surface does NOT advertise (a MITM / rogue signer).
+    stubFetchByUrl(
+      new Map([
+        [
+          "https://transparency.foxbook.dev/inclusion/0",
+          {
+            status: 200,
+            body: {
+              leafHash: SINGLE_LEAF_HASH,
+              leafIndex: 0,
+              treeSize: 1,
+              proofHex: [],
+              rootHex: SINGLE_LEAF_HASH,
+            },
+          },
+        ],
+        [
+          "https://transparency.foxbook.dev/root",
+          {
+            status: 200,
+            body: {
+              rootHash: SINGLE_LEAF_HASH,
+              leafCount: 1,
+              publishedAt: "x",
+              // signed by logPrivateKey, but well-known advertises a
+              // DIFFERENT public key, so the signature won't verify.
+              sthJws: await signSth({ rootHash: SINGLE_LEAF_HASH, treeSize: 1 }),
+            },
+          },
+        ],
+        wellKnownStub(WRONG_PUBLIC_KEY_HEX),
+      ]),
+    );
+    const result = await verify({ leaf_index: 0 });
+    if (result.valid) throw new Error("expected invalid");
+    expect(result.reason).toContain("STH signature");
+  });
+
+  it("fails closed when sthJws is unsigned / malformed (no signature to trust)", async () => {
+    stubFetchByUrl(
+      new Map<string, FetchResponse>([
+        [
+          "https://transparency.foxbook.dev/inclusion/0",
+          {
+            status: 200,
+            body: {
+              leafHash: SINGLE_LEAF_HASH,
+              leafIndex: 0,
+              treeSize: 1,
+              proofHex: [],
+              rootHex: SINGLE_LEAF_HASH,
+            },
+          },
+        ],
+        [
+          "https://transparency.foxbook.dev/root",
+          {
+            status: 200,
+            body: {
+              rootHash: SINGLE_LEAF_HASH,
+              leafCount: 1,
+              publishedAt: "x",
+              sthJws: "not-a-real-jws", // unsigned garbage
+            },
+          },
+        ],
+        wellKnownStub(),
+      ]),
+    );
+    const result = await verify({ leaf_index: 0 });
+    if (result.valid) throw new Error("expected invalid");
+    expect(result.reason).toContain("STH signature");
+  });
+
+  it("fails closed when the signed STH attests a different tree_size", async () => {
+    // Proof says treeSize=1; STH is validly signed but over tree_size=2.
+    // A correctly-rooted proof under the wrong head must not pass.
+    stubFetchByUrl(
+      new Map([
+        [
+          "https://transparency.foxbook.dev/inclusion/0",
+          {
+            status: 200,
+            body: {
+              leafHash: SINGLE_LEAF_HASH,
+              leafIndex: 0,
+              treeSize: 1,
+              proofHex: [],
+              rootHex: SINGLE_LEAF_HASH,
+            },
+          },
+        ],
+        [
+          "https://transparency.foxbook.dev/root",
+          {
+            status: 200,
+            body: {
+              rootHash: SINGLE_LEAF_HASH,
+              leafCount: 2,
+              publishedAt: "x",
+              sthJws: await signSth({ rootHash: SINGLE_LEAF_HASH, treeSize: 2 }),
+            },
+          },
+        ],
+        wellKnownStub(),
+      ]),
+    );
+    const result = await verify({ leaf_index: 0 });
+    if (result.valid) throw new Error("expected invalid");
+    expect(result.reason).toContain("tree_size");
   });
 });
 
@@ -513,7 +865,7 @@ const aliceCard: VerifiableAgentCard = {
   },
 };
 
-function aliceVerifiedStubs(): Map<string, FetchResponse> {
+async function aliceVerifiedStubs(): Promise<Map<string, FetchResponse>> {
   return new Map([
     [
       "https://api.foxbook.dev/api/v1/claim/by-handle/github_handle/alice",
@@ -552,23 +904,22 @@ function aliceVerifiedStubs(): Map<string, FetchResponse> {
         body: {
           rootHash: SINGLE_LEAF_HASH,
           leafCount: 1,
-          publishedAt: "2026-05-01T08:00:00Z",
-          // STH JWS payload contains timestamp; signature is bogus but
-          // we don't verify it for the freshness path.
-          // payload: {"log_id":"foxbook-v1","tree_size":1,"root_hash":"…","timestamp":"2026-05-01T08:00:00Z","version":"1.0-draft"}
-          sthJws:
-            "eyJhbGciOiJFZERTQSJ9." +
-            "eyJsb2dfaWQiOiJmb3hib29rLXYxIiwidGltZXN0YW1wIjoiMjAyNi0wNS0wMVQwODowMDowMC4wMDBaIn0." +
-            "stub-signature",
+          publishedAt: "2026-05-01T08:00:00.000Z",
+          sthJws: await signSth({
+            rootHash: SINGLE_LEAF_HASH,
+            treeSize: 1,
+            timestamp: "2026-05-01T08:00:00.000Z",
+          }),
         },
       },
     ],
+    wellKnownStub(),
   ]);
 }
 
 describe("verifyAgentCard", () => {
   it("returns verified for a happy-path tier1 card", async () => {
-    stubFetchByUrl(aliceVerifiedStubs());
+    stubFetchByUrl(await aliceVerifiedStubs());
     const result = await verifyAgentCard(aliceCard, { asset_type: "github_handle" });
     if (result.status !== "verified") throw new Error(`expected verified, got ${result.status}`);
     expect(result.tier).toBe(1);
@@ -608,7 +959,7 @@ describe("verifyAgentCard", () => {
   });
 
   it("returns handle-mismatch when card.x-foxbook.did differs from log's agent_did", async () => {
-    const stubs = aliceVerifiedStubs();
+    const stubs = await aliceVerifiedStubs();
     const liarCard: VerifiableAgentCard = {
       handle: "alice", // this handle's row in the log has agent_did = ALICE_DID
       "x-foxbook": { did: BOB_DID }, // but the card claims to be BOB
@@ -622,7 +973,7 @@ describe("verifyAgentCard", () => {
   });
 
   it("skips card.did check when card has no x-foxbook.did (treats handle as ground truth)", async () => {
-    const stubs = aliceVerifiedStubs();
+    const stubs = await aliceVerifiedStubs();
     stubFetchByUrl(stubs);
     const minimalCard: VerifiableAgentCard = { handle: "alice" };
     const result = await verifyAgentCard(minimalCard, { asset_type: "github_handle" });
@@ -692,19 +1043,19 @@ describe("verifyAgentCard", () => {
   });
 
   it("requireFreshSTH: returns stale-proof when STH is older than threshold", async () => {
-    const stubs = aliceVerifiedStubs();
-    // Override /root with an old timestamp.
+    const stubs = await aliceVerifiedStubs();
+    // Override /root with a validly SIGNED STH carrying an old timestamp.
     stubs.set("https://transparency.foxbook.dev/root", {
       status: 200,
       body: {
         rootHash: SINGLE_LEAF_HASH,
         leafCount: 1,
-        publishedAt: "2020-01-01T00:00:00Z",
-        // payload timestamp from 2020
-        sthJws:
-          "eyJhbGciOiJFZERTQSJ9." +
-          "eyJsb2dfaWQiOiJmb3hib29rLXYxIiwidGltZXN0YW1wIjoiMjAyMC0wMS0wMVQwMDowMDowMC4wMDBaIn0." +
-          "stub-signature",
+        publishedAt: "2020-01-01T00:00:00.000Z",
+        sthJws: await signSth({
+          rootHash: SINGLE_LEAF_HASH,
+          treeSize: 1,
+          timestamp: "2020-01-01T00:00:00.000Z",
+        }),
       },
     });
     stubFetchByUrl(stubs);
@@ -719,23 +1070,16 @@ describe("verifyAgentCard", () => {
   });
 
   it("requireFreshSTH: passes when STH is fresh enough", async () => {
-    const stubs = aliceVerifiedStubs();
-    // Override with a timestamp 1 second ago.
-    const now = new Date();
-    const recent = new Date(now.getTime() - 1000).toISOString();
-    const payloadJson = JSON.stringify({ log_id: "foxbook-v1", timestamp: recent });
-    const payloadB64 = Buffer.from(payloadJson, "utf-8")
-      .toString("base64")
-      .replaceAll("+", "-")
-      .replaceAll("/", "_")
-      .replace(/=+$/, "");
+    const stubs = await aliceVerifiedStubs();
+    // Override with a validly SIGNED STH timestamped 1 second ago.
+    const recent = new Date(Date.now() - 1000).toISOString();
     stubs.set("https://transparency.foxbook.dev/root", {
       status: 200,
       body: {
         rootHash: SINGLE_LEAF_HASH,
         leafCount: 1,
         publishedAt: recent,
-        sthJws: `eyJhbGciOiJFZERTQSJ9.${payloadB64}.stub-signature`,
+        sthJws: await signSth({ rootHash: SINGLE_LEAF_HASH, treeSize: 1, timestamp: recent }),
       },
     });
     stubFetchByUrl(stubs);
@@ -747,7 +1091,7 @@ describe("verifyAgentCard", () => {
   });
 
   it("requireFreshSTH: returns unverified when STH JWS is malformed", async () => {
-    const stubs = aliceVerifiedStubs();
+    const stubs = await aliceVerifiedStubs();
     stubs.set("https://transparency.foxbook.dev/root", {
       status: 200,
       body: {
@@ -765,18 +1109,48 @@ describe("verifyAgentCard", () => {
     expect(result.status).toBe("unverified");
   });
 
+  it("requireFreshSTH: returns unverified when STH signature is forged", async () => {
+    // The STH carries a fresh timestamp but is signed by a key the
+    // well-known surface does not advertise → freshness must NOT trust
+    // the timestamp off an unverifiable head.
+    const recent = new Date(Date.now() - 1000).toISOString();
+    const stubs = await aliceVerifiedStubs();
+    stubs.set(WELL_KNOWN_URL, wellKnownStub(WRONG_PUBLIC_KEY_HEX)[1]);
+    stubs.set("https://transparency.foxbook.dev/root", {
+      status: 200,
+      body: {
+        rootHash: SINGLE_LEAF_HASH,
+        leafCount: 1,
+        publishedAt: recent,
+        sthJws: await signSth({ rootHash: SINGLE_LEAF_HASH, treeSize: 1, timestamp: recent }),
+      },
+    });
+    stubFetchByUrl(stubs);
+    // requireInclusionProof:false isolates the freshness path from the
+    // inclusion path (which would also reject the wrong key).
+    const result = await verifyAgentCard(aliceCard, {
+      asset_type: "github_handle",
+      requireInclusionProof: false,
+      requireFreshSTH: 3600,
+    });
+    if (result.status !== "unverified")
+      throw new Error(`expected unverified, got ${result.status}`);
+    expect(result.reason).toContain("STH signature");
+  });
+
   it("returns unverified on inclusion proof failure", async () => {
-    const stubs = aliceVerifiedStubs();
-    // Set the inclusion stub's rootHex to something that won't match
-    // the reconstructed proof root.
+    const stubs = await aliceVerifiedStubs();
+    // Leaf hash differs from the SIGNED root, so the (empty) proof
+    // reconstructs to TWO_LEAF_ROOT while the STH attests SINGLE_LEAF_HASH
+    // → reconstruction can't match the signed root → fail closed.
     stubs.set("https://transparency.foxbook.dev/inclusion/0", {
       status: 200,
       body: {
-        leafHash: SINGLE_LEAF_HASH,
+        leafHash: TWO_LEAF_ROOT,
         leafIndex: 0,
         treeSize: 1,
         proofHex: [],
-        rootHex: TWO_LEAF_ROOT, // mismatched
+        rootHex: TWO_LEAF_ROOT,
       },
     });
     stubFetchByUrl(stubs);
@@ -786,7 +1160,7 @@ describe("verifyAgentCard", () => {
 
   it("respects apiBase + worker_base overrides", async () => {
     stubFetchByUrl(
-      new Map([
+      new Map<string, FetchResponse>([
         [
           "https://staging-api.foxbook.dev/api/v1/claim/by-handle/github_handle/alice",
           {
@@ -820,8 +1194,18 @@ describe("verifyAgentCard", () => {
           "https://staging-tx.foxbook.dev/root",
           {
             status: 200,
-            body: { rootHash: SINGLE_LEAF_HASH, leafCount: 1, publishedAt: "x", sthJws: "x" },
+            body: {
+              rootHash: SINGLE_LEAF_HASH,
+              leafCount: 1,
+              publishedAt: "x",
+              sthJws: await signSth({ rootHash: SINGLE_LEAF_HASH, treeSize: 1 }),
+            },
           },
+        ],
+        // Well-known key fetched from the OVERRIDDEN api base.
+        [
+          "https://staging-api.foxbook.dev/.well-known/foxbook.json",
+          { status: 200, body: { log_signing_public_key_hex: LOG_PUBLIC_KEY_HEX } },
         ],
       ]),
     );
