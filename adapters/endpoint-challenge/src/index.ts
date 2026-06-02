@@ -27,6 +27,9 @@
 
 import { canonicalJsonBytes, jwsVerify } from "@foxbook/core";
 
+import { assertOutboundAllowed, type HostResolver } from "./guard.js";
+import { nodeResolveHostname, nodeSafeFetch } from "./node-transport.js";
+
 export type EndpointVerifyStatus = "match" | "signature-invalid" | "nonce-mismatch" | "error";
 
 export type EndpointVerifyErrorReason =
@@ -34,7 +37,12 @@ export type EndpointVerifyErrorReason =
   | "decode_error"
   | "timeout"
   | "missing_jws"
-  | "fetch_failed";
+  | "fetch_failed"
+  // SSRF guard rejections (raised BEFORE any socket is opened, except
+  // blocked_redirect which fires on a 3xx away from the vetted host):
+  | "blocked_scheme"
+  | "blocked_host"
+  | "blocked_redirect";
 
 export type EndpointVerifyResult =
   | { status: "match" }
@@ -45,8 +53,19 @@ export type EndpointVerifyResult =
 export type EndpointVerifyOptions = {
   /** Per-fetch timeout. Defaults to 10_000 ms. */
   timeoutMs?: number;
-  /** Inject a fetch impl for tests. Defaults to global fetch. */
+  /**
+   * Inject a fetch impl for tests. Defaults to a Node-native guarded
+   * transport (node-transport.ts) that pins the socket to a vetted IP
+   * at connect time — closing the DNS-rebinding window. When a fetch is
+   * injected, the SSRF pre-flight (assertOutboundAllowed) still runs;
+   * tests supply `resolveHostname` to drive it deterministically.
+   */
   fetch?: typeof globalThis.fetch;
+  /**
+   * Resolve a hostname to its candidate IPs for the SSRF pre-flight.
+   * Defaults to node:dns. Injected by tests to avoid real DNS.
+   */
+  resolveHostname?: HostResolver;
 };
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -80,7 +99,11 @@ export async function verifyEndpointSignedNonce(
   publicKeyHex: string,
   opts: EndpointVerifyOptions = {},
 ): Promise<EndpointVerifyResult> {
-  const fetchImpl = opts.fetch ?? globalThis.fetch;
+  // Default to the Node-native guarded transport, which re-validates
+  // the IP at socket-connect time (DNS-rebinding pin). Tests inject a
+  // fetch; the SSRF pre-flight below runs either way.
+  const fetchImpl = opts.fetch ?? nodeSafeFetch;
+  const resolveHostname = opts.resolveHostname ?? nodeResolveHostname;
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
   let publicKey: Uint8Array;
@@ -92,6 +115,15 @@ export async function verifyEndpointSignedNonce(
       reason: "decode_error",
       detail: `publicKeyHex parse: ${e instanceof Error ? e.message : String(e)}`,
     };
+  }
+
+  // SSRF pre-flight: https-only + resolve-and-vet the target before any
+  // socket is opened. endpointUrl is attacker-controlled (a claimant
+  // supplies it over two unauthenticated POSTs), so this gate is what
+  // stops it being pointed at 169.254.169.254 / loopback / RFC-1918.
+  const outbound = await assertOutboundAllowed(endpointUrl, resolveHostname);
+  if (!outbound.ok) {
+    return { status: "error", reason: outbound.reason, detail: outbound.detail };
   }
 
   // Canonical JSON serialization of the request body. Same primitive
@@ -110,6 +142,9 @@ export async function verifyEndpointSignedNonce(
         headers: { "Content-Type": "application/json" },
         body: requestBody,
         signal: controller.signal,
+        // Never auto-follow: a 3xx could bounce to an internal host the
+        // pre-flight never vetted. We inspect redirects ourselves below.
+        redirect: "manual",
       });
     } catch (e) {
       if (e instanceof Error && e.name === "AbortError") {
@@ -119,6 +154,20 @@ export async function verifyEndpointSignedNonce(
         status: "error",
         reason: "fetch_failed",
         detail: e instanceof Error ? e.message : String(e),
+      };
+    }
+
+    // A redirect response is a re-targeting attempt. We reject every 3xx
+    // rather than chase it: following would re-open the SSRF hole the
+    // pre-flight just closed (the Location can point anywhere), and a
+    // legitimate challenge endpoint has no reason to redirect — it can
+    // return the JWS directly. The Location is surfaced for diagnosis.
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get("location") ?? "";
+      return {
+        status: "error",
+        reason: "blocked_redirect",
+        detail: `endpoint returned a ${res.status} redirect to "${location}" — not followed`,
       };
     }
 
