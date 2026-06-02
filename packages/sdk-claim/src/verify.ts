@@ -19,6 +19,7 @@
 
 import { DEFAULT_API_BASE, type Ed25519PublicKeyHex, type FoxbookDid } from "./claim.js";
 import { verifyInclusion } from "./merkle-internal.js";
+import { verifySthJws } from "./sth-verify.js";
 
 // Re-export so consumers and tests get DEFAULT_API_BASE from the same
 // surface as DEFAULT_WORKER_BASE without two import paths.
@@ -69,33 +70,15 @@ async function getJson(
   return { ok: true, response, body: parsed };
 }
 
-/** Decode a JWS compact-token's payload segment without verifying the
- *  signature. Returns the parsed JSON or null on shape errors. Used
- *  for STH timestamp extraction in freshness checks. Callers that
- *  need full signature verification should pull the public key from
- *  /.well-known/foxbook.json and use jwsVerify from @foxbook/core. */
-function decodeJwsPayload(token: string): Record<string, unknown> | null {
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
-  const payloadB64 = parts[1];
-  if (!payloadB64) return null;
-  try {
-    const padded =
-      payloadB64.replaceAll("-", "+").replaceAll("_", "/") +
-      "===".slice((payloadB64.length + 3) % 4);
-    const raw = atob(padded);
-    return JSON.parse(raw) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
 // ---- verify (primitive) ----
 
 export type VerifyInput = {
   leaf_index: number;
   /** Override transparency Worker base. Defaults to DEFAULT_WORKER_BASE. */
   worker_base?: string;
+  /** Override API base — used to fetch the log's signing public key from
+   *  `{api_base}/.well-known/foxbook.json`. Defaults to DEFAULT_API_BASE. */
+  api_base?: string;
 };
 
 export type VerifyResult =
@@ -103,22 +86,38 @@ export type VerifyResult =
   | { valid: false; reason: string };
 
 /**
- * Verify a Merkle inclusion proof against the current STH root.
- * Fetches `/inclusion/:index` + `/root` from the transparency Worker
- * in parallel; reconstructs the root from the inclusion proof using
- * `verifyInclusion` from @foxbook/core/merkle; returns valid only if
- * the reconstructed root matches the served root byte-for-byte.
+ * Verify a Merkle inclusion proof against the log's SIGNED tree head.
+ *
+ * Security model (fail-closed): the proof is only as trustworthy as the
+ * root it reconstructs to. The transparency Worker's `/inclusion`
+ * endpoint returns an UNSIGNED, server-supplied `rootHex` — trusting it
+ * lets a malicious or MITM'd server serve any leaf + a self-consistent
+ * proof + a matching `rootHex` and pass. So instead we:
+ *
+ *  1. Fetch the log's Ed25519 signing public key from
+ *     `{api_base}/.well-known/foxbook.json`. Absent → fail.
+ *  2. Verify the STH JWS signature (`/root` → `sthJws`) against that
+ *     key. Bad signature / wrong key / malformed → fail.
+ *  3. Reconstruct the inclusion proof and require it to match the
+ *     SIGNED `root_hash` from the verified STH — NOT `inc.rootHex`.
+ *     We also pin `inc.treeSize` to the signed `tree_size`.
+ *
+ * `/inclusion`, `/root`, and `.well-known/foxbook.json` are fetched in
+ * parallel.
  *
  * @returns
- *   - `{valid: true, leaf_index, root_hex, leaf_hash}` on success.
- *   - `{valid: false, reason}` on network error, missing fields, or
- *     proof reconstruction failure.
+ *   - `{valid: true, leaf_index, root_hex, leaf_hash}` on success, where
+ *     `root_hex` is the SIGNED root (verifiable, not server-asserted).
+ *   - `{valid: false, reason}` on network error, missing key, bad STH
+ *     signature, missing fields, or proof reconstruction failure.
  */
 export async function verify(input: VerifyInput): Promise<VerifyResult> {
   const base = trimTrailingSlash(input.worker_base ?? DEFAULT_WORKER_BASE);
-  const [inclusionResult, rootResult] = await Promise.all([
+  const apiBase = trimTrailingSlash(input.api_base ?? DEFAULT_API_BASE);
+  const [inclusionResult, rootResult, wellKnownResult] = await Promise.all([
     getJson(`${base}/inclusion/${input.leaf_index}`),
     getJson(`${base}/root`),
+    getJson(`${apiBase}/.well-known/foxbook.json`),
   ]);
   if (!inclusionResult.ok) return { valid: false, reason: `/inclusion: ${inclusionResult.reason}` };
   if (!rootResult.ok) return { valid: false, reason: `/root: ${rootResult.reason}` };
@@ -127,6 +126,17 @@ export async function verify(input: VerifyInput): Promise<VerifyResult> {
   }
   if (rootResult.response.status !== 200) {
     return { valid: false, reason: `/root HTTP ${rootResult.response.status}` };
+  }
+
+  // The log's signing public key is the trust anchor. No key → we
+  // cannot verify the STH signature → fail closed (never fall back to
+  // the unsigned server-supplied root).
+  const publicKeyHex = extractLogPublicKey(wellKnownResult);
+  if (publicKeyHex === null) {
+    return {
+      valid: false,
+      reason: "log signing public key unavailable from /.well-known/foxbook.json",
+    };
   }
 
   const inc = inclusionResult.body as Record<string, unknown>;
@@ -141,36 +151,73 @@ export async function verify(input: VerifyInput): Promise<VerifyResult> {
   ) {
     return { valid: false, reason: "/inclusion response missing required fields" };
   }
-  if (typeof root.rootHash !== "string") {
-    return { valid: false, reason: "/root response missing rootHash" };
+  if (typeof root.sthJws !== "string") {
+    return { valid: false, reason: "/root response missing sthJws" };
   }
 
-  // Crucial cross-check: the /inclusion endpoint returns the root at
-  // its sample point, the /root endpoint returns the latest STH root.
-  // We accept either matching root since the leaf is immutable, but
-  // the reconstruction must verify against ONE of them.
+  // Verify the signed tree head. The verified payload carries the
+  // SIGNED root_hash + tree_size — the only root we will trust the
+  // proof to reconstruct against.
+  const sth = await verifySthJws(root.sthJws, publicKeyHex);
+  if (!sth.valid) {
+    return { valid: false, reason: `STH signature verification failed: ${sth.reason}` };
+  }
+
+  // Pin the proof's tree size to the SIGNED tree size. A server that
+  // serves a proof under a different tree size than the STH attests is
+  // not proving inclusion in the head we just verified.
+  if (inc.treeSize !== sth.payload.tree_size) {
+    return {
+      valid: false,
+      reason: `/inclusion treeSize ${inc.treeSize} != signed STH tree_size ${sth.payload.tree_size}`,
+    };
+  }
+
   let leafBytes: Uint8Array;
   let proofBytes: Uint8Array[];
-  let rootInclBytes: Uint8Array;
+  let signedRootBytes: Uint8Array;
   try {
     leafBytes = hexToBytes(inc.leafHash);
     proofBytes = (inc.proofHex as string[]).map((h) => hexToBytes(h));
-    rootInclBytes = hexToBytes(inc.rootHex);
+    // Reconstruct against the SIGNED root, NOT the server-supplied
+    // inc.rootHex. This is the crux of the fix.
+    signedRootBytes = hexToBytes(sth.payload.root_hash);
   } catch (e) {
     return { valid: false, reason: e instanceof Error ? e.message : String(e) };
   }
 
-  const valid = verifyInclusion(proofBytes, inc.leafIndex, leafBytes, inc.treeSize, rootInclBytes);
+  const valid = verifyInclusion(
+    proofBytes,
+    inc.leafIndex,
+    leafBytes,
+    inc.treeSize,
+    signedRootBytes,
+  );
   if (!valid) {
-    return { valid: false, reason: "merkle proof did not reconstruct to expected root" };
+    return { valid: false, reason: "merkle proof did not reconstruct to signed STH root" };
   }
 
   return {
     valid: true,
     leaf_index: inc.leafIndex,
-    root_hex: inc.rootHex,
+    root_hex: sth.payload.root_hash,
     leaf_hash: inc.leafHash,
   };
+}
+
+/**
+ * Pull `log_signing_public_key_hex` out of a `/.well-known/foxbook.json`
+ * fetch result. Returns null if the fetch failed, the HTTP status was
+ * non-200, or the field is absent / not a string. The caller treats
+ * null as a hard verification failure (fail closed).
+ */
+function extractLogPublicKey(
+  result: { ok: true; response: Response; body: unknown } | { ok: false; reason: string },
+): string | null {
+  if (!result.ok || result.response.status !== 200) return null;
+  const body = result.body as Record<string, unknown>;
+  const key = body.log_signing_public_key_hex;
+  return typeof key === "string" && key.length > 0 ? key : null;
 }
 
 // ---- foxbookVerify (handle-level convenience wrapper) ----
@@ -436,6 +483,7 @@ export async function verifyAgentCard(
     }
     const verifyInput: VerifyInput = { leaf_index: lookup.leafIndex };
     if (options.worker_base !== undefined) verifyInput.worker_base = options.worker_base;
+    if (options.apiBase !== undefined) verifyInput.api_base = options.apiBase;
     const inclusion = await verify(verifyInput);
     if (!inclusion.valid) {
       return {
@@ -449,14 +497,27 @@ export async function verifyAgentCard(
   // Freshness check — pull the STH timestamp from the latest /root
   // call. We re-fetch /root rather than threading it from `verify`
   // because (a) verify might be skipped, (b) the freshness window is
-  // independent of the proof check.
+  // independent of the proof check. We verify the STH signature here
+  // too: an unsigned timestamp is forgeable, so a stale-or-fresh
+  // decision must read off a signature-verified payload.
   if (options.requireFreshSTH !== undefined) {
     const base = trimTrailingSlash(options.worker_base ?? DEFAULT_WORKER_BASE);
-    const rootResult = await getJson(`${base}/root`);
+    const apiBase = trimTrailingSlash(options.apiBase ?? DEFAULT_API_BASE);
+    const [rootResult, wellKnownResult] = await Promise.all([
+      getJson(`${base}/root`),
+      getJson(`${apiBase}/.well-known/foxbook.json`),
+    ]);
     if (!rootResult.ok || rootResult.response.status !== 200) {
       return {
         status: "unverified",
         reason: `cannot fetch /root for freshness: ${rootResult.ok ? `HTTP ${rootResult.response.status}` : rootResult.reason}`,
+      };
+    }
+    const publicKeyHex = extractLogPublicKey(wellKnownResult);
+    if (publicKeyHex === null) {
+      return {
+        status: "unverified",
+        reason: "log signing public key unavailable for STH freshness check",
       };
     }
     const root = rootResult.body as Record<string, unknown>;
@@ -464,11 +525,11 @@ export async function verifyAgentCard(
     if (!sthJws) {
       return { status: "unverified", reason: "/root response missing sthJws" };
     }
-    const payload = decodeJwsPayload(sthJws);
-    const ts = payload && typeof payload.timestamp === "string" ? payload.timestamp : null;
-    if (!ts) {
-      return { status: "unverified", reason: "STH JWS payload missing timestamp" };
+    const sth = await verifySthJws(sthJws, publicKeyHex);
+    if (!sth.valid) {
+      return { status: "unverified", reason: `STH signature verification failed: ${sth.reason}` };
     }
+    const ts = sth.payload.timestamp;
     const sthMs = Date.parse(ts);
     if (Number.isNaN(sthMs)) {
       return { status: "unverified", reason: `STH timestamp not parseable: ${ts}` };
