@@ -26,12 +26,12 @@
     "sourceMap": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "baseUrl": ".",
+    "types": ["node"],
     "paths": {
-      "@foxbook/core": ["core/src/index.ts"],
-      "@foxbook/core/*": ["core/src/*"],
-      "@foxbook/adapters/*": ["adapters/*/src/index.ts"],
-      "@foxbook/packages/*": ["packages/*/src/index.ts"]
+      "@foxbook/core": ["./core"],
+      "@foxbook/core/*": ["./core/src/*"],
+      "@foxbook/adapters/*": ["./adapters/*"],
+      "@foxbook/packages/*": ["./packages/*"]
     }
   }
 }

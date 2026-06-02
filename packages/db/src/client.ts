@@ -1,3 +1,15 @@
+/// <reference types="node" />
+// `process` (used by createNodeClient / createDirectPostgresClient below) is a
+// Node global. @neondatabase/serverless v1 inlined its types and dropped the
+// transitive @types/node that @types/pg's `/// <reference types="node" />`
+// previously dragged into the program, so this file's `process.env` reads no
+// longer resolved when a `types`-restricted consumer (e.g. apps/transparency,
+// which compiles this source with only @cloudflare/workers-types) typechecks
+// packages/db. This explicit reference — backed by @types/node in this
+// package's devDependencies — makes the Node dependency self-contained and
+// independent of any transitive accident, without forcing node types on the
+// edge consumer's own surface.
+//
 // Two driver-specific Drizzle client factories over one shared schema.
 //
 // Option (b) split per Day-4 prep notes + Day-5 kickoff: packages/db

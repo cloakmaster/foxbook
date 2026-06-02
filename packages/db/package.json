@@ -19,11 +19,12 @@
   },
   "dependencies": {
     "@foxbook/core": "workspace:*",
-    "@neondatabase/serverless": "^0.10.4",
+    "@neondatabase/serverless": "^1.1.0",
     "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.9"
   },
   "devDependencies": {
+    "@types/node": "^25.9.1",
     "drizzle-kit": "^0.31.10"
   }
 }
