@@ -23,6 +23,12 @@ COPY . .
 # the build fails fast (good — forces lockfile updates through PRs).
 RUN pnpm install --frozen-lockfile --filter @foxbook/api...
 
+# Drop devDependencies (ajv / vitest / etc.) so they never reach the prod
+# image — smaller surface, fewer CVEs. `tsx` deliberately lives in @foxbook/api
+# dependencies (not devDependencies), so it survives the prune: the start
+# command boots with `node --import tsx ./src/main.ts` and needs it at runtime.
+RUN pnpm prune --prod
+
 ENV NODE_ENV=production
 ENV PORT=8787
 EXPOSE 8787

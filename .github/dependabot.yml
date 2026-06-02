@@ -1,0 +1,57 @@
+# Dependabot config — weekly update PRs across every ecosystem in the repo.
+#
+# Minor + patch bumps are grouped into a single PR per ecosystem to keep
+# review load low; major bumps stay as individual PRs so breaking changes
+# get scrutinised one at a time. Pair this with the SHA-pinned `uses:` in
+# .github/workflows/* — the github-actions updater below bumps the pin and
+# refreshes the trailing `# vX.Y.Z` comment.
+version: 2
+updates:
+  # TS monorepo (pnpm) — single root manifest; workspace packages resolve
+  # through the root lockfile.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Python uv workspace — root pyproject.toml drives the workspace members.
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      pip-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Go log daemon — its own module under apps/log-daemon-go.
+  - package-ecosystem: gomod
+    directory: "/apps/log-daemon-go"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      gomod-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # GitHub Actions — keeps SHA pins and their `# vX.Y.Z` comments current.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      actions-minor-patch:
+        update-types:
+          - minor
+          - patch
