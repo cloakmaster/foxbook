@@ -2,7 +2,7 @@
 // through the deps so tests drive the exact same handler with a
 // fake repo / fake verifier / fake appender.
 
-import { jwsVerify, mintDid, sha256Hex } from "@foxbook/core";
+import { base64urlDecode, jwsVerify, mintDid, sha256Hex } from "@foxbook/core";
 import { validateTlLeaf } from "@foxbook/validators";
 
 import type {
@@ -53,18 +53,10 @@ export type ClaimDeps = {
   revocationCommitter: RevocationCommitter;
 };
 
-// ---- Local JWS helpers (base64url decode is not exported by @foxbook/core; ----
-// keeping it inline here so the handler doesn't reach into core internals).
+// ---- Local JWS helpers. base64urlDecode is re-used from @foxbook/core ----
+// (exported there) so we don't ship a duplicate copy of the decoder.
 
 const textDecoder = new TextDecoder();
-
-function base64urlDecode(s: string): Uint8Array {
-  const padded = s.replaceAll("-", "+").replaceAll("_", "/") + "===".slice((s.length + 3) % 4);
-  const raw = atob(padded);
-  const out = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-  return out;
-}
 
 /**
  * POST /api/v1/claim/start — mint a verification code, insert a

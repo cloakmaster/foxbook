@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  base64urlDecode,
   DID_PREFIX,
   didToUlid,
   generateKeypair,
@@ -103,6 +104,18 @@ describe("JWS compact — EdDSA round-trip", () => {
       .replaceAll("/", "_")
       .replace(/=+$/, "")}.${s}`;
     expect(jwsVerify(tampered, kp.publicKey).valid).toBe(false);
+  });
+
+  it("base64urlDecode round-trips token segments (shared by @foxbook/api)", () => {
+    // base64urlDecode is exported from core so the API claim handler does not
+    // ship a duplicate copy. Decoding the header/payload segments of a real
+    // token must yield the canonical JSON bytes back.
+    const kp = keypairFromSeed(fromHex(v.seed_hex));
+    const token = jwsSign(v.protected_header, v.payload, kp.privateKey);
+    const [headerB64, payloadB64] = token.split(".");
+    const decoder = new TextDecoder();
+    expect(JSON.parse(decoder.decode(base64urlDecode(headerB64)))).toEqual(v.protected_header);
+    expect(JSON.parse(decoder.decode(base64urlDecode(payloadB64)))).toEqual(v.payload);
   });
 });
 

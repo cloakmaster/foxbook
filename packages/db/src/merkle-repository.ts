@@ -291,8 +291,8 @@ export function createMerkleRepository(
       .where(sql`${schema.transparencyLog.logId} = ${logId}`)
       .orderBy(sql`${schema.transparencyLog.leafCount} DESC`)
       .limit(1);
-    if (rows.length === 0) return null;
-    const r = rows[0]!;
+    const [r] = rows;
+    if (r === undefined) return null;
     return {
       rootHash: r.rootHash,
       leafCount: Number(r.leafCount),
@@ -307,8 +307,8 @@ export function createMerkleRepository(
       .from(schema.tlLeaves)
       .where(sql`${schema.tlLeaves.leafIndex} = ${BigInt(index)}`)
       .limit(1);
-    if (rows.length === 0) return null;
-    const r = rows[0]!;
+    const [r] = rows;
+    if (r === undefined) return null;
     return {
       leafIndex: Number(r.leafIndex),
       leafHash: r.leafHash,
