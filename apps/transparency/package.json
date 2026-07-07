@@ -17,11 +17,11 @@
   },
   "dependencies": {
     "@foxbook/db": "workspace:*",
-    "hono": "^4.12.23"
+    "hono": "^4.12.28"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260602.1",
-    "vitest": "^4.1.8",
-    "wrangler": "^4.96.0"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.107.0"
   }
 }

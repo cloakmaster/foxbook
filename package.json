@@ -25,13 +25,13 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.16",
+    "@biomejs/biome": "^2.5.2",
     "@types/node": "^25.9.1",
     "husky": "^9.1.7",
     "json-schema-to-typescript": "^15.0.3",
-    "lint-staged": "^17.0.7",
-    "quicktype-core": "^23.0.170",
-    "turbo": "^2.9.16",
+    "lint-staged": "^17.0.8",
+    "quicktype-core": "^23.3.21",
+    "turbo": "^2.10.4",
     "typescript": "^6.0.3"
   },
   "lint-staged": {
