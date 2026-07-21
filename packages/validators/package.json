@@ -17,7 +17,7 @@
     "ajv-formats": "^3.0.1"
   },
   "devDependencies": {
-    "@vitest/ui": "^4.1.8",
-    "vitest": "^4.1.8"
+    "@vitest/ui": "^4.1.10",
+    "vitest": "^4.1.10"
   }
 }
