@@ -194,3 +194,141 @@ jobs:
         run: |
           echo "::error title=uptime::${ENDPOINT_NAME} (${ENDPOINT_URL}) is DOWN — ${FAIL_REASON}"
           exit 1
+
+  # Correctness probe, distinct from the liveness matrix above.
+  #
+  # The `check` job asks "did the endpoint answer 200?". That is necessary
+  # but not sufficient: between the 2026-06-01 append and 2026-07-29 the log
+  # served 200 on every endpoint while emitting a signed tree head that no
+  # third party could verify, because the advertised signing key was not the
+  # key that signed the STH. 58 days, every probe green.
+  #
+  # This job runs the verification an actual integrator runs — STH signature
+  # against the advertised key, signed payload vs. served values, inclusion
+  # proof reconstructed to the SIGNED root — and goes red when the core
+  # guarantee is broken even though the service is up.
+  #
+  # Rides the */30 cron: it touches the same DB-backed endpoints the `check`
+  # matrix already wakes on that schedule, so it adds no extra Neon wakeup
+  # beyond what is already budgeted (see the compute-hour note above).
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+
+      # No install step: scripts/verify-live-log.mjs is deliberately
+      # dependency-free and imports nothing from this workspace, so it cannot
+      # share a bug with the implementation it audits.
+      - name: Verify the live log end-to-end
+        id: verify
+        if: github.event.schedule == '' || github.event.schedule == '*/30 * * * *'
+        run: |
+          set +e
+          node scripts/verify-live-log.mjs 2>&1 | tee /tmp/verify-out
+          code=${PIPESTATUS[0]}
+          set -e
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" -ne 0 ]; then
+            echo "outcome=fail" >> "$GITHUB_OUTPUT"
+            {
+              echo "reason<<EOF"
+              grep '^✗' /tmp/verify-out || echo "verification failed (exit $code)"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "outcome=ok" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open or update verification incident issue
+        if: steps.verify.outputs.outcome == 'fail'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          FAIL_REASON: ${{ steps.verify.outputs.reason }}
+        with:
+          script: |
+            const reason = process.env.FAIL_REASON;
+            const title = 'verification-incident: live log is not third-party verifiable';
+            const now = new Date().toISOString();
+            const body = [
+              'The live transparency log is serving responses that a third party cannot verify.',
+              'Every endpoint may still be returning HTTP 200 — this is a correctness failure, not a liveness one.',
+              '',
+              '```',
+              reason,
+              '```',
+              '',
+              `Detected at: ${now}`,
+              '',
+              'Reproduce locally:',
+              '```',
+              'node scripts/verify-live-log.mjs',
+              '```',
+              '',
+              'See `docs/OPERATIONS.md` § "Log signing key" for the rotation hazard and recovery.',
+            ].join('\n');
+
+            const open = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'verification-incident',
+              per_page: 50,
+            });
+            const existing = open.data.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Still failing at ${now}.\n\n\`\`\`\n${reason}\n\`\`\``,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['verification-incident'],
+              });
+            }
+
+      - name: Close recovered verification incident
+        if: steps.verify.outputs.outcome == 'ok'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const title = 'verification-incident: live log is not third-party verifiable';
+            const now = new Date().toISOString();
+            const open = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'verification-incident',
+              per_page: 50,
+            });
+            const existing = open.data.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Verification passing again at ${now}. Auto-closing.`,
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                state: 'closed',
+              });
+            }
+
+      - name: Fail run if the log is not verifiable
+        if: steps.verify.outputs.outcome == 'fail'
+        run: |
+          echo "::error title=verification::the live log is NOT third-party verifiable"
+          exit 1
