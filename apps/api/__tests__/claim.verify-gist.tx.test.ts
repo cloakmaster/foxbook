@@ -19,7 +19,7 @@ import { dirname, resolve } from "node:path";
 import { loadEnvFile } from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { generateKeypair, keypairFromSeed, sha256Hex } from "@foxbook/core";
+import { keypairFromSeed, sha256Hex } from "@foxbook/core";
 import {
   createMerkleRepository,
   createNodeClient,
@@ -55,7 +55,11 @@ describe.skipIf(!SHOULD_RUN)(
     const fixtureClaimId = "00000000-0000-0000-0000-00000000d701"; // recognisable test marker
     const SIGNING = keypairFromSeed(new Uint8Array(32).fill(0x77));
     const RECOVERY = keypairFromSeed(new Uint8Array(32).fill(0x42));
-    const LOG_SIGNING = generateKeypair();
+    // Same fixed seed as the other integration suites — see the note in
+    // merkle-repository.tx-context.test.ts. They share the default
+    // `foxbook-v1` log, and append enforces key continuity, so they
+    // must also share the signing key.
+    const LOG_SIGNING = keypairFromSeed(new Uint8Array(32).fill(0x99));
 
     // Each test uses a DISTINCT agentDid so the success path's committed
     // claim.verified firehose row (which afterEach intentionally leaves in
