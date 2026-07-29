@@ -122,7 +122,8 @@ describe("claimStart", () => {
       },
     });
     await claimStart({ ...GOOD_START, agent_did: "did:foxbook:01HXYZABCDEFGHJKMNPQRSTVW42" });
-    expect((lastRequest?.body as Record<string, unknown>).agent_did).toBe(
+    expect(lastRequest).not.toBeNull();
+    expect((lastRequest?.body as Record<string, unknown>)?.agent_did).toBe(
       "did:foxbook:01HXYZABCDEFGHJKMNPQRSTVW42",
     );
   });
