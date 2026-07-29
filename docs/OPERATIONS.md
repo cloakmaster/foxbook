@@ -76,6 +76,37 @@ Confirm against actual billing dashboards quarterly. Estimates below are based o
 
 ---
 
+## STH signing-key mismatch (the July 2026 silent failure)
+
+**What happened:** discovered 2026-07-29. Every endpoint was up and returning 200, but the STH served at `/root` **did not verify against the public key advertised at `/.well-known/foxbook.json`**. Any third party calling `verify()` got `valid: false` — "STH JWS signature did not verify against log public key". The log had been in this state since at least the 2026-06-01 append: **58 days**, with every uptime probe green the whole time.
+
+**Root cause:** the STH is signed at append time and **persisted verbatim** (`transparency_log.signed_tree_head`); `/root` serves that stored string. The public key, by contrast, is **derived live** from `FOXBOOK_LOG_SIGNING_KEY_HEX` on every boot (`apps/api/src/main.ts` → `keypairFromSeed`). So the two sides can only agree if the running server holds the same seed that signed the stored STH. If the secret is regenerated, restored differently, or a deploy comes up with a different value, every previously-stored STH becomes permanently unverifiable against the advertised key. This is the hazard already written down under § "Key rotation" ("Rotation breaks the STH chain") — it happened without anyone deliberately rotating.
+
+**Why it was invisible for 58 days:** the `uptime` workflow only ever asserted HTTP status codes. A log that serves a garbage signature with `200 OK` is indistinguishable from a healthy one under status-code monitoring. There were also no users to report it (`leaf_count` 10, no external integrators), so the only possible detector was automation that did not exist.
+
+**Fixed:** `scripts/verify-live-log.mjs` + the `verify` job in `.github/workflows/uptime.yml` now run the full integrator path every 30 min — STH signature against the advertised key, signed payload vs. served values, and an inclusion proof reconstructed to the **signed** root. It goes red and files a `verification-incident` issue when the log stops being third-party verifiable, independently of whether it is up. The script imports nothing from this workspace on purpose: a probe that shares an implementation with the code it audits cannot catch that implementation being wrong.
+
+**Is it happening again? (quick check):**
+
+```bash
+node scripts/verify-live-log.mjs      # exit 0 = third-party verifiable
+```
+
+**Recovery.** The Merkle tree itself is unaffected — leaf data and inclusion proofs reconstruct correctly to the signed root. Only the signature is unverifiable. Two options, in preference order:
+
+1. **Restore the original seed.** If the `FOXBOOK_LOG_SIGNING_KEY_HEX` that signed the stored STHs still exists anywhere (password manager, prior `flyctl secrets` value, local `.env.local` from before the change), set it back and redeploy. Nothing else is needed: the derived public key starts matching again and every historical STH verifies. This preserves the chain and is the only option with no disclosure burden.
+2. **Re-sign the current tree head with the current key.** The root hash does not change, so no leaf data is rewritten — only a new STH row over the same `(log_id, tree_size, root_hash)` with a fresh timestamp and signature. Verification starts working immediately. But any STH captured by a third party before the re-sign stays unverifiable forever, which is a break in the "past inclusion proofs verify forever" promise made in `docs/specs/did-foxbook-method.md`. If this path is taken it **must** be disclosed — a dated note in this runbook, in the DID method spec's security considerations, and in the log's public history.
+
+Do not do either without first confirming which key the current deploy actually holds:
+
+```bash
+curl -s https://api.foxbook.dev/.well-known/foxbook.json | jq -r .log_signing_public_key_hex
+```
+
+**Prevention beyond the probe:** the deriving-vs-storing asymmetry is the underlying trap. A durable fix is to persist the public key (or a key id) alongside each STH row, so a mismatch is detectable from the data itself rather than only by an external verifier, and so a future rotation can serve a key history instead of silently invalidating the past. Not implemented — tracked as follow-up work.
+
+---
+
 ## Re-deploy each service
 
 ### `api.foxbook.dev` (Fly.io)
