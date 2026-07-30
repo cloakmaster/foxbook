@@ -17,11 +17,11 @@ import { jwsSign as coreJwsSign, jwsVerify as coreJwsVerify, keypairFromSeed } f
 import { describe, expect, it } from "vitest";
 
 import {
+  STH_VERSION,
   jwsSign as scriptJwsSign,
   jwsVerifyRaw as scriptJwsVerifyRaw,
   keypairFromSeed as scriptKeypairFromSeed,
   sthPayload,
-  STH_VERSION,
 } from "../../../packages/db/scripts/resign-tree-head.mjs";
 
 const SEED = new Uint8Array(32).fill(0x5c);
