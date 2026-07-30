@@ -22,7 +22,7 @@ import { dirname, resolve } from "node:path";
 import { loadEnvFile } from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { generateKeypair, keypairFromSeed } from "@foxbook/core";
+import { keypairFromSeed } from "@foxbook/core";
 import {
   createMerkleRepository,
   createNodeClient,
@@ -71,7 +71,14 @@ describe.skipIf(!SHOULD_RUN)(
     const fixtureAssetValue = `tx-context-test-${Date.now()}`;
     const SIGNING = keypairFromSeed(new Uint8Array(32).fill(0x77));
     const RECOVERY = keypairFromSeed(new Uint8Array(32).fill(0x42));
-    const LOG_SIGNING = generateKeypair();
+    // Deterministic, and deliberately the SAME seed the other
+    // integration suites use. All of them append to the default
+    // `foxbook-v1` log, and append now enforces key continuity: a log
+    // may only be extended by the key that signed its prior STH. Two
+    // suites with two `generateKeypair()` keys on one log is exactly
+    // the mismatch the guard exists to reject, so it would fail here —
+    // correctly. One log, one key, in tests as in production.
+    const LOG_SIGNING = keypairFromSeed(new Uint8Array(32).fill(0x99));
 
     beforeAll(() => {
       db = createNodeClient();

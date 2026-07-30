@@ -22,7 +22,7 @@
 // the additive migration in 0001_merkle_right_edge.sql is what makes
 // that possible (ADR 0002, forward-only additive).
 
-import { canonicalJsonBytes, jwsSign, merkle } from "@foxbook/core";
+import { canonicalJsonBytes, jwsSign, jwsVerify, keypairFromSeed, merkle } from "@foxbook/core";
 import { sql } from "drizzle-orm";
 
 import type { DbClient, NodeDbClient } from "./client.js";
@@ -213,11 +213,58 @@ export function createMerkleRepository(
         .select({
           leafCount: schema.transparencyLog.leafCount,
           rightEdge: schema.transparencyLog.rightEdge,
+          signedTreeHead: schema.transparencyLog.signedTreeHead,
         })
         .from(schema.transparencyLog)
         .where(sql`${schema.transparencyLog.logId} = ${logId}`)
         .orderBy(sql`${schema.transparencyLog.leafCount} DESC`)
         .limit(1);
+
+      // Key-continuity guard. The STH is signed here and stored
+      // verbatim; the public key served at /.well-known is derived
+      // live from whatever seed the running process holds. Nothing
+      // reconciles the two, so appending under a different seed than
+      // the one that signed the prior STH silently strands every
+      // earlier STH: the stored signatures stop verifying against the
+      // advertised key, permanently, and no verifier can tell the log
+      // apart from a malicious one. That is not hypothetical — it is
+      // the July 2026 incident, undetected for 58 days (see
+      // docs/OPERATIONS.md § "STH signing-key mismatch").
+      //
+      // Checking the PRIOR STH rather than our own fresh signature is
+      // the point: a self-check would pass under any key, including a
+      // wrong one. Verifying continuity with what is already on the
+      // log is what actually catches a swapped seed.
+      //
+      // Fail closed. A refused append is a recoverable operational
+      // error; a signed-under-the-wrong-key append is unrecoverable,
+      // because an append-only log cannot retract it.
+      const priorSth = prior[0]?.signedTreeHead;
+      if (priorSth !== undefined) {
+        const publicKey = keypairFromSeed(signingKey).publicKey;
+        let continuous: boolean;
+        try {
+          continuous = jwsVerify(priorSth, publicKey).valid;
+        } catch (e) {
+          // Malformed stored STH (not 3 segments, wrong alg, bad JSON).
+          // Also a refusal: we cannot establish continuity, so we do
+          // not extend the log.
+          throw new Error(
+            `refusing to append to log "${logId}": the prior signed tree head could not be parsed ` +
+              `(${e instanceof Error ? e.message : String(e)}). The log may be corrupt; ` +
+              `see docs/OPERATIONS.md § "STH signing-key mismatch".`,
+          );
+        }
+        if (!continuous) {
+          throw new Error(
+            `refusing to append to log "${logId}": the configured signing key did not sign the ` +
+              `prior signed tree head (tree_size ${Number(prior[0]?.leafCount)}). Appending would ` +
+              `strand every earlier STH against the advertised public key, which an append-only ` +
+              `log cannot undo. Check FOXBOOK_LOG_SIGNING_KEY_HEX matches the deployed secret; ` +
+              `see docs/OPERATIONS.md § "STH signing-key mismatch".`,
+          );
+        }
+      }
 
       const priorState: merkle.TreeState =
         prior.length === 0
