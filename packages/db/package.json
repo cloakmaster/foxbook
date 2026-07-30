@@ -14,6 +14,7 @@
     "db:push": "node --env-file=../../.env.local --no-warnings node_modules/drizzle-kit/bin.cjs push",
     "db:migrate": "node --env-file=../../.env.local --no-warnings ./scripts/migrate.mjs",
     "db:migrate:kit": "node --env-file=../../.env.local --no-warnings node_modules/drizzle-kit/bin.cjs migrate",
+    "db:resign-sth": "node --env-file=../../.env.local --no-warnings ./scripts/resign-tree-head.mjs",
     "db:studio": "node --env-file=../../.env.local --no-warnings node_modules/drizzle-kit/bin.cjs studio",
     "db:delete-claim": "node --env-file=../../.env.local --no-warnings ./scripts/delete-claim.mjs"
   },
