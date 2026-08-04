@@ -112,7 +112,7 @@ importers:
         version: 0.9.0(hono@4.12.31)(zod@4.4.3)
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.2(@cloudflare/workers-types@4.20260602.1)(@neondatabase/serverless@1.1.0)(@types/pg@8.11.6)(postgres@3.4.9)
+        version: 0.45.2(@cloudflare/workers-types@5.20260801.1)(@neondatabase/serverless@1.1.0)(@types/pg@8.11.6)(postgres@3.4.9)
       hono:
         specifier: ^4.12.31
         version: 4.12.31
@@ -148,14 +148,14 @@ importers:
         version: 4.12.31
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^4.20260602.1
-        version: 4.20260602.1
+        specifier: ^5.20260801.1
+        version: 5.20260801.1
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(vite@8.0.9(@types/node@26.1.2)(esbuild@0.28.1)(tsx@4.23.1)(yaml@2.9.0))
       wrangler:
         specifier: ^4.112.0
-        version: 4.112.0(@cloudflare/workers-types@4.20260602.1)
+        version: 4.112.0(@cloudflare/workers-types@5.20260801.1)
 
   apps/web: {}
 
@@ -193,7 +193,7 @@ importers:
         version: 1.1.0
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.2(@cloudflare/workers-types@4.20260602.1)(@neondatabase/serverless@1.1.0)(@types/pg@8.11.6)(postgres@3.4.9)
+        version: 0.45.2(@cloudflare/workers-types@5.20260801.1)(@neondatabase/serverless@1.1.0)(@types/pg@8.11.6)(postgres@3.4.9)
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
@@ -370,8 +370,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@cloudflare/workers-types@4.20260602.1':
-    resolution: {integrity: sha512-0VssYYXHUn4VR1BaV+GXfhFpI53P2f6AIi17qyA9lQFyTs/u5ZF6IDPda2enDTIPFz/02872RM8CYVlXvRKtUA==}
+  '@cloudflare/workers-types@5.20260801.1':
+    resolution: {integrity: sha512-XCv5xWi47WQOK0LpLa6997Mrpz8Ct+nZmp/M5Xp8Z4BFsarf7nYjkznGOcOoYK5m1GfbMFEEuQ2OIZnbIWoe9A==}
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -1028,11 +1028,12 @@ packages:
   '@jsdevtools/ono@7.1.3':
     resolution: {integrity: sha512-4JQNk+3mVzK3xh2rqd6RB4J46qUR19azEHBneZyTZM+c456qOrbbM/5xcR8huNCCcbVt7+UmizG6GuUvPvKUYg==}
 
-  '@napi-rs/wasm-runtime@1.1.6':
-    resolution: {integrity: sha512-ZLv/JdUfkvOy9eCnnBaGfiO+XimbjebAeO+MRQqD/B+FR1tnRN0tpKSJHRbE8sFfS6aqsXZ67TQjfwfsxULVbg==}
+  '@napi-rs/wasm-runtime@1.2.2':
+    resolution: {integrity: sha512-JfB4kuJQjaoHuCTseIINHtHWeJnvgEcxjwA5t/Y00ZgaOO1Crz3fjT/p8kT28zA/Caz7oiUMn3d6H2yOVCVwuw==}
+    engines: {node: ^20.19.0 || ^22.13.0 || >=23.5.0}
     peerDependencies:
-      '@emnapi/core': ^1.7.1
-      '@emnapi/runtime': ^1.7.1
+      '@emnapi/core': ^1.7.1 || ^2.0.0-alpha.3
+      '@emnapi/runtime': ^1.7.1 || ^2.0.0-alpha.3
 
   '@neondatabase/serverless@1.1.0':
     resolution: {integrity: sha512-r3ZZhRjEcfEdKIZnoB1RusNgvHuaBRqfCzV4Gi+5A9yUX0S4HTws/ASWqt13wL4y4I+0rqsWGdA2w7EQXHi3+Q==}
@@ -1671,8 +1672,8 @@ packages:
     resolution: {integrity: sha512-Y3wQdFg2Va6etvQ5I82yUhGdsKrcYox6p7FfL1LbK2J4V01F9TGlepTIhnK24t7koZibmg82KGglhA1XK5IsLQ==}
     engines: {node: '>=10'}
 
-  nanoid@3.3.16:
-    resolution: {integrity: sha512-bzlKTyNJ7+LdGIIwy8ijFpIqEQIvafahV7eYykJ8Cvh42EdJeODoJ6gUJXpQJvej1BddH8OqTXZNE/KfbWAu8Q==}
+  nanoid@3.3.17:
+    resolution: {integrity: sha512-xQLf0A3HOMlgHq0n247/LRuAOYmB7dXJ/DvAxGvsSBij45XtBSmQycu+F8ODbHwns/XyFZagyL1+J0Offw1E0g==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
@@ -1733,8 +1734,8 @@ packages:
   postal-mime@2.7.4:
     resolution: {integrity: sha512-0WdnFQYUrPGGTFu1uOqD2s7omwua8xaeYGdO6rb88oD5yJ/4pPHDA4sdWqfD8wQVfCny563n/HQS7zTFft+f/g==}
 
-  postcss@8.5.20:
-    resolution: {integrity: sha512-lW616l85ucIQL+FocMmL7pQFPqBmwejrCMg+iPxyImlrANNJG9NHq/RkyCZopDhd8C3LA03PHRJDjkbGu8vvug==}
+  postcss@8.5.25:
+    resolution: {integrity: sha512-DTPx3RWSSnWyzLxQnlH0rJP+EW5ekl16ZU4/psbIhA0e53kJfdgaN5vKM+xP7yJtXVu+nfdVFmlgFDEKAe4Pyw==}
     engines: {node: ^10 || ^12 || >=14}
 
   postgres-array@3.0.4:
@@ -2145,7 +2146,7 @@ snapshots:
   '@cloudflare/workerd-windows-64@1.20260714.1':
     optional: true
 
-  '@cloudflare/workers-types@4.20260602.1': {}
+  '@cloudflare/workers-types@5.20260801.1': {}
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
@@ -2529,7 +2530,7 @@ snapshots:
 
   '@jsdevtools/ono@7.1.3': {}
 
-  '@napi-rs/wasm-runtime@1.1.6(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)':
+  '@napi-rs/wasm-runtime@1.2.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)':
     dependencies:
       '@emnapi/core': 1.9.2
       '@emnapi/runtime': 1.9.2
@@ -2598,7 +2599,7 @@ snapshots:
     dependencies:
       '@emnapi/core': 1.9.2
       '@emnapi/runtime': 1.9.2
-      '@napi-rs/wasm-runtime': 1.1.6(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
+      '@napi-rs/wasm-runtime': 1.2.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
     optional: true
 
   '@rolldown/binding-win32-arm64-msvc@1.0.0-rc.16':
@@ -2797,9 +2798,9 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.23.1
 
-  drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260602.1)(@neondatabase/serverless@1.1.0)(@types/pg@8.11.6)(postgres@3.4.9):
+  drizzle-orm@0.45.2(@cloudflare/workers-types@5.20260801.1)(@neondatabase/serverless@1.1.0)(@types/pg@8.11.6)(postgres@3.4.9):
     optionalDependencies:
-      '@cloudflare/workers-types': 4.20260602.1
+      '@cloudflare/workers-types': 5.20260801.1
       '@neondatabase/serverless': 1.1.0
       '@types/pg': 8.11.6
       postgres: 3.4.9
@@ -3066,7 +3067,7 @@ snapshots:
 
   mrmime@2.0.1: {}
 
-  nanoid@3.3.16: {}
+  nanoid@3.3.17: {}
 
   node-fetch@2.7.0:
     dependencies:
@@ -3113,9 +3114,9 @@ snapshots:
 
   postal-mime@2.7.4: {}
 
-  postcss@8.5.20:
+  postcss@8.5.25:
     dependencies:
-      nanoid: 3.3.16
+      nanoid: 3.3.17
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
@@ -3340,7 +3341,7 @@ snapshots:
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.5
-      postcss: 8.5.20
+      postcss: 8.5.25
       rolldown: 1.0.0-rc.16
       tinyglobby: 0.2.17
     optionalDependencies:
@@ -3401,7 +3402,7 @@ snapshots:
       '@cloudflare/workerd-linux-arm64': 1.20260714.1
       '@cloudflare/workerd-windows-64': 1.20260714.1
 
-  wrangler@4.112.0(@cloudflare/workers-types@4.20260602.1):
+  wrangler@4.112.0(@cloudflare/workers-types@5.20260801.1):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.5.0
       '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260714.1)
@@ -3412,7 +3413,7 @@ snapshots:
       unenv: 2.0.0-rc.24
       workerd: 1.20260714.1
     optionalDependencies:
-      '@cloudflare/workers-types': 4.20260602.1
+      '@cloudflare/workers-types': 5.20260801.1
       fsevents: 2.3.3
     transitivePeerDependencies:
       - bufferutil
