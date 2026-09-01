@@ -12,9 +12,9 @@
     "lint": "biome lint ."
   },
   "dependencies": {
-    "resend": "^6.17.2"
+    "resend": "^6.25.0"
   },
   "devDependencies": {
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }

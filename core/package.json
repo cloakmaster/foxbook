@@ -14,13 +14,13 @@
     "bench:merkle-append": "node scripts/bench-merkle-append.mjs"
   },
   "dependencies": {
-    "@noble/ed25519": "^3.1.0",
-    "@noble/hashes": "^2.2.0",
+    "@noble/ed25519": "^3.2.0",
+    "@noble/hashes": "^2.4.0",
     "canonicalize": "^3.0.0",
     "ulid": "^3.0.2"
   },
   "devDependencies": {
-    "@vitest/ui": "^4.1.10",
-    "vitest": "^4.1.10"
+    "@vitest/ui": "^4.1.11",
+    "vitest": "^4.1.11"
   }
 }

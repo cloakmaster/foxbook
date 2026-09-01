@@ -54,10 +54,10 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@noble/hashes": "^2.2.0"
+    "@noble/hashes": "^2.4.0"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^4.1.10",
-    "vitest": "^4.1.10"
+    "@vitest/coverage-v8": "^4.1.11",
+    "vitest": "^4.1.11"
   }
 }
