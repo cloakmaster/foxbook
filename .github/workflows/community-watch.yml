@@ -61,46 +61,91 @@ jobs:
             const isBot = (login) => !login || login.endsWith('[bot]');
             const isSelf = (login) => login === MAINTAINER;
             const signals = [];
+            const collectorErrors = [];
+
+            // Each collector runs in isolation: an alarm whose first sensor
+            // throws must not silently lose the other three. The smoke test
+            // caught exactly this — the stargazers call 403'd under the
+            // workflow token and nothing after it ran.
+            const collect = async (name, fn) => {
+              try {
+                await fn();
+              } catch (e) {
+                collectorErrors.push(`${name}: ${e.message}`);
+                core.warning(`collector "${name}" failed: ${e.message}`);
+              }
+            };
+
+            // Stars and forks are public data on a public repo, so when the
+            // installation token is refused (GITHUB_TOKEN 403s the
+            // star+json stargazer listing: "Resource not accessible by
+            // integration"), fall back to an unauthenticated request.
+            const publicGet = async (path, accept) => {
+              const res = await fetch(`https://api.github.com${path}`, {
+                headers: { accept: accept ?? 'application/vnd.github+json' },
+              });
+              if (!res.ok) throw new Error(`unauthenticated GET ${path} -> HTTP ${res.status}`);
+              return res.json();
+            };
 
             // --- stars (starred_at requires the star+json media type) ---
-            const stars = await github.paginate(github.rest.activity.listStargazersForRepo, {
-              owner: OWNER, repo: REPO, per_page: 100,
-              headers: { accept: 'application/vnd.github.star+json' },
-            });
-            for (const s of stars) {
-              const login = s.user?.login;
-              if (s.starred_at && Date.parse(s.starred_at) >= sinceMs && !isSelf(login) && !isBot(login)) {
-                signals.push(`⭐ New star from @${login}`);
+            await collect('stars', async () => {
+              let stars;
+              try {
+                stars = await github.paginate(github.rest.activity.listStargazersForRepo, {
+                  owner: OWNER, repo: REPO, per_page: 100,
+                  headers: { accept: 'application/vnd.github.star+json' },
+                });
+              } catch (e) {
+                core.info(`token path for stargazers refused (${e.message}); using unauthenticated fallback`);
+                stars = await publicGet(`/repos/${OWNER}/${REPO}/stargazers?per_page=100`, 'application/vnd.github.star+json');
               }
-            }
+              for (const s of stars) {
+                const login = s.user?.login;
+                if (s.starred_at && Date.parse(s.starred_at) >= sinceMs && !isSelf(login) && !isBot(login)) {
+                  signals.push(`⭐ New star from @${login}`);
+                }
+              }
+            });
 
             // --- forks ---
-            const forks = await github.paginate(github.rest.repos.listForks, {
-              owner: OWNER, repo: REPO, per_page: 100,
-            });
-            for (const f of forks) {
-              if (Date.parse(f.created_at) >= sinceMs) {
-                signals.push(`🍴 New fork: ${f.full_name} (${f.html_url})`);
+            await collect('forks', async () => {
+              let forks;
+              try {
+                forks = await github.paginate(github.rest.repos.listForks, {
+                  owner: OWNER, repo: REPO, per_page: 100,
+                });
+              } catch (e) {
+                core.info(`token path for forks refused (${e.message}); using unauthenticated fallback`);
+                forks = await publicGet(`/repos/${OWNER}/${REPO}/forks?per_page=100`);
               }
-            }
+              for (const f of forks) {
+                if (Date.parse(f.created_at) >= sinceMs) {
+                  signals.push(`🍴 New fork: ${f.full_name} (${f.html_url})`);
+                }
+              }
+            });
 
             // --- issues + PRs opened by humans ---
-            const issues = await github.paginate(github.rest.issues.listForRepo, {
-              owner: OWNER, repo: REPO, state: 'all', since, per_page: 100,
-            });
-            for (const i of issues) {
-              const login = i.user?.login;
-              if (isSelf(login) || isBot(login)) continue;
-              if (Date.parse(i.created_at) >= sinceMs) {
-                const kind = i.pull_request ? 'PR' : 'Issue';
-                signals.push(`📥 New ${kind} #${i.number} by @${login}: "${i.title}" — ${i.html_url}`);
+            await collect('issues', async () => {
+              const issues = await github.paginate(github.rest.issues.listForRepo, {
+                owner: OWNER, repo: REPO, state: 'all', since, per_page: 100,
+              });
+              for (const i of issues) {
+                const login = i.user?.login;
+                if (isSelf(login) || isBot(login)) continue;
+                if (Date.parse(i.created_at) >= sinceMs) {
+                  const kind = i.pull_request ? 'PR' : 'Issue';
+                  signals.push(`📥 New ${kind} #${i.number} by @${login}: "${i.title}" — ${i.html_url}`);
+                }
               }
-            }
+            });
 
             // --- discussions: new threads, and new comments by others.
             // This is the channel an integrator reply lands on (e.g. #73),
             // so it gets belt-and-braces coverage even though GitHub also
             // notifies natively.
+            await collect('discussions', async () => {
             const q = `query($owner:String!,$name:String!){
               repository(owner:$owner,name:$name){
                 discussions(first:15,orderBy:{field:UPDATED_AT,direction:DESC}){
@@ -125,8 +170,17 @@ jobs:
               }
             }
 
+            });
+
             if (signals.length === 0) {
-              core.info('No new human engagement in the last 26h.');
+              if (collectorErrors.length > 0) {
+                // A quiet run with broken sensors is indistinguishable from a
+                // healthy quiet run — the exact ambiguity that let the last
+                // silent failure live 58 days. Go red so it gets fixed.
+                core.setFailed(`no signals, but ${collectorErrors.length} collector(s) broken: ${collectorErrors.join(' | ')}`);
+              } else {
+                core.info('No new human engagement in the last 26h.');
+              }
               return;
             }
 
@@ -136,6 +190,9 @@ jobs:
               ...signals.map((s) => `- ${s}`),
               '',
               `_Reply promptly — an interested visitor who hears nothing concludes the project is dead, and this repo's pitch is that the log is alive._`,
+              ...(collectorErrors.length > 0
+                ? ['', `⚠️ Some collectors failed this run (coverage was partial): ${collectorErrors.join(' | ')}`]
+                : []),
             ].join('\n');
 
             const open = await github.rest.issues.listForRepo({
