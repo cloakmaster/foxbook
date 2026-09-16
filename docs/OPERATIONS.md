@@ -102,6 +102,10 @@ What remains: **the key production runs today is not the key that signed the sto
 node scripts/verify-live-log.mjs      # exit 0 = third-party verifiable
 ```
 
+**RESOLVED 2026-09-16 by re-signing (option 2 below).** The original seed could not be found — it was never committed (`.env.example` and this runbook only ever carried placeholders), and `flyctl` does not return secret values. `pnpm --filter @foxbook/db db:resign-sth -- --commit` re-signed tree head `tree_size=10`, `root_hash=1b0b85a4…9055b`, unchanged, with a fresh `2026-09-16T09:46:25.682Z` timestamp. No leaf data was touched. `node scripts/verify-live-log.mjs` then returned PASS, and `@foxbook/sdk-claim@0.3.0` fetched fresh from npm returns `valid: true` for leaves 0, 1 and 9.
+
+**Consequence, recorded deliberately:** the log was not third-party verifiable from **2026-06-01 to 2026-09-16 — 107 days**, and any STH captured in that window remains unverifiable forever. That is a real break in the "past inclusion proofs verify forever" property asserted in [the DID method spec](specs/did-foxbook-method.md) § Security Considerations, which carries the same disclosure. The practical blast radius was nil — the log had no integrators and `leaf_count` never moved off 10 — but the promise is written down, so the break is written down next to it.
+
 **Recovery.** The Merkle tree itself is unaffected — leaf data and inclusion proofs reconstruct correctly to the signed root. Only the signature is unverifiable. Two options, in preference order:
 
 1. **Restore the original seed.** If the `FOXBOOK_LOG_SIGNING_KEY_HEX` that signed the stored STHs still exists anywhere (password manager, prior `flyctl secrets` value, local `.env.local` from before the change), set it back and redeploy. Nothing else is needed: the derived public key starts matching again and every historical STH verifies. This preserves the chain and is the only option with no disclosure burden.

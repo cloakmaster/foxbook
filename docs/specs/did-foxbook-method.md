@@ -384,6 +384,22 @@ The trust assumption is **transparency-log-honest-or-detected**, the same assump
 
 Inclusion proofs are not time-bounded by themselves. A verifier that requires freshness (e.g., to reject signatures made after a revocation) MUST consult the most recent STH and verify that the leaf's index is covered. The reference SDK exposes this as `requireFreshSTH: <max-age-in-seconds>`; verifiers SHOULD set a freshness window appropriate for their threat model.
 
+### 4.3.1 Disclosure: STH re-signing on the reference deployment, 2026-06-01 → 2026-09-16
+
+§1 of this document asserts that past inclusion proofs continue to verify forever. On the canonical reference deployment (`transparency.foxbook.dev`) that property was broken for 107 days, and the repair broke it permanently for one STH. Both facts are recorded here because the promise is made here.
+
+The signing seed held by the deployment ceased to be the seed that signed the stored STH. The Merkle tree was never affected — leaf data, leaf hashes and inclusion proofs all remained correct and reconstructed to the recorded root — but the STH served at `/root` did not verify against the public key published at `/.well-known/foxbook.json`, so no third party could complete verification. The condition began on or before **2026-06-01T20:36:48Z** and was resolved on **2026-09-16T09:46:25Z**.
+
+The original seed was unrecoverable, so the tree head was **re-signed** with the deployment's current key over the unchanged `log_id`, `tree_size` (10) and `root_hash` (`1b0b85a4…9055b`), with a fresh timestamp. No leaf was added, removed or rewritten, and the root hash is byte-identical to the one signed on 2026-06-01.
+
+Consequences a verifier should know:
+
+1. **Any STH captured before 2026-09-16T09:46:25Z remains permanently unverifiable** against the published log-signing key. A verifier holding one cannot distinguish it from a forgery and SHOULD re-fetch `/root`. Leaf-level evidence is unaffected: an inclusion proof captured in that window still reconstructs to the same root, and that root is the one now signed.
+2. **The STH timestamp is not a proof of tree age.** The 2026-09-16 timestamp attests when the tree head was signed, not when the tree last changed; `tree_size` had been 10 since 2026-06-01. Verifiers using `requireFreshSTH` should read it as signature freshness, not append recency.
+3. **This is a property of one deployment, not of the method.** `did:foxbook` is multi-deployment by construction; an independent deployment is unaffected.
+
+Implementations MUST NOT treat a re-signed tree head as routine. Detection and prevention both landed with the repair: `scripts/verify-live-log.mjs` runs the full third-party verification path on a schedule and fails loudly when the log stops being verifiable, and `merkle-repository.append` now refuses to extend a log whose prior STH was not signed by the configured key — turning a silent, permanent corruption into a refused write.
+
 ### 4.4 Canonicalization correctness
 
 All signed structures in the `did:foxbook` signing path — leaf bodies (the
