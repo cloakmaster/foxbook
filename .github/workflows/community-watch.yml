@@ -14,6 +14,14 @@
 #   - new discussions, or new discussion comments, by someone who is not
 #     the maintainer or a bot (this is how a reply from an integrator on
 #     e.g. discussion #73 surfaces)
+#   - ecosystem references: GitHub code outside this repo that mentions
+#     "did:foxbook", "@foxbook/sdk-claim", or "transparency.foxbook.dev".
+#     Copying and adoption look identical in code search, and both are
+#     exactly what the maintainer wants to know about. New repos are
+#     detected by diffing against a list in the state cell; the first run
+#     baselines existing references (e.g. eriknewton/concordia-protocol)
+#     silently. GitHub's code search excludes forks by default, so this
+#     does not double-report what the fork collector already catches.
 #
 # When it finds any, it opens (or comments on) a single issue labeled
 # `community-engagement`, assigned to the maintainer. Assignment is the
@@ -183,9 +191,43 @@ jobs:
               }
             });
 
+            // --- ecosystem: code outside this repo referencing foxbook ---
+            // Copying and adoption are the same signal here. Needles are
+            // distinctive strings that unrelated "foxbook" projects
+            // (children's-book repos etc.) never contain.
+            let ecosystemRepos = null;
+            await collect('ecosystem', async () => {
+              const needles = ['"did:foxbook"', '"@foxbook/sdk-claim"', '"transparency.foxbook.dev"'];
+              const found = new Set();
+              for (const needle of needles) {
+                const res = await github.rest.search.code({
+                  q: `${needle} -repo:${OWNER}/${REPO}`, per_page: 30,
+                });
+                for (const item of res.data.items) {
+                  const full = item.repository?.full_name;
+                  if (full && full !== `${OWNER}/${REPO}`) found.add(full);
+                }
+              }
+              const known = new Set(Array.isArray(state?.ecosystemRepos) ? state.ecosystemRepos : []);
+              const fresh = [...found].filter((r) => !known.has(r));
+              if (Array.isArray(state?.ecosystemRepos)) {
+                for (const r of fresh) {
+                  signals.push(`🔭 foxbook protocol/SDK referenced in a new repo: ${r} — https://github.com/${r} (adoption or copy — either way, look)`);
+                }
+              } else {
+                core.info(`ecosystem baseline: ${found.size} repo(s) already reference foxbook — recording without alerting: ${[...found].join(', ') || '(none)'}`);
+              }
+              // Union, capped, so the state cell can't grow without bound.
+              ecosystemRepos = [...new Set([...known, ...found])].slice(0, 200);
+            });
+
             // ---- persist state (create the cell closed if missing) ----
-            if (starsNow !== null) {
-              const stateBody = JSON.stringify({ stars: starsNow, updated: new Date().toISOString() });
+            if (starsNow !== null || ecosystemRepos !== null) {
+              const stateBody = JSON.stringify({
+                stars: starsNow ?? state?.stars ?? null,
+                ecosystemRepos: ecosystemRepos ?? state?.ecosystemRepos ?? [],
+                updated: new Date().toISOString(),
+              });
               try {
                 if (stateIssueNumber !== null) {
                   await github.rest.issues.update({
