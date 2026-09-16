@@ -8,7 +8,7 @@
 # drowned in bot noise."
 #
 # This workflow runs daily and looks ONLY for signals a human caused:
-#   - new stargazers
+#   - stars (count delta vs the last run; see "state cell" below)
 #   - new forks
 #   - new issues or PRs authored by someone who is not the maintainer or a bot
 #   - new discussions, or new discussion comments, by someone who is not
@@ -21,17 +21,33 @@
 # this is the one channel that stays loud when everything else is muted.
 # Close the issue after responding; the next signal opens a fresh one.
 #
-# Detection window is 26h against a 24h cron — the overlap means a signal
-# can never fall between runs; the cost is a rare duplicate line, which is
-# harmless. No state is stored anywhere.
+# Stars need explanation. The obvious endpoint (list stargazers with the
+# star+json media type, which carries starred_at) is refused for the
+# workflow's installation token ("Resource not accessible by integration"),
+# and unauthenticated calls from Actions runners get 401 (shared-IP
+# policy) — both observed live on 2026-09-16, not assumed. So stars are
+# detected as a COUNT DELTA against a state cell: a single CLOSED issue
+# labeled `watch-state` whose body is a small JSON blob. Closed so it
+# never clutters the live tracker; issue-body edits notify nobody. If the
+# cell is missing (first run, or someone deleted it), the run re-baselines
+# silently instead of alerting on history.
+#
+# Everything else is stateless with a 26h window over the 24h cron — the
+# overlap means a signal can never fall between runs; the cost is a rare
+# duplicate line, which is harmless.
+#
+# Collectors are isolated: one dead sensor cannot blank the others. A
+# quiet run with a broken collector goes RED, not green — a silent run
+# with dead sensors is indistinguishable from a healthy quiet run, which
+# is the exact ambiguity that let the 2026 STH failure live 58 days.
 #
 # Bot-caused events (dependabot PRs, uptime/verification incidents, this
 # workflow's own issues) are filtered out — they are exactly the noise
 # this exists to rise above.
 #
-# Security: no matrix values or user-controlled strings reach a run: block;
-# everything happens inside github-script. Third-party content (issue
-# titles) is embedded only as markdown text in an issue body.
+# Security: no run: blocks; no ${{ }} interpolation of third-party data;
+# untrusted strings (issue titles) are embedded only as markdown text in
+# an issue body.
 
 name: community-watch
 
@@ -63,10 +79,6 @@ jobs:
             const signals = [];
             const collectorErrors = [];
 
-            // Each collector runs in isolation: an alarm whose first sensor
-            // throws must not silently lose the other three. The smoke test
-            // caught exactly this — the stargazers call 403'd under the
-            // workflow token and nothing after it ran.
             const collect = async (name, fn) => {
               try {
                 await fn();
@@ -76,49 +88,52 @@ jobs:
               }
             };
 
-            // Stars and forks are public data on a public repo, so when the
-            // installation token is refused (GITHUB_TOKEN 403s the
-            // star+json stargazer listing: "Resource not accessible by
-            // integration"), fall back to an unauthenticated request.
-            const publicGet = async (path, accept) => {
-              const res = await fetch(`https://api.github.com${path}`, {
-                headers: { accept: accept ?? 'application/vnd.github+json' },
+            // ---- state cell (closed issue labeled watch-state) ----
+            let stateIssueNumber = null;
+            let state = null;
+            try {
+              const rs = await github.rest.issues.listForRepo({
+                owner: OWNER, repo: REPO, state: 'closed',
+                labels: 'watch-state', per_page: 1,
               });
-              if (!res.ok) throw new Error(`unauthenticated GET ${path} -> HTTP ${res.status}`);
-              return res.json();
-            };
-
-            // --- stars (starred_at requires the star+json media type) ---
-            await collect('stars', async () => {
-              let stars;
-              try {
-                stars = await github.paginate(github.rest.activity.listStargazersForRepo, {
-                  owner: OWNER, repo: REPO, per_page: 100,
-                  headers: { accept: 'application/vnd.github.star+json' },
-                });
-              } catch (e) {
-                core.info(`token path for stargazers refused (${e.message}); using unauthenticated fallback`);
-                stars = await publicGet(`/repos/${OWNER}/${REPO}/stargazers?per_page=100`, 'application/vnd.github.star+json');
+              if (rs.data.length > 0) {
+                stateIssueNumber = rs.data[0].number;
+                try { state = JSON.parse(rs.data[0].body ?? ''); } catch { state = null; }
               }
-              for (const s of stars) {
-                const login = s.user?.login;
-                if (s.starred_at && Date.parse(s.starred_at) >= sinceMs && !isSelf(login) && !isBot(login)) {
-                  signals.push(`⭐ New star from @${login}`);
+            } catch (e) {
+              core.warning(`state cell read failed: ${e.message}`);
+            }
+
+            // --- stars: count delta vs state (see header for why) ---
+            let starsNow = null;
+            await collect('stars', async () => {
+              const { data: repoInfo } = await github.rest.repos.get({ owner: OWNER, repo: REPO });
+              starsNow = repoInfo.stargazers_count;
+              if (state && typeof state.stars === 'number') {
+                if (starsNow > state.stars) {
+                  // Naming the stargazers is best-effort: the plain listing
+                  // may also be refused for this token; the count delta is
+                  // the signal either way.
+                  let who = '';
+                  try {
+                    const list = await github.paginate(github.rest.activity.listStargazersForRepo, {
+                      owner: OWNER, repo: REPO, per_page: 100,
+                    });
+                    const recent = list.slice(-(starsNow - state.stars)).map((u) => `@${u.login}`);
+                    if (recent.length > 0) who = ` (${recent.join(', ')})`;
+                  } catch { /* count-only alert */ }
+                  signals.push(`⭐ Stars ${state.stars} → ${starsNow}${who} — https://github.com/${OWNER}/${REPO}/stargazers`);
                 }
+              } else {
+                core.info(`no star baseline yet — baselining at ${starsNow} without alerting`);
               }
             });
 
             // --- forks ---
             await collect('forks', async () => {
-              let forks;
-              try {
-                forks = await github.paginate(github.rest.repos.listForks, {
-                  owner: OWNER, repo: REPO, per_page: 100,
-                });
-              } catch (e) {
-                core.info(`token path for forks refused (${e.message}); using unauthenticated fallback`);
-                forks = await publicGet(`/repos/${OWNER}/${REPO}/forks?per_page=100`);
-              }
+              const forks = await github.paginate(github.rest.repos.listForks, {
+                owner: OWNER, repo: REPO, per_page: 100,
+              });
               for (const f of forks) {
                 if (Date.parse(f.created_at) >= sinceMs) {
                   signals.push(`🍴 New fork: ${f.full_name} (${f.html_url})`);
@@ -141,42 +156,61 @@ jobs:
               }
             });
 
-            // --- discussions: new threads, and new comments by others.
-            // This is the channel an integrator reply lands on (e.g. #73),
-            // so it gets belt-and-braces coverage even though GitHub also
-            // notifies natively.
+            // --- discussions: new threads, and new comments by others ---
             await collect('discussions', async () => {
-            const q = `query($owner:String!,$name:String!){
-              repository(owner:$owner,name:$name){
-                discussions(first:15,orderBy:{field:UPDATED_AT,direction:DESC}){
-                  nodes{
-                    number title url createdAt author{login}
-                    comments(last:10){nodes{createdAt url author{login}}}
+              const q = `query($owner:String!,$name:String!){
+                repository(owner:$owner,name:$name){
+                  discussions(first:15,orderBy:{field:UPDATED_AT,direction:DESC}){
+                    nodes{
+                      number title url createdAt author{login}
+                      comments(last:10){nodes{createdAt url author{login}}}
+                    }
+                  }
+                }
+              }`;
+              const d = await github.graphql(q, { owner: OWNER, name: REPO });
+              for (const disc of d.repository.discussions.nodes) {
+                const a = disc.author?.login;
+                if (Date.parse(disc.createdAt) >= sinceMs && !isSelf(a) && !isBot(a)) {
+                  signals.push(`💬 New discussion #${disc.number} by @${a}: "${disc.title}" — ${disc.url}`);
+                }
+                for (const c of disc.comments.nodes) {
+                  const ca = c.author?.login;
+                  if (Date.parse(c.createdAt) >= sinceMs && !isSelf(ca) && !isBot(ca)) {
+                    signals.push(`💬 New comment on discussion #${disc.number} ("${disc.title}") by @${ca} — ${c.url}`);
                   }
                 }
               }
-            }`;
-            const d = await github.graphql(q, { owner: OWNER, name: REPO });
-            for (const disc of d.repository.discussions.nodes) {
-              const a = disc.author?.login;
-              if (Date.parse(disc.createdAt) >= sinceMs && !isSelf(a) && !isBot(a)) {
-                signals.push(`💬 New discussion #${disc.number} by @${a}: "${disc.title}" — ${disc.url}`);
-              }
-              for (const c of disc.comments.nodes) {
-                const ca = c.author?.login;
-                if (Date.parse(c.createdAt) >= sinceMs && !isSelf(ca) && !isBot(ca)) {
-                  signals.push(`💬 New comment on discussion #${disc.number} ("${disc.title}") by @${ca} — ${c.url}`);
+            });
+
+            // ---- persist state (create the cell closed if missing) ----
+            if (starsNow !== null) {
+              const stateBody = JSON.stringify({ stars: starsNow, updated: new Date().toISOString() });
+              try {
+                if (stateIssueNumber !== null) {
+                  await github.rest.issues.update({
+                    owner: OWNER, repo: REPO, issue_number: stateIssueNumber, body: stateBody,
+                  });
+                } else {
+                  const created = await github.rest.issues.create({
+                    owner: OWNER, repo: REPO,
+                    title: 'watch-state (automation state cell — ignore)',
+                    body: stateBody, labels: ['watch-state'],
+                  });
+                  await github.rest.issues.update({
+                    owner: OWNER, repo: REPO, issue_number: created.data.number,
+                    state: 'closed', state_reason: 'not_planned',
+                  });
+                  core.info(`created state cell issue #${created.data.number}`);
                 }
+              } catch (e) {
+                collectorErrors.push(`state-write: ${e.message}`);
+                core.warning(`state cell write failed: ${e.message}`);
               }
             }
 
-            });
-
             if (signals.length === 0) {
               if (collectorErrors.length > 0) {
-                // A quiet run with broken sensors is indistinguishable from a
-                // healthy quiet run — the exact ambiguity that let the last
-                // silent failure live 58 days. Go red so it gets fixed.
                 core.setFailed(`no signals, but ${collectorErrors.length} collector(s) broken: ${collectorErrors.join(' | ')}`);
               } else {
                 core.info('No new human engagement in the last 26h.');
