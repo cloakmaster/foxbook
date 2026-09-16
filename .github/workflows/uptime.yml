@@ -128,12 +128,31 @@ jobs:
             });
             const existing = open.data.find(i => i.title === title);
             if (existing) {
-              await github.rest.issues.createComment({
+              // Same daily throttle as the `verify` job below. The May 2026
+              // outage ran 13 days and put 100 comments on a single
+              // incident; a multi-week failure would be far worse. The
+              // issue being OPEN is the state — comments are only the
+              // heartbeat.
+              const DAY_MS = 24 * 60 * 60 * 1000;
+              const recent = await github.rest.issues.listComments({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: existing.number,
-                body: `Still failing at ${now}. Reason: ${reason}`,
+                per_page: 100,
+                page: Math.max(1, Math.ceil((existing.comments || 0) / 100)),
               });
+              const last = recent.data[recent.data.length - 1];
+              const lastAt = last ? Date.parse(last.created_at) : Date.parse(existing.created_at);
+              if (Date.now() - lastAt >= DAY_MS) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existing.number,
+                  body: `Still failing as of ${now} (daily heartbeat). Reason: ${reason}`,
+                });
+              } else {
+                core.info(`Incident #${existing.number} already noted within the last 24h — not commenting.`);
+              }
             } else {
               await github.rest.issues.create({
                 owner: context.repo.owner,
@@ -281,12 +300,35 @@ jobs:
             });
             const existing = open.data.find(i => i.title === title);
             if (existing) {
-              await github.rest.issues.createComment({
+              // Throttle the "still failing" heartbeat to once a day.
+              //
+              // This job runs every 30 min, and a verification failure is
+              // not the kind that clears on its own — it persists until
+              // someone re-signs the log. Commenting per run turned the
+              // first incident (#133) into 694 comments over 48 days,
+              // which is not a louder signal, it is an unreadable one.
+              // The issue being OPEN is the state; comments are only the
+              // heartbeat, so one a day is plenty to show it is still live.
+              const DAY_MS = 24 * 60 * 60 * 1000;
+              const recent = await github.rest.issues.listComments({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: existing.number,
-                body: `Still failing at ${now}.\n\n\`\`\`\n${reason}\n\`\`\``,
+                per_page: 100,
+                page: Math.max(1, Math.ceil((existing.comments || 0) / 100)),
               });
+              const last = recent.data[recent.data.length - 1];
+              const lastAt = last ? Date.parse(last.created_at) : Date.parse(existing.created_at);
+              if (Date.now() - lastAt >= DAY_MS) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existing.number,
+                  body: `Still failing as of ${now} (daily heartbeat; this job runs every 30 min).\n\n\`\`\`\n${reason}\n\`\`\``,
+                });
+              } else {
+                core.info(`Incident #${existing.number} already noted within the last 24h — not commenting.`);
+              }
             } else {
               await github.rest.issues.create({
                 owner: context.repo.owner,
