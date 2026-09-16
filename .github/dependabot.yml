@@ -1,4 +1,11 @@
-# Dependabot config — weekly update PRs across every ecosystem in the repo.
+# Dependabot config — monthly update PRs across every ecosystem in the repo.
+#
+# Monthly (not weekly) since the September 2026 move to passive maintenance:
+# nobody is reviewing weekly PRs, so a weekly cadence just accumulates an
+# unmergeable queue (14 deep by Sep 2026) that buries real signals. Monthly
+# keeps the repo current at ~1 batch-review per quarter-hour of attention.
+# SECURITY updates are unaffected — Dependabot security PRs ignore this
+# schedule and land immediately, which is the part that must not wait.
 #
 # Minor + patch bumps are grouped into a single PR per ecosystem to keep
 # review load low; major bumps stay as individual PRs so breaking changes
@@ -12,7 +19,7 @@ updates:
   - package-ecosystem: npm
     directory: "/"
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 10
     groups:
       npm-minor-patch:
@@ -24,7 +31,7 @@ updates:
   - package-ecosystem: pip
     directory: "/"
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 10
     groups:
       pip-minor-patch:
@@ -36,7 +43,7 @@ updates:
   - package-ecosystem: gomod
     directory: "/apps/log-daemon-go"
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 10
     groups:
       gomod-minor-patch:
@@ -48,7 +55,7 @@ updates:
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 10
     groups:
       actions-minor-patch:

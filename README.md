@@ -3,7 +3,7 @@
 [![CI](https://github.com/cloakmaster/foxbook/actions/workflows/ci.yml/badge.svg)](https://github.com/cloakmaster/foxbook/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-Verifiable agent identity for A2A and MCP.
+Verifiable agent identity for A2A and MCP. The [`did:foxbook`](docs/specs/did-foxbook-method.md) method is registered in the [W3C DID method registry](https://github.com/w3c/did-extensions/pull/716); the transparency log is live and [third-party verifiable in 60 seconds](docs/VERIFY-IN-60-SECONDS.md) — three curls, no API key, no trust-the-server step.
 
 ```typescript
 import { verifyAgentCard } from "@foxbook/sdk-claim";
@@ -84,7 +84,12 @@ A2A and MCP both opened discussions about trust between agents — composable ev
 
 **Stable / maintenance mode** ([ADR 0008](docs/decisions/0008-stable-mode-maintenance-posture.md)). Public commitments shipped; protocol surface frozen at v0.2; live deployments + brand + ops continuity preserved. PRs welcome for bug fixes and docs; review may take weeks. Security: `hello@foxbook.dev`.
 
+Maintenance is deliberately passive, not absent: the log's liveness **and** third-party verifiability are machine-checked every 30 minutes ([`uptime.yml`](.github/workflows/uptime.yml) — a log that serves 200s with an unverifiable signature goes red, not green), and human engagement — an issue, a discussion reply, a fork — pages the maintainer daily ([`community-watch.yml`](.github/workflows/community-watch.yml)). If you open an issue, you will be seen. The operational history, including two full incident postmortems, is public in [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — this project discloses its failures in the same log-shaped spirit it asks agents to adopt.
+
 **Live**
+
+- `did:foxbook` **registered in the [W3C DID method registry](https://github.com/w3c/did-extensions/pull/716)** (merged 2026-07-04) — a non-ledger, transparency-log-anchored DID method.
+- `@foxbook/sdk-claim` **0.3.0** — [security release](https://github.com/cloakmaster/foxbook/releases/tag/v0.3.0): `verify()` verifies the signed tree head before trusting any inclusion proof, and fails closed. Upgrade from 0.2.x.
 
 - Public transparency log: signed tree head per append, consistency proofs.
 - Tier-1 verification via GitHub Gist, with an identity guard at the URL-owner level.
