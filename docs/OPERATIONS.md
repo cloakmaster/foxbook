@@ -27,6 +27,47 @@ Then read the rest of this doc.
 
 ---
 
+## Passive mode (posture since 2026-09-16)
+
+The maintainer is on other projects. The repo is designed to run **unattended** and to make a human signal impossible to miss. What runs without you:
+
+| Automation | Cadence | What it catches | How it alerts |
+|---|---|---|---|
+| `uptime.yml` → `check` | 15/30 min | endpoint down | `uptime-incident` issue + red run; auto-closes on recovery |
+| `uptime.yml` → `verify` | 30 min | **log up but not third-party verifiable** (the 107-day failure class) | `verification-incident` issue + red run; auto-closes on recovery |
+| `community-watch.yml` | daily | a human starred, forked, opened an issue/PR, or replied in a discussion | opens a `community-engagement` issue **assigned to you** — the one notification class that stays loud |
+| Dependabot | monthly (security: immediate) | dependency updates / CVEs | PRs; security PRs ignore the monthly schedule |
+
+Incident-issue heartbeats are throttled to one comment per 24h, so an open issue is the state and the notification volume stays near zero. **If your inbox is quiet, the system is healthy or the system is lying — `node scripts/verify-live-log.mjs` distinguishes the two in ten seconds.**
+
+### Merging your own PRs (the solo-maintainer deadlock)
+
+`main` requires code-owner review (`CODEOWNERS` → you) **and** `enforce_admins` is on — so a PR you author touching an owned path can never be merged normally: GitHub forbids self-approval and admin override is disabled. `mergeStateStatus: UNSTABLE` with green required checks is this deadlock, not a CI problem. The ritual (restore step is not optional):
+
+```bash
+gh api -X DELETE repos/cloakmaster/foxbook/branches/main/protection/enforce_admins
+gh pr merge <N> --squash --delete-branch --admin
+gh api -X POST   repos/cloakmaster/foxbook/branches/main/protection/enforce_admins
+# then verify the whole object, not just the one flag:
+gh api repos/cloakmaster/foxbook/branches/main/protection --jq '{enforce_admins:.enforce_admins.enabled, code_owner:.required_pull_request_reviews.require_code_owner_reviews}'
+```
+
+This matters most for **Dependabot security PRs**: they arrive regardless of schedule and cannot land without this ritual. A security patch sitting unmerged for months is the passive-mode failure to avoid.
+
+### Quarterly checklist (~15 minutes)
+
+1. `node scripts/verify-live-log.mjs` → PASS.
+2. Neon console → Usage: compute-hours vs the 192 cap (see § "Neon compute-hour exhaustion").
+3. Merge the accumulated Dependabot batch (gate: `pnpm typecheck && pnpm lint && pnpm test && pnpm build`). Majors held back as of 2026-09: canonicalize 3→5 (**RFC 8785 byte-match surface — test against the interop fixtures, never batch**), typescript 7, vitest 5, quicktype-core 26, json-schema-to-typescript 16.
+4. Check the security advisory state — if `GHSA-p545-2f5r-5g4c` is still `draft`, publish it; a draft reaches nobody.
+5. After **any** API deploy: `node scripts/verify-live-log.mjs` again. The append guard means a wrong `FOXBOOK_LOG_SIGNING_KEY_HEX` now refuses writes loudly instead of corrupting silently — but the probe is the confirmation.
+
+### Known reds (accepted, documented)
+
+- **`Workers Builds: foxbook`** fails on every commit — a Cloudflare-dashboard build integration broken since ≤ June 2026. Not a required check; deploys are manual (`pnpm --filter @foxbook/transparency cf:deploy`). Fix or disconnect it in the Cloudflare dashboard when convenient — a permanently red check trains you to ignore red, which is how the last silent failure survived 58 days.
+
+---
+
 ## Monthly cost (target <$30/month)
 
 Confirm against actual billing dashboards quarterly. Estimates below are based on public pricing as of 2026-05.

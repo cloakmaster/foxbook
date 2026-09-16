@@ -1,0 +1,158 @@
+# Community engagement watcher — the alarm on the door for passive mode.
+#
+# Foxbook entered passive maintenance in September 2026: the maintainer is
+# on other projects and is not reading this repo's notification stream
+# day-to-day. History shows what that means unattended: issue #133 accrued
+# 694 comments over 48 days before anyone looked. The failure mode passive
+# mode must prevent is not "no notifications" — it is "a real human signal
+# drowned in bot noise."
+#
+# This workflow runs daily and looks ONLY for signals a human caused:
+#   - new stargazers
+#   - new forks
+#   - new issues or PRs authored by someone who is not the maintainer or a bot
+#   - new discussions, or new discussion comments, by someone who is not
+#     the maintainer or a bot (this is how a reply from an integrator on
+#     e.g. discussion #73 surfaces)
+#
+# When it finds any, it opens (or comments on) a single issue labeled
+# `community-engagement`, assigned to the maintainer. Assignment is the
+# point: GitHub ranks assigned-issue notifications above watch noise, so
+# this is the one channel that stays loud when everything else is muted.
+# Close the issue after responding; the next signal opens a fresh one.
+#
+# Detection window is 26h against a 24h cron — the overlap means a signal
+# can never fall between runs; the cost is a rare duplicate line, which is
+# harmless. No state is stored anywhere.
+#
+# Bot-caused events (dependabot PRs, uptime/verification incidents, this
+# workflow's own issues) are filtered out — they are exactly the noise
+# this exists to rise above.
+#
+# Security: no matrix values or user-controlled strings reach a run: block;
+# everything happens inside github-script. Third-party content (issue
+# titles) is embedded only as markdown text in an issue body.
+
+name: community-watch
+
+on:
+  schedule:
+    - cron: "37 6 * * *" # daily, 06:37 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect human engagement in the last 26h
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const OWNER = context.repo.owner;
+            const REPO = context.repo.repo;
+            const MAINTAINER = 'cloakmaster';
+            const WINDOW_MS = 26 * 60 * 60 * 1000;
+            const sinceMs = Date.now() - WINDOW_MS;
+            const since = new Date(sinceMs).toISOString();
+            const isBot = (login) => !login || login.endsWith('[bot]');
+            const isSelf = (login) => login === MAINTAINER;
+            const signals = [];
+
+            // --- stars (starred_at requires the star+json media type) ---
+            const stars = await github.paginate(github.rest.activity.listStargazersForRepo, {
+              owner: OWNER, repo: REPO, per_page: 100,
+              headers: { accept: 'application/vnd.github.star+json' },
+            });
+            for (const s of stars) {
+              const login = s.user?.login;
+              if (s.starred_at && Date.parse(s.starred_at) >= sinceMs && !isSelf(login) && !isBot(login)) {
+                signals.push(`⭐ New star from @${login}`);
+              }
+            }
+
+            // --- forks ---
+            const forks = await github.paginate(github.rest.repos.listForks, {
+              owner: OWNER, repo: REPO, per_page: 100,
+            });
+            for (const f of forks) {
+              if (Date.parse(f.created_at) >= sinceMs) {
+                signals.push(`🍴 New fork: ${f.full_name} (${f.html_url})`);
+              }
+            }
+
+            // --- issues + PRs opened by humans ---
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: OWNER, repo: REPO, state: 'all', since, per_page: 100,
+            });
+            for (const i of issues) {
+              const login = i.user?.login;
+              if (isSelf(login) || isBot(login)) continue;
+              if (Date.parse(i.created_at) >= sinceMs) {
+                const kind = i.pull_request ? 'PR' : 'Issue';
+                signals.push(`📥 New ${kind} #${i.number} by @${login}: "${i.title}" — ${i.html_url}`);
+              }
+            }
+
+            // --- discussions: new threads, and new comments by others.
+            // This is the channel an integrator reply lands on (e.g. #73),
+            // so it gets belt-and-braces coverage even though GitHub also
+            // notifies natively.
+            const q = `query($owner:String!,$name:String!){
+              repository(owner:$owner,name:$name){
+                discussions(first:15,orderBy:{field:UPDATED_AT,direction:DESC}){
+                  nodes{
+                    number title url createdAt author{login}
+                    comments(last:10){nodes{createdAt url author{login}}}
+                  }
+                }
+              }
+            }`;
+            const d = await github.graphql(q, { owner: OWNER, name: REPO });
+            for (const disc of d.repository.discussions.nodes) {
+              const a = disc.author?.login;
+              if (Date.parse(disc.createdAt) >= sinceMs && !isSelf(a) && !isBot(a)) {
+                signals.push(`💬 New discussion #${disc.number} by @${a}: "${disc.title}" — ${disc.url}`);
+              }
+              for (const c of disc.comments.nodes) {
+                const ca = c.author?.login;
+                if (Date.parse(c.createdAt) >= sinceMs && !isSelf(ca) && !isBot(ca)) {
+                  signals.push(`💬 New comment on discussion #${disc.number} ("${disc.title}") by @${ca} — ${c.url}`);
+                }
+              }
+            }
+
+            if (signals.length === 0) {
+              core.info('No new human engagement in the last 26h.');
+              return;
+            }
+
+            const body = [
+              `Human engagement detected in the last 26h:`,
+              '',
+              ...signals.map((s) => `- ${s}`),
+              '',
+              `_Reply promptly — an interested visitor who hears nothing concludes the project is dead, and this repo's pitch is that the log is alive._`,
+            ].join('\n');
+
+            const open = await github.rest.issues.listForRepo({
+              owner: OWNER, repo: REPO, state: 'open',
+              labels: 'community-engagement', per_page: 10,
+            });
+            if (open.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: OWNER, repo: REPO,
+                issue_number: open.data[0].number, body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: OWNER, repo: REPO,
+                title: '👋 Someone engaged with foxbook',
+                body: body + '\n\nClose this after responding — the watcher opens a fresh one on the next signal.',
+                labels: ['community-engagement'],
+                assignees: [MAINTAINER],
+              });
+            }
